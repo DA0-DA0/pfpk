@@ -24,16 +24,17 @@ const EMPTY_PROFILE = {
   nft: null,
 };
 
-// create CORS handlers
+// Create CORS handlers.
 const { preflight, corsify } = createCors({
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "OPTIONS"],
   origins: ["*"],
   maxAge: 3600,
   headers: {},
 });
+
 const router = Router();
 
-// handle CORS preflight/OPTIONS requests
+// Handle CORS preflight OPTIONS request.
 router.options("*", preflight);
 
 // Fetch profile.
@@ -151,15 +152,6 @@ router.post("/:publicKey", async (request, env: Env) => {
     }
     if (!("profile" in requestBody)) {
       throw new Error("Missing profile.");
-    }
-    if (!("name" in requestBody.profile)) {
-      throw new Error("Missing profile.name.");
-    }
-    if (!("nft" in requestBody.profile)) {
-      throw new Error("Missing profile.nft.");
-    }
-    if (!("epoch" in requestBody)) {
-      throw new Error("Missing epoch.");
     }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
