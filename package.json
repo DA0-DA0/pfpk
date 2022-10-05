@@ -1,0 +1,21 @@
+{
+  "name": "pfpk",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "publish": "wrangler publish"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^3.16.0",
+    "@types/crypto-js": "^4.1.1",
+    "wrangler": "2.1.10"
+  },
+  "dependencies": {
+    "@cosmjs/crypto": "^0.29.0",
+    "@cosmjs/encoding": "^0.29.0",
+    "crypto-js": "^4.1.1",
+    "itty-cors": "^0.2.2",
+    "itty-router": "^2.6.6"
+  }
+}
