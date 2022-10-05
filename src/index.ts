@@ -153,6 +153,9 @@ router.post("/:publicKey", async (request, env: Env) => {
     if (!("profile" in requestBody)) {
       throw new Error("Missing profile.");
     }
+    if (!requestBody.profile || !("nonce" in requestBody.profile)) {
+      throw new Error("Missing profile.nonce.");
+    }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
     }
@@ -213,9 +216,10 @@ router.post("/:publicKey", async (request, env: Env) => {
   }
   if (requestBody.profile.nft !== undefined) {
     profile.nft = {
-      ...requestBody.profile.nft,
       // We only support Stargaze for now.
       chainId: STARGAZE_CHAIN_ID,
+      tokenId: requestBody.profile.nft.tokenId,
+      collectionAddress: requestBody.profile.nft.collectionAddress,
     };
   }
   // Increment nonce to prevent replay attacks.
