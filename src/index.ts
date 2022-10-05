@@ -16,7 +16,7 @@ import {
 } from "./utils";
 
 const STARGAZE_API_TEMPLATE =
-  "https://nft-api.elgafar-1.stargaze-apis.com/api/v1beta/profile/{{address}}/nfts";
+  "https://nft-api.stargaze-apis.com/api/v1beta/profile/{{address}}/nfts";
 const STARGAZE_CHAIN_ID = "stargaze-1";
 
 const EMPTY_PROFILE = {
