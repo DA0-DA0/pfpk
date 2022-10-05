@@ -230,12 +230,13 @@ router.post("/:publicKey", async (request, env: Env) => {
     });
   }
 
-  // Update fields with body data available.
+  // Update fields with body data available. Both are nullable, so allow setting
+  // to null or new value.
   if (requestBody.profile.name !== undefined) {
     profile.name = requestBody.profile.name;
   }
   if (requestBody.profile.nft !== undefined) {
-    profile.nft = {
+    profile.nft = requestBody.profile.nft && {
       // We only support Stargaze for now.
       chainId: STARGAZE_CHAIN_ID,
       tokenId: requestBody.profile.nft.tokenId,

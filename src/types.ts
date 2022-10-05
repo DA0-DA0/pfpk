@@ -43,7 +43,7 @@ export interface UpdateProfileRequest {
   profile: Partial<
     Omit<Profile, "nonce" | "nft"> & {
       // Do not require `nft.chainId`, since for now we only support Stargaze.
-      nft: Omit<ProfileNft, "chainId">;
+      nft: Omit<ProfileNft, "chainId"> | null;
     }
   > &
     Pick<Profile, "nonce">;
