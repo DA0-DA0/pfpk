@@ -1,4 +1,5 @@
-import { toUtf8 } from "@cosmjs/encoding";
+import { serializeSignDoc } from "@cosmjs/amino";
+import { toBase64, toUtf8 } from "@cosmjs/encoding";
 import { createCors } from "itty-cors";
 import { Router } from "itty-router";
 import {
@@ -26,10 +27,12 @@ const EMPTY_PROFILE = {
 
 // Create CORS handlers.
 const { preflight, corsify } = createCors({
-  methods: ["GET", "POST", "OPTIONS"],
+  methods: ["GET", "POST"],
   origins: ["*"],
   maxAge: 3600,
-  headers: {},
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 const router = Router();
@@ -41,10 +44,6 @@ router.options("*", preflight);
 router.get("/:publicKey", async (request, env: Env) => {
   const respond = (status: number, response: FetchProfileResponse) =>
     new Response(JSON.stringify(response), {
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
       status,
     });
 
@@ -132,10 +131,6 @@ router.get("/:publicKey", async (request, env: Env) => {
 router.post("/:publicKey", async (request, env: Env) => {
   const respond = (status: number, response: UpdateProfileResponse) =>
     new Response(JSON.stringify(response), {
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
       status,
     });
 
@@ -159,6 +154,9 @@ router.post("/:publicKey", async (request, env: Env) => {
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
     }
+    if (!("signer" in requestBody)) {
+      throw new Error("Missing signer.");
+    }
   } catch (err) {
     console.error("Parsing request body", err);
 
@@ -172,7 +170,9 @@ router.post("/:publicKey", async (request, env: Env) => {
   let profile: Profile = { ...EMPTY_PROFILE };
   try {
     const stringifiedData = await env.PROFILES.get(publicKey);
-    profile = stringifiedData ? JSON.parse(stringifiedData) : undefined;
+    if (stringifiedData) {
+      profile = JSON.parse(stringifiedData);
+    }
   } catch (err) {
     console.error("Profile retrieval or parsing", err);
 
@@ -191,7 +191,26 @@ router.post("/:publicKey", async (request, env: Env) => {
 
   try {
     // Verify signature. (`requestBody.profile` contains `nonce`)
-    const message = toUtf8(JSON.stringify(requestBody.profile));
+    // https://github.com/chainapsis/keplr-wallet/blob/54aaaf6112d41944eaf23826db823eb044b09e78/packages/provider/src/core.ts#L329-L349
+    const message = serializeSignDoc({
+      chain_id: "",
+      account_number: "0",
+      sequence: "0",
+      fee: {
+        gas: "0",
+        amount: [],
+      },
+      msgs: [
+        {
+          type: "sign/MsgSignData",
+          value: {
+            signer: requestBody.signer,
+            data: toBase64(toUtf8(JSON.stringify(requestBody.profile))),
+          },
+        },
+      ],
+      memo: "",
+    });
     if (
       !(await verifySecp256k1Signature(
         publicKey,
@@ -245,6 +264,20 @@ router.all("*", () => new Response("404", { status: 404 }));
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return router.handle(request, env).then(corsify);
+    return router
+      .handle(request, env)
+      .catch(
+        (err) =>
+          new Response(
+            JSON.stringify({
+              error: "Unknown",
+              message: err instanceof Error ? err.message : `${err}`,
+            }),
+            {
+              status: 500,
+            }
+          )
+      )
+      .then(corsify);
   },
 };

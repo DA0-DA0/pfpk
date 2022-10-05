@@ -48,6 +48,7 @@ export interface UpdateProfileRequest {
   > &
     Pick<Profile, "nonce">;
   signature: string;
+  signer: string;
 }
 
 // Body of profile update response.
