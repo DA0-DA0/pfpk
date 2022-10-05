@@ -31,6 +31,7 @@ const { preflight, corsify } = createCors({
   origins: ["*"],
   maxAge: 3600,
   headers: {
+    "Access-Control-Allow-Origin": "*",
     "Content-Type": "application/json",
   },
 });
