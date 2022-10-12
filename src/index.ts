@@ -161,7 +161,7 @@ router.post("/:publicKey", async (request, env: Env) => {
       typeof requestBody.profile.name === "string" &&
       requestBody.profile.name.trim().length === 0
     ) {
-      throw new Error("Name cannot be set to an empty string.");
+      throw new Error("Name cannot be empty.");
     }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
@@ -241,11 +241,15 @@ router.post("/:publicKey", async (request, env: Env) => {
     });
   }
 
+  // Normalize name to prevent impersonation via whitespace.
+  const normalizedName =
+    requestBody.profile.name && requestBody.profile.name.trim();
+
   // If setting name, verify unique.
-  if (typeof requestBody.profile.name === "string") {
+  if (typeof normalizedName === "string") {
     try {
       const nameTaken =
-        (await env.PROFILES.get(getNameTakenKey(requestBody.profile.name))) ===
+        (await env.PROFILES.get(getNameTakenKey(normalizedName))) ===
         NAME_TAKEN_VALUE;
       if (nameTaken) {
         return respond(500, {
@@ -266,8 +270,8 @@ router.post("/:publicKey", async (request, env: Env) => {
 
   // Update fields with body data available. Both are nullable, so allow setting
   // to null or new value.
-  if (requestBody.profile.name !== undefined) {
-    profile.name = requestBody.profile.name;
+  if (normalizedName !== undefined) {
+    profile.name = normalizedName;
   }
   if (requestBody.profile.nft !== undefined) {
     profile.nft = requestBody.profile.nft && {
