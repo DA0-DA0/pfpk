@@ -25,6 +25,9 @@ const EMPTY_PROFILE = {
   nft: null,
 };
 
+const getNameTakenKey = (name: string) => `nameTaken:${name}`;
+const NAME_TAKEN_VALUE = "1";
+
 // Create CORS handlers.
 const { preflight, corsify } = createCors({
   methods: ["GET", "POST"],
@@ -143,6 +146,7 @@ router.post("/:publicKey", async (request, env: Env) => {
   let requestBody: UpdateProfileRequest;
   try {
     requestBody = await request.json?.();
+    // Validate body.
     if (!requestBody) {
       throw new Error("Missing.");
     }
@@ -151,6 +155,13 @@ router.post("/:publicKey", async (request, env: Env) => {
     }
     if (!requestBody.profile || !("nonce" in requestBody.profile)) {
       throw new Error("Missing profile.nonce.");
+    }
+    if (
+      "name" in requestBody.profile &&
+      typeof requestBody.profile.name === "string" &&
+      requestBody.profile.name.trim().length === 0
+    ) {
+      throw new Error("Name cannot be set to an empty string.");
     }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
@@ -168,11 +179,11 @@ router.post("/:publicKey", async (request, env: Env) => {
   }
 
   // Get existing profile.
-  let profile: Profile = { ...EMPTY_PROFILE };
+  let existingProfile: Profile = { ...EMPTY_PROFILE };
   try {
     const stringifiedData = await env.PROFILES.get(publicKey);
     if (stringifiedData) {
-      profile = JSON.parse(stringifiedData);
+      existingProfile = JSON.parse(stringifiedData);
     }
   } catch (err) {
     console.error("Profile retrieval or parsing", err);
@@ -184,9 +195,9 @@ router.post("/:publicKey", async (request, env: Env) => {
   }
 
   // Validate nonce to prevent replay attacks.
-  if (requestBody.profile.nonce !== profile.nonce) {
+  if (requestBody.profile.nonce !== existingProfile.nonce) {
     return respond(401, {
-      error: `Invalid nonce. Expected: ${profile.nonce}`,
+      error: `Invalid nonce. Expected: ${existingProfile.nonce}`,
     });
   }
 
@@ -230,6 +241,29 @@ router.post("/:publicKey", async (request, env: Env) => {
     });
   }
 
+  // If setting name, verify unique.
+  if (typeof requestBody.profile.name === "string") {
+    try {
+      const nameTaken =
+        (await env.PROFILES.get(getNameTakenKey(requestBody.profile.name))) ===
+        NAME_TAKEN_VALUE;
+      if (nameTaken) {
+        return respond(500, {
+          error: "Name already exists.",
+        });
+      }
+    } catch (err) {
+      console.error("Name uniqueness retrieval", err);
+
+      return respond(500, {
+        error: "Failed to check name uniqueness.",
+        message: err instanceof Error ? err.message : `${err}`,
+      });
+    }
+  }
+
+  const profile = { ...existingProfile };
+
   // Update fields with body data available. Both are nullable, so allow setting
   // to null or new value.
   if (requestBody.profile.name !== undefined) {
@@ -248,7 +282,18 @@ router.post("/:publicKey", async (request, env: Env) => {
 
   // Save.
   try {
+    // If setting new name, save name taken.
+    if (profile.name && profile.name !== existingProfile.name) {
+      await env.PROFILES.put(getNameTakenKey(profile.name), NAME_TAKEN_VALUE);
+    }
+
+    // Save new profile.
     await env.PROFILES.put(publicKey, JSON.stringify(profile));
+
+    // If profile had name set, unset taken.
+    if (existingProfile.name) {
+      await env.PROFILES.delete(getNameTakenKey(existingProfile.name));
+    }
   } catch (err) {
     console.error("Profile save", err);
 
