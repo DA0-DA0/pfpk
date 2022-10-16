@@ -1,9 +1,6 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import {
-  VerificationError,
-  GetOwnedNftImageUrlFunction,
-  NotOwnerError,
-} from "../types";
+import { GetOwnedNftImageUrlFunction } from "../types";
+import { KnownError, NotOwnerError } from "../error";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
 import * as Cw721 from "../cw721";
 
@@ -19,7 +16,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     junoAddress = secp256k1PublicKeyToBech32Address(publicKey, "juno");
   } catch (err) {
     console.error("PK to Address", err);
-    throw new VerificationError(400, "Invalid public key.", err);
+    throw new KnownError(400, "Invalid public key.", err);
   }
 
   let imageUrl: string | undefined;
@@ -35,12 +32,12 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     imageUrl = await Cw721.getImageUrl(client, collectionAddress, tokenId);
   } catch (err) {
     // If error already handled, pass up the chain.
-    if (err instanceof VerificationError || err instanceof NotOwnerError) {
+    if (err instanceof KnownError || err instanceof NotOwnerError) {
       throw err;
     }
 
     console.error(err);
-    throw new VerificationError(
+    throw new KnownError(
       500,
       "Unexpected error retrieving NFT info from chain.",
       err
@@ -49,7 +46,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
 
   // If image is empty, cannot be used as profile picture.
   if (!imageUrl) {
-    throw new VerificationError(
+    throw new KnownError(
       415,
       "Invalid NFT data.",
       "Failed to retrieve image data from NFT."

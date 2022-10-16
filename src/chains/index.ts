@@ -1,5 +1,6 @@
 import { JUNO_CHAIN_ID, STARGAZE_CHAIN_ID } from "../constants";
-import { VerificationError, GetOwnedNftImageUrlFunction } from "../types";
+import { GetOwnedNftImageUrlFunction } from "../types";
+import { KnownError } from "../error";
 import { getOwnedNftImageUrl as stargaze } from "./stargaze";
 import { getOwnedNftImageUrl as juno } from "./juno";
 
@@ -14,7 +15,7 @@ export const getOwnedNftImageUrl = async (
 ): ReturnType<GetOwnedNftImageUrlFunction> => {
   const fn = CHAINS[chainId];
   if (!fn) {
-    throw new VerificationError(400, "Invalid chain ID.");
+    throw new KnownError(400, "Invalid chain ID.");
   }
 
   return await fn(...params);

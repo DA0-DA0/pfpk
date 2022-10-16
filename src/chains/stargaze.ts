@@ -1,8 +1,5 @@
-import {
-  VerificationError,
-  GetOwnedNftImageUrlFunction,
-  NotOwnerError,
-} from "../types";
+import { GetOwnedNftImageUrlFunction } from "../types";
+import { KnownError, NotOwnerError } from "../error";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
 
 const STARGAZE_API_TEMPLATE =
@@ -28,7 +25,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     stargazeAddress = secp256k1PublicKeyToBech32Address(publicKey, "stars");
   } catch (err) {
     console.error("PK to Address", err);
-    throw new VerificationError(400, "Invalid public key.", err);
+    throw new KnownError(400, "Invalid public key.", err);
   }
 
   // Search Stargaze API for this address's NFTs. If the desired NFT is not
@@ -50,7 +47,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
 
   // If image is empty, cannot be used as profile picture.
   if (!stargazeNft.image) {
-    throw new VerificationError(
+    throw new KnownError(
       415,
       "Invalid NFT data.",
       "Failed to retrieve image data from NFT."

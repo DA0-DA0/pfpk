@@ -51,3 +51,9 @@ export const verifySecp256k1Signature = async (
 
   return await Secp256k1.verifySignature(signature, messageHash, publicKeyData);
 };
+
+// Use Stargaze's IPFS gateway.
+export const transformIpfsUrlToHttpsIfNecessary = (ipfsUrl: string) =>
+  ipfsUrl.startsWith("ipfs://")
+    ? ipfsUrl.replace("ipfs://", "https://ipfs.stargaze.zone/ipfs/")
+    : ipfsUrl;

@@ -9,9 +9,8 @@ import {
   UpdateProfileResponse,
   UpdateProfileRequest,
   Env,
-  VerificationError,
-  NotOwnerError,
 } from "./types";
+import { KnownError, NotOwnerError } from "./error";
 import { verifySecp256k1Signature } from "./utils";
 
 const EMPTY_PROFILE = {
@@ -94,7 +93,7 @@ router.get("/:publicKey", async (request, env: Env) => {
       nft.tokenId
     );
   } catch (err) {
-    if (err instanceof VerificationError) {
+    if (err instanceof KnownError) {
       return respond(400, err.responseJson);
     }
 
@@ -292,7 +291,7 @@ router.post("/:publicKey", async (request, env: Env) => {
       }
 
       // If already handled, respond with specific error.
-      if (err instanceof VerificationError) {
+      if (err instanceof KnownError) {
         return respond(err.statusCode, err.responseJson);
       }
 

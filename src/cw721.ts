@@ -1,5 +1,6 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { Nft, VerificationError } from "./types";
+import { KnownError } from "./error";
+import { transformIpfsUrlToHttpsIfNecessary } from "./utils";
 
 type Expiration =
   | {
@@ -104,7 +105,7 @@ export const getImageUrl = async (
           }
         } catch (err) {
           console.error(err);
-          throw new VerificationError(
+          throw new KnownError(
             415,
             "Invalid NFT data.",
             "Failed to parse token_uri data as JSON."
@@ -116,12 +117,12 @@ export const getImageUrl = async (
       }
     } catch (err) {
       // If error already handled, pass up the chain.
-      if (err instanceof VerificationError) {
+      if (err instanceof KnownError) {
         throw err;
       }
 
       console.error(err);
-      throw new VerificationError(
+      throw new KnownError(
         500,
         "Unexpected error retrieving token_uri data.",
         err
@@ -131,9 +132,3 @@ export const getImageUrl = async (
 
   return imageUrl;
 };
-
-// Use Stargaze's IPFS gateway.
-const transformIpfsUrlToHttpsIfNecessary = (ipfsUrl: string) =>
-  ipfsUrl.startsWith("ipfs://")
-    ? ipfsUrl.replace("ipfs://", "https://ipfs.stargaze.zone/ipfs/")
-    : ipfsUrl;
