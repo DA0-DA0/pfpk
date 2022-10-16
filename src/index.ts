@@ -2,22 +2,16 @@ import { serializeSignDoc } from "@cosmjs/amino";
 import { toBase64, toUtf8 } from "@cosmjs/encoding";
 import { createCors } from "itty-cors";
 import { Router } from "itty-router";
+import { getOwnedNftImageUrl } from "./chains";
 import {
   Profile,
   FetchProfileResponse,
-  StargazeNft,
   UpdateProfileResponse,
   UpdateProfileRequest,
   Env,
+  VerificationError,
 } from "./types";
-import {
-  secp256k1PublicKeyToBech32Address,
-  verifySecp256k1Signature,
-} from "./utils";
-
-const STARGAZE_API_TEMPLATE =
-  "https://nft-api.stargaze-apis.com/api/v1beta/profile/{{address}}/nfts";
-const STARGAZE_CHAIN_ID = "stargaze-1";
+import { verifySecp256k1Signature } from "./utils";
 
 const EMPTY_PROFILE = {
   nonce: 0,
@@ -56,18 +50,6 @@ router.get("/:publicKey", async (request, env: Env) => {
     return respond(400, { error: "Missing publicKey." });
   }
 
-  let stargazeAddress;
-  try {
-    stargazeAddress = secp256k1PublicKeyToBech32Address(publicKey, "stars");
-  } catch (err) {
-    console.error("PK to Address", err);
-
-    return respond(400, {
-      error: "Invalid public key.",
-      message: err instanceof Error ? err.message : `${err}`,
-    });
-  }
-
   let profile: Profile;
   try {
     const stringifiedData = await env.PROFILES.get(publicKey);
@@ -86,36 +68,48 @@ router.get("/:publicKey", async (request, env: Env) => {
     });
   }
 
+  // Response object for mutating with NFT if present.
   const response: FetchProfileResponse = {
     nonce: profile.nonce,
     name: profile.name?.trim() || null,
     nft: null,
   };
 
+  // Get NFT from stored profile data.
   const { nft } = profile;
-
   // If no NFT, respond with name potentially set.
   if (!nft) {
     return respond(200, response);
   }
 
-  // Search Stargaze API for this address's NFT. If not present, public key does
-  // not own this NFT anymore.
-  const stargazeNfts: StargazeNft[] = await (
-    await fetch(STARGAZE_API_TEMPLATE.replace("{{address}}", stargazeAddress))
-  ).json();
-  const stargazeNft = stargazeNfts.find(
-    ({ collection: { contractAddress }, tokenId }) =>
-      contractAddress === nft.collectionAddress && tokenId === nft.tokenId
-  );
+  // Verify selected NFT still belongs to the public key before responding with
+  // it.
+  let chainNftImageUrl;
+  try {
+    chainNftImageUrl = await getOwnedNftImageUrl(
+      nft.chainId,
+      publicKey,
+      nft.collectionAddress,
+      nft.tokenId
+    );
+  } catch (err) {
+    if (err instanceof VerificationError) {
+      return respond(400, err.responseJson);
+    }
+
+    return respond(500, {
+      error: "Unexpected verification error.",
+      message: err instanceof Error ? err.message : `${err}`,
+    });
+  }
 
   // If found NFT, add to response.
-  if (stargazeNft) {
+  if (chainNftImageUrl) {
     response.nft = {
-      chainId: STARGAZE_CHAIN_ID,
-      tokenId: stargazeNft.tokenId,
-      imageUrl: stargazeNft.image,
-      collectionAddress: stargazeNft.collection.contractAddress,
+      chainId: nft.chainId,
+      collectionAddress: nft.collectionAddress,
+      tokenId: nft.tokenId,
+      imageUrl: chainNftImageUrl,
     };
   } else {
     // Otherwise unset NFT from this address since they no longer own it.
@@ -162,6 +156,13 @@ router.post("/:publicKey", async (request, env: Env) => {
       requestBody.profile.name.trim().length === 0
     ) {
       throw new Error("Name cannot be empty.");
+    }
+    if (
+      "name" in requestBody.profile &&
+      typeof requestBody.profile.name === "string" &&
+      requestBody.profile.name.trim().length > 32
+    ) {
+      throw new Error("Name cannot be longer than 32 characters.");
     }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
@@ -266,6 +267,35 @@ router.post("/:publicKey", async (request, env: Env) => {
     }
   }
 
+  // If setting NFT, verify it belongs to the public key.
+  if (requestBody.profile.nft) {
+    try {
+      if (
+        !(await getOwnedNftImageUrl(
+          requestBody.profile.nft.chainId,
+          publicKey,
+          requestBody.profile.nft.collectionAddress,
+          requestBody.profile.nft.tokenId
+        ))
+      ) {
+        throw new VerificationError(
+          401,
+          "Unauthorized.",
+          "You do not own this NFT."
+        );
+      }
+    } catch (err) {
+      if (err instanceof VerificationError) {
+        return respond(err.statusCode, err.responseJson);
+      }
+
+      return respond(500, {
+        error: "Unexpected ownership verification error.",
+        message: err instanceof Error ? err.message : `${err}`,
+      });
+    }
+  }
+
   const profile = { ...existingProfile };
 
   // Update fields with body data available. Both are nullable, so allow setting
@@ -274,9 +304,10 @@ router.post("/:publicKey", async (request, env: Env) => {
     profile.name = normalizedName;
   }
   if (requestBody.profile.nft !== undefined) {
+    // Explicitly copy over values to prevent the user from setting whatever
+    // values they want in this object.
     profile.nft = requestBody.profile.nft && {
-      // We only support Stargaze for now.
-      chainId: STARGAZE_CHAIN_ID,
+      chainId: requestBody.profile.nft.chainId,
       tokenId: requestBody.profile.nft.tokenId,
       collectionAddress: requestBody.profile.nft.collectionAddress,
     };

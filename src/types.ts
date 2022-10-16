@@ -27,26 +27,10 @@ export type FetchProfileResponse =
       message?: string;
     };
 
-// Stargaze API NFT object.
-// The Stargaze API returns more data. These are the only fields we care about.
-export interface StargazeNft {
-  image: string;
-  tokenId: string;
-  collection: {
-    contractAddress: string;
-  };
-}
-
 // Body of profile update request.
 export interface UpdateProfileRequest {
   // Allow Partial updates to profile, but require nonce.
-  profile: Partial<
-    Omit<Profile, "nonce" | "nft"> & {
-      // Do not require `nft.chainId`, since for now we only support Stargaze.
-      nft: Omit<ProfileNft, "chainId"> | null;
-    }
-  > &
-    Pick<Profile, "nonce">;
+  profile: Partial<Omit<Profile, "nonce">> & Pick<Profile, "nonce">;
   signature: string;
   signer: string;
 }
@@ -60,3 +44,37 @@ export type UpdateProfileResponse =
       error: string;
       message?: string;
     };
+
+export interface Nft {
+  collectionAddress: string;
+  tokenId: string;
+  imageUrl: string;
+}
+
+// Returns null if wallet does not own NFT or image could not be found.
+export type GetOwnedNftImageUrlFunction = (
+  publicKey: string,
+  collectionAddress: string,
+  tokenId: string
+) => Promise<string | null>;
+
+export class VerificationError extends Error {
+  errorString?: string;
+
+  constructor(public statusCode: number, public label: string, error?: unknown) {
+    super(label);
+    this.name = "VerificationError";
+    if (error) {
+      this.errorString = error instanceof Error ? error.message : `${error}`;
+    }
+  }
+
+  get responseJson() {
+    return {
+      error: this.label,
+      ...(this.errorString && {
+        message: this.errorString,
+      }),
+    };
+  }
+}
