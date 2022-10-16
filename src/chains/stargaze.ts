@@ -1,4 +1,8 @@
-import { VerificationError, GetOwnedNftImageUrlFunction } from "../types";
+import {
+  VerificationError,
+  GetOwnedNftImageUrlFunction,
+  NotOwnerError,
+} from "../types";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
 
 const STARGAZE_API_TEMPLATE =
@@ -27,20 +31,25 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     throw new VerificationError(400, "Invalid public key.", err);
   }
 
-  // Search Stargaze API for this address's NFT. If not present, public key does
-  // not own this NFT.
+  // Search Stargaze API for this address's NFTs. If the desired NFT is not
+  // present, public key does not own it.
   const stargazeNfts: StargazeNft[] = await (
     await fetch(STARGAZE_API_TEMPLATE.replace("{{address}}", stargazeAddress))
   ).json();
 
-  const stargazeNft =
-    stargazeNfts.find(
-      (stargazeNft) =>
-        stargazeNft.collection.contractAddress === collectionAddress &&
-        stargazeNft.tokenId === tokenId
-    );
+  const stargazeNft = stargazeNfts.find(
+    (stargazeNft) =>
+      stargazeNft.collection.contractAddress === collectionAddress &&
+      stargazeNft.tokenId === tokenId
+  );
 
-  if (!stargazeNft?.image) {
+  // If NFT not found, public key does not own it, so return null.
+  if (!stargazeNft) {
+    throw new NotOwnerError();
+  }
+
+  // If image is empty, cannot be used as profile picture.
+  if (!stargazeNft.image) {
     throw new VerificationError(
       415,
       "Invalid NFT data.",

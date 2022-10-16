@@ -51,12 +51,13 @@ export interface Nft {
   imageUrl: string;
 }
 
-// Returns null if wallet does not own NFT or image could not be found.
+// Throws NotOwnerError if wallet does not own NFT or other more specific errors
+// if image data is invalid.
 export type GetOwnedNftImageUrlFunction = (
   publicKey: string,
   collectionAddress: string,
   tokenId: string
-) => Promise<string | null>;
+) => Promise<string>;
 
 export class VerificationError extends Error {
   errorString?: string;
@@ -76,5 +77,12 @@ export class VerificationError extends Error {
         message: this.errorString,
       }),
     };
+  }
+}
+
+export class NotOwnerError extends Error {
+  constructor() {
+    super();
+    this.name = "NotOwnerError";
   }
 }

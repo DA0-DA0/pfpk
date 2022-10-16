@@ -10,6 +10,7 @@ import {
   UpdateProfileRequest,
   Env,
   VerificationError,
+  NotOwnerError,
 } from "./types";
 import { verifySecp256k1Signature } from "./utils";
 
@@ -84,7 +85,7 @@ router.get("/:publicKey", async (request, env: Env) => {
 
   // Verify selected NFT still belongs to the public key before responding with
   // it.
-  let chainNftImageUrl;
+  let chainNftImageUrl: string | undefined;
   try {
     chainNftImageUrl = await getOwnedNftImageUrl(
       nft.chainId,
@@ -97,10 +98,14 @@ router.get("/:publicKey", async (request, env: Env) => {
       return respond(400, err.responseJson);
     }
 
-    return respond(500, {
-      error: "Unexpected verification error.",
-      message: err instanceof Error ? err.message : `${err}`,
-    });
+    // If some other error, return unexpected. Otherwise if NotOwnerError,
+    // chainNftImageUrl remains undefined, which is handled below.
+    if (!(err instanceof NotOwnerError)) {
+      return respond(500, {
+        error: "Unexpected verification error.",
+        message: err instanceof Error ? err.message : `${err}`,
+      });
+    }
   }
 
   // If found NFT, add to response.
@@ -270,21 +275,23 @@ router.post("/:publicKey", async (request, env: Env) => {
   // If setting NFT, verify it belongs to the public key.
   if (requestBody.profile.nft) {
     try {
-      if (
-        !(await getOwnedNftImageUrl(
-          requestBody.profile.nft.chainId,
-          publicKey,
-          requestBody.profile.nft.collectionAddress,
-          requestBody.profile.nft.tokenId
-        ))
-      ) {
-        throw new VerificationError(
-          401,
-          "Unauthorized.",
-          "You do not own this NFT."
-        );
-      }
+      // Will throw error on ownership or image access error. Otherwise returns
+      // string, which means it's valid.
+      await getOwnedNftImageUrl(
+        requestBody.profile.nft.chainId,
+        publicKey,
+        requestBody.profile.nft.collectionAddress,
+        requestBody.profile.nft.tokenId
+      );
     } catch (err) {
+      if (err instanceof NotOwnerError) {
+        return respond(401, {
+          error: "Unauthorized.",
+          message: "You do not own this NFT.",
+        });
+      }
+
+      // If already handled, respond with specific error.
       if (err instanceof VerificationError) {
         return respond(err.statusCode, err.responseJson);
       }

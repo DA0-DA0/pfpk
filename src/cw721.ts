@@ -1,5 +1,5 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { VerificationError } from "./types";
+import { Nft, VerificationError } from "./types";
 
 type Expiration =
   | {
@@ -21,6 +21,8 @@ interface OwnerOfResponse {
 }
 
 interface NftInfoResponse {
+  // Extension can be anything. Let's check if any image fields are present and
+  // use them if so.
   extension?: {
     image?: string;
     image_uri?: string;
@@ -46,21 +48,14 @@ export const getImageUrl = async (
   tokenId: string
 ): Promise<string | undefined> => {
   // Get token info.
-  let info: NftInfoResponse;
-  try {
-    info = await client.queryContractSmart(collectionAddress, {
+  const info: NftInfoResponse = await client.queryContractSmart(
+    collectionAddress,
+    {
       nft_info: {
         token_id: tokenId,
       },
-    });
-  } catch (err) {
-    console.error(err);
-    throw new VerificationError(
-      500,
-      "Unexpected error retrieving NFT info from chain.",
-      err
-    );
-  }
+    }
+  );
 
   // If NFT has extension with image, we're satisfied. Check `image`,
   // `image_uri`, and `image_url`.
@@ -104,7 +99,7 @@ export const getImageUrl = async (
       if (data.trimStart().startsWith("{")) {
         try {
           const json = JSON.parse(data);
-          if (typeof json.image === "string" && !!json.image) {
+          if (typeof json.image === "string" && json.image) {
             imageUrl = json.image;
           }
         } catch (err) {

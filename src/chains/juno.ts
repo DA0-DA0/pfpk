@@ -1,5 +1,9 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { VerificationError, GetOwnedNftImageUrlFunction } from "../types";
+import {
+  VerificationError,
+  GetOwnedNftImageUrlFunction,
+  NotOwnerError,
+} from "../types";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
 import * as Cw721 from "../cw721";
 
@@ -23,15 +27,15 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     const client = await CosmWasmClient.connect(JUNO_RPC);
 
     const owner = await Cw721.getOwner(client, collectionAddress, tokenId);
-    // If does not own NFT, return null.
+    // If does not own NFT, throw error.
     if (owner.owner !== junoAddress) {
-      return null;
+      throw new NotOwnerError();
     }
 
     imageUrl = await Cw721.getImageUrl(client, collectionAddress, tokenId);
   } catch (err) {
     // If error already handled, pass up the chain.
-    if (err instanceof VerificationError) {
+    if (err instanceof VerificationError || err instanceof NotOwnerError) {
       throw err;
     }
 
@@ -43,6 +47,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     );
   }
 
+  // If image is empty, cannot be used as profile picture.
   if (!imageUrl) {
     throw new VerificationError(
       415,
