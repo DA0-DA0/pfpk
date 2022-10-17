@@ -7,7 +7,7 @@ export class KnownError extends Error {
     error?: unknown
   ) {
     super(label);
-    this.name = "HandledError";
+    this.name = "KnownError";
     if (error) {
       this.errorString = error instanceof Error ? error.message : `${error}`;
     }
