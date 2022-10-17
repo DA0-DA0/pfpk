@@ -15,7 +15,11 @@ export const getOwnedNftImageUrl = async (
 ): ReturnType<GetOwnedNftImageUrlFunction> => {
   const fn = CHAINS[chainId];
   if (!fn) {
-    throw new KnownError(400, "Invalid chain ID.");
+    throw new KnownError(
+      400,
+      "Invalid chain ID",
+      `Chain ID must be one of: ${Object.keys(CHAINS).join(", ")}`
+    );
   }
 
   return await fn(...params);

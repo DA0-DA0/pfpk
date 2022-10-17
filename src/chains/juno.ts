@@ -16,7 +16,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     junoAddress = secp256k1PublicKeyToBech32Address(publicKey, "juno");
   } catch (err) {
     console.error("PK to Address", err);
-    throw new KnownError(400, "Invalid public key.", err);
+    throw new KnownError(400, "Invalid public key", err);
   }
 
   let imageUrl: string | undefined;
@@ -39,7 +39,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     console.error(err);
     throw new KnownError(
       500,
-      "Unexpected error retrieving NFT info from chain.",
+      "Unexpected error retrieving NFT info from chain",
       err
     );
   }

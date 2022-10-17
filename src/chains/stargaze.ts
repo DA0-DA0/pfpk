@@ -25,7 +25,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     stargazeAddress = secp256k1PublicKeyToBech32Address(publicKey, "stars");
   } catch (err) {
     console.error("PK to Address", err);
-    throw new KnownError(400, "Invalid public key.", err);
+    throw new KnownError(400, "Invalid public key", err);
   }
 
   // Search Stargaze API for this address's NFTs. If the desired NFT is not

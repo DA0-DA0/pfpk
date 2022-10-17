@@ -94,7 +94,7 @@ export const getImageUrl = async (
           console.error(err);
           throw new KnownError(
             415,
-            "Invalid NFT data.",
+            "Invalid NFT data",
             "Failed to parse token_uri data as JSON."
           );
         }
@@ -111,7 +111,7 @@ export const getImageUrl = async (
       console.error(err);
       throw new KnownError(
         500,
-        "Unexpected error retrieving token_uri data.",
+        "Unexpected error retrieving token_uri data",
         err
       );
     }

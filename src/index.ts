@@ -48,7 +48,7 @@ router.get("/:publicKey", async (request, env: Env) => {
   const publicKey = request.params?.publicKey?.trim();
   if (!publicKey) {
     return respond(400, {
-      error: "Invalid request.",
+      error: "Invalid request",
       message: "Missing publicKey.",
     });
   }
@@ -66,7 +66,7 @@ router.get("/:publicKey", async (request, env: Env) => {
     console.error("Profile retrieval or parsing", err);
 
     return respond(500, {
-      error: "Failed to retrieve or parse profile.",
+      error: "Failed to retrieve or parse profile",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -105,7 +105,7 @@ router.get("/:publicKey", async (request, env: Env) => {
     // chainNftImageUrl remains undefined, which is handled below.
     if (!(err instanceof NotOwnerError)) {
       return respond(500, {
-        error: "Unexpected verification error.",
+        error: "Unexpected verification error",
         message: err instanceof Error ? err.message : `${err}`,
       });
     }
@@ -143,7 +143,7 @@ router.post("/:publicKey", async (request, env: Env) => {
   const publicKey = request.params?.publicKey?.trim();
   if (!publicKey) {
     return respond(400, {
-      error: "Invalid request.",
+      error: "Invalid request",
       message: "Missing publicKey.",
     });
   }
@@ -214,7 +214,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Parsing request body", err);
 
     return respond(400, {
-      error: "Invalid body.",
+      error: "Invalid body",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -230,7 +230,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Profile retrieval or parsing", err);
 
     return respond(500, {
-      error: "Failed to retrieve or parse existing profile.",
+      error: "Failed to retrieve or parse existing profile",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -238,7 +238,7 @@ router.post("/:publicKey", async (request, env: Env) => {
   // Validate nonce to prevent replay attacks.
   if (requestBody.profile.nonce !== existingProfile.nonce) {
     return respond(401, {
-      error: "Invalid body.",
+      error: "Invalid body",
       message: `Invalid nonce. Expected: ${existingProfile.nonce}`,
     });
   }
@@ -278,7 +278,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Signature verification", err);
 
     return respond(400, {
-      error: "Signature verification failed.",
+      error: "Signature verification failed",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -295,7 +295,7 @@ router.post("/:publicKey", async (request, env: Env) => {
         NAME_TAKEN_VALUE;
       if (nameTaken) {
         return respond(500, {
-          error: "Invalid name.",
+          error: "Invalid name",
           message: "Name already exists.",
         });
       }
@@ -303,7 +303,7 @@ router.post("/:publicKey", async (request, env: Env) => {
       console.error("Name uniqueness retrieval", err);
 
       return respond(500, {
-        error: "Failed to check name uniqueness.",
+        error: "Failed to check name uniqueness",
         message: err instanceof Error ? err.message : `${err}`,
       });
     }
@@ -324,14 +324,14 @@ router.post("/:publicKey", async (request, env: Env) => {
       if (!imageUrl) {
         throw new KnownError(
           415,
-          "Invalid NFT image.",
+          "Invalid NFT image",
           "Failed to retrieve image from NFT."
         );
       }
     } catch (err) {
       if (err instanceof NotOwnerError) {
         return respond(401, {
-          error: "Unauthorized.",
+          error: "Unauthorized",
           message: "You do not own this NFT.",
         });
       }
@@ -342,7 +342,7 @@ router.post("/:publicKey", async (request, env: Env) => {
       }
 
       return respond(500, {
-        error: "Unexpected ownership verification error.",
+        error: "Unexpected ownership verification error",
         message: err instanceof Error ? err.message : `${err}`,
       });
     }
@@ -385,7 +385,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Profile save", err);
 
     return respond(500, {
-      error: "Failed to save profile.",
+      error: "Failed to save profile",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }

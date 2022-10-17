@@ -1,5 +1,5 @@
 export class KnownError extends Error {
-  errorString?: string;
+  errorString: string;
 
   constructor(
     public statusCode: number,
@@ -8,15 +8,13 @@ export class KnownError extends Error {
   ) {
     super(label);
     this.name = "KnownError";
-    if (error) {
-      this.errorString = error instanceof Error ? error.message : `${error}`;
-    }
+    this.errorString = error instanceof Error ? error.message : `${error}`;
   }
 
   get responseJson() {
     return {
       error: this.label,
-      message: this.errorString || this.label,
+      message: this.errorString,
     };
   }
 }
