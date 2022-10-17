@@ -4,7 +4,7 @@ import { KnownError } from "../error";
 import { getOwnedNftImageUrl as stargaze } from "./stargaze";
 import { getOwnedNftImageUrl as juno } from "./juno";
 
-const CHAINS: Record<string, GetOwnedNftImageUrlFunction | undefined> = {
+export const CHAINS: Record<string, GetOwnedNftImageUrlFunction | undefined> = {
   [STARGAZE_CHAIN_ID]: stargaze,
   [JUNO_CHAIN_ID]: juno,
 };

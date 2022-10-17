@@ -12,8 +12,8 @@ export interface Profile {
 
 export interface ProfileNft {
   chainId: string;
-  tokenId: string;
   collectionAddress: string;
+  tokenId: string;
 }
 
 // Body of fetch profile response.
@@ -42,7 +42,7 @@ export type UpdateProfileResponse =
     }
   | {
       error: string;
-      message?: string;
+      message: string;
     };
 
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors

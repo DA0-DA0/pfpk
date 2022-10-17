@@ -16,9 +16,7 @@ export class KnownError extends Error {
   get responseJson() {
     return {
       error: this.label,
-      ...(this.errorString && {
-        message: this.errorString,
-      }),
+      message: this.errorString || this.label,
     };
   }
 }

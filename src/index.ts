@@ -2,7 +2,7 @@ import { serializeSignDoc } from "@cosmjs/amino";
 import { toBase64, toUtf8 } from "@cosmjs/encoding";
 import { createCors } from "itty-cors";
 import { Router } from "itty-router";
-import { getOwnedNftImageUrl } from "./chains";
+import { CHAINS, getOwnedNftImageUrl } from "./chains";
 import {
   Profile,
   FetchProfileResponse,
@@ -47,7 +47,10 @@ router.get("/:publicKey", async (request, env: Env) => {
 
   const publicKey = request.params?.publicKey?.trim();
   if (!publicKey) {
-    return respond(400, { error: "Missing publicKey." });
+    return respond(400, {
+      error: "Invalid request.",
+      message: "Missing publicKey.",
+    });
   }
 
   let profile: Profile;
@@ -139,7 +142,10 @@ router.post("/:publicKey", async (request, env: Env) => {
 
   const publicKey = request.params?.publicKey?.trim();
   if (!publicKey) {
-    return respond(400, { error: "Missing publicKey." });
+    return respond(400, {
+      error: "Invalid request.",
+      message: "Missing publicKey.",
+    });
   }
 
   let requestBody: UpdateProfileRequest;
@@ -188,6 +194,16 @@ router.post("/:publicKey", async (request, env: Env) => {
     ) {
       throw new Error("NFT needs chainId, collectionAddress, and tokenId.");
     }
+    // Validate chainId supported.
+    if (
+      "nft" in requestBody.profile &&
+      requestBody.profile.nft &&
+      (!("chainId" in requestBody.profile.nft) ||
+        !requestBody.profile.nft.chainId ||
+        !(requestBody.profile.nft.chainId in CHAINS))
+    ) {
+      throw new Error(`NFT's chainId must be one of: ${Object.keys(CHAINS).join(", ")}`);
+    }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
     }
@@ -222,7 +238,8 @@ router.post("/:publicKey", async (request, env: Env) => {
   // Validate nonce to prevent replay attacks.
   if (requestBody.profile.nonce !== existingProfile.nonce) {
     return respond(401, {
-      error: `Invalid nonce. Expected: ${existingProfile.nonce}`,
+      error: "Invalid body.",
+      message: `Invalid nonce. Expected: ${existingProfile.nonce}`,
     });
   }
 
@@ -278,7 +295,8 @@ router.post("/:publicKey", async (request, env: Env) => {
         NAME_TAKEN_VALUE;
       if (nameTaken) {
         return respond(500, {
-          error: "Name already exists.",
+          error: "Invalid name.",
+          message: "Name already exists.",
         });
       }
     } catch (err) {
@@ -386,7 +404,7 @@ export default {
         (err) =>
           new Response(
             JSON.stringify({
-              error: "Unknown",
+              error: "Unknown error occurred.",
               message: err instanceof Error ? err.message : `${err}`,
             }),
             {

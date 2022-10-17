@@ -58,31 +58,18 @@ export const getImageUrl = async (
     }
   );
 
-  // If NFT has extension with image, we're satisfied. Check `image`,
+  // If NFT has extension with image, we're satisfied. Checks `image`,
   // `image_uri`, and `image_url`.
-  if (
-    "extension" in info &&
-    info.extension &&
-    "image" in info.extension &&
-    info.extension.image
-  ) {
-    return info.extension.image;
-  }
-  if (
-    "extension" in info &&
-    info.extension &&
-    "image_uri" in info.extension &&
-    info.extension.image_uri
-  ) {
-    return info.extension.image_uri;
-  }
-  if (
-    "extension" in info &&
-    info.extension &&
-    "image_url" in info.extension &&
-    info.extension.image_url
-  ) {
-    return info.extension.image_url;
+  if ("extension" in info && info.extension) {
+    if ("image" in info.extension && info.extension.image) {
+      return info.extension.image;
+    }
+    if ("image_uri" in info.extension && info.extension.image_uri) {
+      return info.extension.image_uri;
+    }
+    if ("image_url" in info.extension && info.extension.image_url) {
+      return info.extension.image_url;
+    }
   }
 
   // Check token URI data.
