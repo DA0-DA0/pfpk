@@ -45,12 +45,6 @@ export type UpdateProfileResponse =
       message?: string;
     };
 
-export interface Nft {
-  collectionAddress: string;
-  tokenId: string;
-  imageUrl: string;
-}
-
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors
 // if failed to retrieve image data.
 export type GetOwnedNftImageUrlFunction = (
