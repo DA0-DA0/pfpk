@@ -149,10 +149,13 @@ router.post("/:publicKey", async (request, env: Env) => {
     if (!requestBody) {
       throw new Error("Missing.");
     }
-    if (!("profile" in requestBody)) {
+    if (!("profile" in requestBody) || !requestBody.profile) {
       throw new Error("Missing profile.");
     }
-    if (!requestBody.profile || !("nonce" in requestBody.profile)) {
+    if (
+      !("nonce" in requestBody.profile) ||
+      typeof requestBody.profile.nonce !== "number"
+    ) {
       throw new Error("Missing profile.nonce.");
     }
     if (
@@ -168,6 +171,19 @@ router.post("/:publicKey", async (request, env: Env) => {
       requestBody.profile.name.trim().length > 32
     ) {
       throw new Error("Name cannot be longer than 32 characters.");
+    }
+    if (
+      "nft" in requestBody.profile &&
+      requestBody.profile.nft &&
+      (!("chainId" in requestBody.profile.nft) ||
+        !requestBody.profile.nft.chainId ||
+        !("collectionAddress" in requestBody.profile.nft) ||
+        !requestBody.profile.nft.collectionAddress ||
+        !("tokenId" in requestBody.profile.nft) ||
+        // tokenId could be an empty string, so only perform a typecheck here.
+        typeof requestBody.profile.nft !== "string")
+    ) {
+      throw new Error("NFT needs chainId, collectionAddress, and tokenId.");
     }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
