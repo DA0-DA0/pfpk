@@ -44,14 +44,5 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     );
   }
 
-  // If image is empty, cannot be used as profile picture.
-  if (!imageUrl) {
-    throw new KnownError(
-      415,
-      "Invalid NFT data.",
-      "Failed to retrieve image data from NFT."
-    );
-  }
-
   return imageUrl;
 };

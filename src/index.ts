@@ -83,10 +83,11 @@ router.get("/:publicKey", async (request, env: Env) => {
   }
 
   // Verify selected NFT still belongs to the public key before responding with
-  // it.
-  let chainNftImageUrl: string | undefined;
+  // it. If image is empty, it will be unset since it cannot be used as a
+  // profile picture.
+  let imageUrl: string | undefined;
   try {
-    chainNftImageUrl = await getOwnedNftImageUrl(
+    imageUrl = await getOwnedNftImageUrl(
       nft.chainId,
       publicKey,
       nft.collectionAddress,
@@ -94,7 +95,7 @@ router.get("/:publicKey", async (request, env: Env) => {
     );
   } catch (err) {
     if (err instanceof KnownError) {
-      return respond(400, err.responseJson);
+      return respond(err.statusCode, err.responseJson);
     }
 
     // If some other error, return unexpected. Otherwise if NotOwnerError,
@@ -108,12 +109,12 @@ router.get("/:publicKey", async (request, env: Env) => {
   }
 
   // If found NFT, add to response.
-  if (chainNftImageUrl) {
+  if (imageUrl) {
     response.nft = {
       chainId: nft.chainId,
       collectionAddress: nft.collectionAddress,
       tokenId: nft.tokenId,
-      imageUrl: chainNftImageUrl,
+      imageUrl: imageUrl,
     };
   } else {
     // Otherwise unset NFT from this address since they no longer own it.
@@ -274,14 +275,22 @@ router.post("/:publicKey", async (request, env: Env) => {
   // If setting NFT, verify it belongs to the public key.
   if (requestBody.profile.nft) {
     try {
-      // Will throw error on ownership or image access error. Otherwise returns
-      // string, which means it's valid.
-      await getOwnedNftImageUrl(
+      // Will throw error on ownership or image access error.
+      const imageUrl = await getOwnedNftImageUrl(
         requestBody.profile.nft.chainId,
         publicKey,
         requestBody.profile.nft.collectionAddress,
         requestBody.profile.nft.tokenId
       );
+
+      // If image is empty, cannot be used as profile picture.
+      if (!imageUrl) {
+        throw new KnownError(
+          415,
+          "Invalid NFT image.",
+          "Failed to retrieve image from NFT."
+        );
+      }
     } catch (err) {
       if (err instanceof NotOwnerError) {
         return respond(401, {

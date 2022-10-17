@@ -45,14 +45,5 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     throw new NotOwnerError();
   }
 
-  // If image is empty, cannot be used as profile picture.
-  if (!stargazeNft.image) {
-    throw new KnownError(
-      415,
-      "Invalid NFT data.",
-      "Failed to retrieve image data from NFT."
-    );
-  }
-
   return stargazeNft.image;
 };

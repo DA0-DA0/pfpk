@@ -52,9 +52,9 @@ export interface Nft {
 }
 
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors
-// if image data is invalid.
+// if failed to retrieve image data.
 export type GetOwnedNftImageUrlFunction = (
   publicKey: string,
   collectionAddress: string,
   tokenId: string
-) => Promise<string>;
+) => Promise<string | undefined>;
