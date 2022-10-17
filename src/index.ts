@@ -190,7 +190,7 @@ router.post("/:publicKey", async (request, env: Env) => {
         !requestBody.profile.nft.collectionAddress ||
         !("tokenId" in requestBody.profile.nft) ||
         // tokenId could be an empty string, so only perform a typecheck here.
-        typeof requestBody.profile.nft !== "string")
+        typeof requestBody.profile.nft.tokenId !== "string")
     ) {
       throw new Error("NFT needs chainId, collectionAddress, and tokenId.");
     }
