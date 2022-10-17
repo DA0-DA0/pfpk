@@ -114,7 +114,7 @@ router.get("/:publicKey", async (request, env: Env) => {
       chainId: nft.chainId,
       collectionAddress: nft.collectionAddress,
       tokenId: nft.tokenId,
-      imageUrl: imageUrl,
+      imageUrl,
     };
   } else {
     // Otherwise unset NFT from this address since they no longer own it.
