@@ -158,6 +158,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     ) {
       throw new Error("Missing profile.nonce.");
     }
+    // Only validate name if truthy, since it can be set to null to clear it.
     if (
       "name" in requestBody.profile &&
       typeof requestBody.profile.name === "string" &&
@@ -172,6 +173,8 @@ router.post("/:publicKey", async (request, env: Env) => {
     ) {
       throw new Error("Name cannot be longer than 32 characters.");
     }
+    // Only validate NFT properties if truthy, since it can be set to null to
+    // clear it.
     if (
       "nft" in requestBody.profile &&
       requestBody.profile.nft &&
