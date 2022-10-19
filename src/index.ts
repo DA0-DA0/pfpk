@@ -10,7 +10,10 @@ import {
   Env,
 } from "./types";
 import { KnownError, NotOwnerError } from "./error";
-import { verifySecp256k1Signature } from "./utils";
+import {
+  secp256k1PublicKeyToBech32Address,
+  verifySecp256k1Signature,
+} from "./utils";
 import { JUNO_CHAIN_ID } from "./constants";
 
 const EMPTY_PROFILE = {
@@ -209,9 +212,6 @@ router.post("/:publicKey", async (request, env: Env) => {
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
     }
-    if (!("signer" in requestBody)) {
-      throw new Error("Missing signer.");
-    }
   } catch (err) {
     console.error("Parsing request body", err);
 
@@ -247,13 +247,14 @@ router.post("/:publicKey", async (request, env: Env) => {
 
   try {
     // Verify signature. (`requestBody.profile` contains `nonce`)
+    const signer = secp256k1PublicKeyToBech32Address(publicKey, "juno");
     const message = serializeSignDoc(
       makeSignDoc(
         [
           {
             type: "PFPK Verification",
             value: {
-              signer: requestBody.signer,
+              signer,
               data: JSON.stringify(requestBody.profile, undefined, 2),
             },
           },

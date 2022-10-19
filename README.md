@@ -86,7 +86,6 @@ type UpdateProfileRequest = {
     } | null;
   };
   signature: string;
-  signer: string;
 };
 ```
 
