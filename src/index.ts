@@ -258,7 +258,15 @@ router.post("/:publicKey", async (request, env: Env) => {
             },
           },
         ],
-        { gas: "0", amount: [] },
+        {
+          gas: "0",
+          amount: [
+            {
+              denom: "ujuno",
+              amount: "0",
+            },
+          ],
+        },
         JUNO_CHAIN_ID,
         "",
         0,
