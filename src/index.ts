@@ -2,22 +2,16 @@ import { serializeSignDoc } from "@cosmjs/amino";
 import { toBase64, toUtf8 } from "@cosmjs/encoding";
 import { createCors } from "itty-cors";
 import { Router } from "itty-router";
+import { CHAINS, getOwnedNftImageUrl } from "./chains";
 import {
   Profile,
   FetchProfileResponse,
-  StargazeNft,
   UpdateProfileResponse,
   UpdateProfileRequest,
   Env,
 } from "./types";
-import {
-  secp256k1PublicKeyToBech32Address,
-  verifySecp256k1Signature,
-} from "./utils";
-
-const STARGAZE_API_TEMPLATE =
-  "https://nft-api.stargaze-apis.com/api/v1beta/profile/{{address}}/nfts";
-const STARGAZE_CHAIN_ID = "stargaze-1";
+import { KnownError, NotOwnerError } from "./error";
+import { verifySecp256k1Signature } from "./utils";
 
 const EMPTY_PROFILE = {
   nonce: 0,
@@ -53,18 +47,9 @@ router.get("/:publicKey", async (request, env: Env) => {
 
   const publicKey = request.params?.publicKey?.trim();
   if (!publicKey) {
-    return respond(400, { error: "Missing publicKey." });
-  }
-
-  let stargazeAddress;
-  try {
-    stargazeAddress = secp256k1PublicKeyToBech32Address(publicKey, "stars");
-  } catch (err) {
-    console.error("PK to Address", err);
-
     return respond(400, {
-      error: "Invalid public key.",
-      message: err instanceof Error ? err.message : `${err}`,
+      error: "Invalid request",
+      message: "Missing publicKey.",
     });
   }
 
@@ -81,41 +66,58 @@ router.get("/:publicKey", async (request, env: Env) => {
     console.error("Profile retrieval or parsing", err);
 
     return respond(500, {
-      error: "Failed to retrieve or parse profile.",
+      error: "Failed to retrieve or parse profile",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
 
+  // Response object for mutating with NFT if present.
   const response: FetchProfileResponse = {
     nonce: profile.nonce,
     name: profile.name?.trim() || null,
     nft: null,
   };
 
+  // Get NFT from stored profile data.
   const { nft } = profile;
-
   // If no NFT, respond with name potentially set.
   if (!nft) {
     return respond(200, response);
   }
 
-  // Search Stargaze API for this address's NFT. If not present, public key does
-  // not own this NFT anymore.
-  const stargazeNfts: StargazeNft[] = await (
-    await fetch(STARGAZE_API_TEMPLATE.replace("{{address}}", stargazeAddress))
-  ).json();
-  const stargazeNft = stargazeNfts.find(
-    ({ collection: { contractAddress }, tokenId }) =>
-      contractAddress === nft.collectionAddress && tokenId === nft.tokenId
-  );
+  // Verify selected NFT still belongs to the public key before responding with
+  // it. If image is empty, it will be unset since it cannot be used as a
+  // profile picture.
+  let imageUrl: string | undefined;
+  try {
+    imageUrl = await getOwnedNftImageUrl(
+      nft.chainId,
+      publicKey,
+      nft.collectionAddress,
+      nft.tokenId
+    );
+  } catch (err) {
+    if (err instanceof KnownError) {
+      return respond(err.statusCode, err.responseJson);
+    }
+
+    // If some other error, return unexpected. Otherwise if NotOwnerError,
+    // chainNftImageUrl remains undefined, which is handled below.
+    if (!(err instanceof NotOwnerError)) {
+      return respond(500, {
+        error: "Unexpected verification error",
+        message: err instanceof Error ? err.message : `${err}`,
+      });
+    }
+  }
 
   // If found NFT, add to response.
-  if (stargazeNft) {
+  if (imageUrl) {
     response.nft = {
-      chainId: STARGAZE_CHAIN_ID,
-      tokenId: stargazeNft.tokenId,
-      imageUrl: stargazeNft.image,
-      collectionAddress: stargazeNft.collection.contractAddress,
+      chainId: nft.chainId,
+      collectionAddress: nft.collectionAddress,
+      tokenId: nft.tokenId,
+      imageUrl,
     };
   } else {
     // Otherwise unset NFT from this address since they no longer own it.
@@ -140,7 +142,10 @@ router.post("/:publicKey", async (request, env: Env) => {
 
   const publicKey = request.params?.publicKey?.trim();
   if (!publicKey) {
-    return respond(400, { error: "Missing publicKey." });
+    return respond(400, {
+      error: "Invalid request",
+      message: "Missing publicKey.",
+    });
   }
 
   let requestBody: UpdateProfileRequest;
@@ -150,18 +155,54 @@ router.post("/:publicKey", async (request, env: Env) => {
     if (!requestBody) {
       throw new Error("Missing.");
     }
-    if (!("profile" in requestBody)) {
+    if (!("profile" in requestBody) || !requestBody.profile) {
       throw new Error("Missing profile.");
     }
-    if (!requestBody.profile || !("nonce" in requestBody.profile)) {
+    if (
+      !("nonce" in requestBody.profile) ||
+      typeof requestBody.profile.nonce !== "number"
+    ) {
       throw new Error("Missing profile.nonce.");
     }
+    // Only validate name if truthy, since it can be set to null to clear it.
     if (
       "name" in requestBody.profile &&
       typeof requestBody.profile.name === "string" &&
       requestBody.profile.name.trim().length === 0
     ) {
       throw new Error("Name cannot be empty.");
+    }
+    if (
+      "name" in requestBody.profile &&
+      typeof requestBody.profile.name === "string" &&
+      requestBody.profile.name.trim().length > 32
+    ) {
+      throw new Error("Name cannot be longer than 32 characters.");
+    }
+    // Only validate NFT properties if truthy, since it can be set to null to
+    // clear it.
+    if (
+      "nft" in requestBody.profile &&
+      requestBody.profile.nft &&
+      (!("chainId" in requestBody.profile.nft) ||
+        !requestBody.profile.nft.chainId ||
+        !("collectionAddress" in requestBody.profile.nft) ||
+        !requestBody.profile.nft.collectionAddress ||
+        !("tokenId" in requestBody.profile.nft) ||
+        // tokenId could be an empty string, so only perform a typecheck here.
+        typeof requestBody.profile.nft.tokenId !== "string")
+    ) {
+      throw new Error("NFT needs chainId, collectionAddress, and tokenId.");
+    }
+    // Validate chainId supported.
+    if (
+      "nft" in requestBody.profile &&
+      requestBody.profile.nft &&
+      (!("chainId" in requestBody.profile.nft) ||
+        !requestBody.profile.nft.chainId ||
+        !(requestBody.profile.nft.chainId in CHAINS))
+    ) {
+      throw new Error(`NFT's chainId must be one of: ${Object.keys(CHAINS).join(", ")}`);
     }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
@@ -173,7 +214,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Parsing request body", err);
 
     return respond(400, {
-      error: "Invalid body.",
+      error: "Invalid body",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -189,7 +230,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Profile retrieval or parsing", err);
 
     return respond(500, {
-      error: "Failed to retrieve or parse existing profile.",
+      error: "Failed to retrieve or parse existing profile",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -197,7 +238,8 @@ router.post("/:publicKey", async (request, env: Env) => {
   // Validate nonce to prevent replay attacks.
   if (requestBody.profile.nonce !== existingProfile.nonce) {
     return respond(401, {
-      error: `Invalid nonce. Expected: ${existingProfile.nonce}`,
+      error: "Invalid body",
+      message: `Invalid nonce. Expected: ${existingProfile.nonce}`,
     });
   }
 
@@ -236,7 +278,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Signature verification", err);
 
     return respond(400, {
-      error: "Signature verification failed.",
+      error: "Signature verification failed",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -253,14 +295,54 @@ router.post("/:publicKey", async (request, env: Env) => {
         NAME_TAKEN_VALUE;
       if (nameTaken) {
         return respond(500, {
-          error: "Name already exists.",
+          error: "Invalid name",
+          message: "Name already exists.",
         });
       }
     } catch (err) {
       console.error("Name uniqueness retrieval", err);
 
       return respond(500, {
-        error: "Failed to check name uniqueness.",
+        error: "Failed to check name uniqueness",
+        message: err instanceof Error ? err.message : `${err}`,
+      });
+    }
+  }
+
+  // If setting NFT, verify it belongs to the public key.
+  if (requestBody.profile.nft) {
+    try {
+      // Will throw error on ownership or image access error.
+      const imageUrl = await getOwnedNftImageUrl(
+        requestBody.profile.nft.chainId,
+        publicKey,
+        requestBody.profile.nft.collectionAddress,
+        requestBody.profile.nft.tokenId
+      );
+
+      // If image is empty, cannot be used as profile picture.
+      if (!imageUrl) {
+        throw new KnownError(
+          415,
+          "Invalid NFT image",
+          "Failed to retrieve image from NFT."
+        );
+      }
+    } catch (err) {
+      if (err instanceof NotOwnerError) {
+        return respond(401, {
+          error: "Unauthorized",
+          message: "You do not own this NFT.",
+        });
+      }
+
+      // If already handled, respond with specific error.
+      if (err instanceof KnownError) {
+        return respond(err.statusCode, err.responseJson);
+      }
+
+      return respond(500, {
+        error: "Unexpected ownership verification error",
         message: err instanceof Error ? err.message : `${err}`,
       });
     }
@@ -274,9 +356,10 @@ router.post("/:publicKey", async (request, env: Env) => {
     profile.name = normalizedName;
   }
   if (requestBody.profile.nft !== undefined) {
+    // Explicitly copy over values to prevent the user from setting whatever
+    // values they want in this object.
     profile.nft = requestBody.profile.nft && {
-      // We only support Stargaze for now.
-      chainId: STARGAZE_CHAIN_ID,
+      chainId: requestBody.profile.nft.chainId,
       tokenId: requestBody.profile.nft.tokenId,
       collectionAddress: requestBody.profile.nft.collectionAddress,
     };
@@ -302,7 +385,7 @@ router.post("/:publicKey", async (request, env: Env) => {
     console.error("Profile save", err);
 
     return respond(500, {
-      error: "Failed to save profile.",
+      error: "Failed to save profile",
       message: err instanceof Error ? err.message : `${err}`,
     });
   }
@@ -321,7 +404,7 @@ export default {
         (err) =>
           new Response(
             JSON.stringify({
-              error: "Unknown",
+              error: "Unknown error occurred.",
               message: err instanceof Error ? err.message : `${err}`,
             }),
             {
