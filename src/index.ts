@@ -1,5 +1,4 @@
-import { serializeSignDoc } from "@cosmjs/amino";
-import { toBase64, toUtf8 } from "@cosmjs/encoding";
+import { makeSignDoc, serializeSignDoc } from "@cosmjs/amino";
 import { createCors } from "itty-cors";
 import { Router } from "itty-router";
 import { CHAINS, getOwnedNftImageUrl } from "./chains";
@@ -12,6 +11,7 @@ import {
 } from "./types";
 import { KnownError, NotOwnerError } from "./error";
 import { verifySecp256k1Signature } from "./utils";
+import { JUNO_CHAIN_ID } from "./constants";
 
 const EMPTY_PROFILE = {
   nonce: 0,
@@ -202,7 +202,9 @@ router.post("/:publicKey", async (request, env: Env) => {
         !requestBody.profile.nft.chainId ||
         !(requestBody.profile.nft.chainId in CHAINS))
     ) {
-      throw new Error(`NFT's chainId must be one of: ${Object.keys(CHAINS).join(", ")}`);
+      throw new Error(
+        `NFT's chainId must be one of: ${Object.keys(CHAINS).join(", ")}`
+      );
     }
     if (!("signature" in requestBody)) {
       throw new Error("Missing signature.");
@@ -245,26 +247,25 @@ router.post("/:publicKey", async (request, env: Env) => {
 
   try {
     // Verify signature. (`requestBody.profile` contains `nonce`)
-    // https://github.com/chainapsis/keplr-wallet/blob/54aaaf6112d41944eaf23826db823eb044b09e78/packages/provider/src/core.ts#L329-L349
-    const message = serializeSignDoc({
-      chain_id: "",
-      account_number: "0",
-      sequence: "0",
-      fee: {
-        gas: "0",
-        amount: [],
-      },
-      msgs: [
-        {
-          type: "sign/MsgSignData",
-          value: {
-            signer: requestBody.signer,
-            data: toBase64(toUtf8(JSON.stringify(requestBody.profile))),
+    const message = serializeSignDoc(
+      makeSignDoc(
+        [
+          {
+            type: "PFPK Verification",
+            value: {
+              signer: requestBody.signer,
+              data: JSON.stringify(requestBody.profile, undefined, 2),
+            },
           },
-        },
-      ],
-      memo: "",
-    });
+        ],
+        { gas: "0", amount: [] },
+        JUNO_CHAIN_ID,
+        "",
+        0,
+        0
+      )
+    );
+
     if (
       !(await verifySecp256k1Signature(
         publicKey,

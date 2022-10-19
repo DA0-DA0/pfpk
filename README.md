@@ -117,3 +117,8 @@ nonce of 0 if nothing has been set. The name must be unique, at least 1
 character long, and at most 32 characters long. The NFT must be owned by the
 public key, and the signature must be made by the same public key. If the NFT
 has no image, it will fail.
+
+The signature is derived by calling `OfflineAminoSigner`'s `signAmino` function
+with the `signDoc` argument generated using `makeSignDoc` from the
+`@cosmjs/amino` package. This can be seen in the signature verification code
+located in [src/index.ts](./src/index.ts#L50) around line 250.
