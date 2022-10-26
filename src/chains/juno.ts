@@ -1,10 +1,33 @@
-import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { GetOwnedNftImageUrlFunction } from "../types";
-import { KnownError, NotOwnerError } from "../error";
+import { KnownError } from "../error";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
-import * as Cw721 from "../cw721";
+import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
 const JUNO_RPC = "https://rpc.juno.strange.love:443";
+const LOOP_API_TEMPLATE = "https://nft-juno-backend.loop.markets";
+
+const GET_LOOP_NFTS_QUERY = gql`
+  query GetLoopNfts($walletAddress: String!) {
+    nfts(filter: { owner: { equalTo: $walletAddress } }) {
+      nodes {
+        contractId
+        tokenID
+        image
+      }
+    }
+  }
+`;
+
+interface LoopQuery {
+  nfts: {
+    nodes: {
+      contractId: string;
+      tokenID: string;
+      image: string | null;
+    }[];
+  };
+}
 
 export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
   publicKey,
@@ -19,30 +42,33 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     throw new KnownError(400, "Invalid public key", err);
   }
 
-  let imageUrl: string | undefined;
-  try {
-    const client = await CosmWasmClient.connect(JUNO_RPC);
+  const apolloClient = new ApolloClient({
+    uri: LOOP_API_TEMPLATE,
+    cache: new InMemoryCache(),
+  });
 
-    const owner = await Cw721.getOwner(client, collectionAddress, tokenId);
-    // If does not own NFT, throw error.
-    if (owner.owner !== junoAddress) {
-      throw new NotOwnerError();
-    }
+  // Search Loop API for this address's NFTs. If the desired NFT is not present,
+  // public key does not own it on Loop.
+  const loopQuery = await apolloClient.query<LoopQuery>({
+    query: GET_LOOP_NFTS_QUERY,
+    variables: {
+      walletAddress: junoAddress,
+    },
+  });
 
-    imageUrl = await Cw721.getImageUrl(client, collectionAddress, tokenId);
-  } catch (err) {
-    // If error already handled, pass up the chain.
-    if (err instanceof KnownError || err instanceof NotOwnerError) {
-      throw err;
-    }
+  const loopNft = loopQuery.data.nfts.nodes.find(
+    (nft) => nft.contractId === collectionAddress && nft.tokenID === tokenId
+  );
 
-    console.error(err);
-    throw new KnownError(
-      500,
-      "Unexpected error retrieving NFT info from chain",
-      err
-    );
+  // If found, return image.
+  if (loopNft?.image) {
+    return loopNft.image;
   }
 
-  return imageUrl;
+  // If NFT not found, fallback to checking CW721 contract directly.
+  return await makeCw721GetOwnedNftImageUrl(JUNO_RPC, junoAddress)(
+    publicKey,
+    collectionAddress,
+    tokenId
+  );
 };
