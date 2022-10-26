@@ -42,27 +42,36 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     throw new KnownError(400, "Invalid public key", err);
   }
 
-  const apolloClient = new ApolloClient({
-    uri: LOOP_API_TEMPLATE,
-    cache: new InMemoryCache(),
-  });
+  try {
+    const apolloClient = new ApolloClient({
+      uri: LOOP_API_TEMPLATE,
+      cache: new InMemoryCache(),
+    });
 
-  // Search Loop API for this address's NFTs. If the desired NFT is not present,
-  // public key does not own it on Loop.
-  const loopQuery = await apolloClient.query<LoopQuery>({
-    query: GET_LOOP_NFTS_QUERY,
-    variables: {
-      walletAddress: junoAddress,
-    },
-  });
+    // Search Loop API for this address's NFTs. If the desired NFT is not present,
+    // public key does not own it on Loop.
+    const loopQuery = await apolloClient.query<LoopQuery>({
+      query: GET_LOOP_NFTS_QUERY,
+      variables: {
+        walletAddress: junoAddress,
+      },
+    });
 
-  const loopNft = loopQuery.data.nfts.nodes.find(
-    (nft) => nft.contractId === collectionAddress && nft.tokenID === tokenId
-  );
+    const loopNft = loopQuery.data.nfts.nodes.find(
+      (nft) => nft.contractId === collectionAddress && nft.tokenID === tokenId
+    );
 
-  // If found, return image.
-  if (loopNft?.image) {
-    return loopNft.image;
+    // If found, return image.
+    if (loopNft?.image) {
+      return loopNft.image;
+    }
+  } catch (err) {
+    console.error(err);
+    throw new KnownError(
+      500,
+      "Unexpected error retrieving NFT info from Loop API",
+      err
+    );
   }
 
   // If NFT not found, fallback to checking CW721 contract directly.
