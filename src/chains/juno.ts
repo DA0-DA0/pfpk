@@ -1,7 +1,7 @@
 import { GetOwnedNftImageUrlFunction } from "../types";
 import { KnownError } from "../error";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
-import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+import { ApolloClient, InMemoryCache, gql } from "@apollo/client/core";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
 const JUNO_RPC = "https://rpc.juno.strange.love:443";
