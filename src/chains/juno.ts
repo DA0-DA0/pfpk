@@ -7,6 +7,7 @@ import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 const JUNO_RPC = "https://rpc.juno.strange.love:443";
 const LOOP_API_TEMPLATE = "https://nft-juno-backend.loop.markets";
 
+// Graph Query Language: https://www.apollographql.com/docs/react/data/queries/
 const GET_LOOP_NFTS_QUERY = gql`
   query GetLoopNfts($walletAddress: String!) {
     nfts(filter: { owner: { equalTo: $walletAddress } }) {
