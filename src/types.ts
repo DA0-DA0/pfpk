@@ -52,3 +52,18 @@ export type GetOwnedNftImageUrlFunction = (
   collectionAddress: string,
   tokenId: string
 ) => Promise<string | undefined>;
+
+export type ProfileSearchHit = {
+  publicKey: string;
+  address: string;
+  profile: Profile;
+};
+
+export type SearchProfileResponse =
+  | {
+      profiles: ProfileSearchHit[];
+    }
+  | {
+      error: string;
+      message: string;
+    };

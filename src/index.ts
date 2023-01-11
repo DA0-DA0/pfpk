@@ -3,6 +3,7 @@ import { Router } from "itty-router";
 import { Env } from "./types";
 import { updateProfile } from "./routes/updateProfile";
 import { fetchProfile } from "./routes/fetchProfile";
+import { searchProfile } from "./routes/searchProfile";
 
 // Create CORS handlers.
 const { preflight, corsify } = createCors({
@@ -19,6 +20,9 @@ const router = Router();
 
 // Handle CORS preflight OPTIONS request.
 router.options("*", preflight);
+
+// Search profile.
+router.get("/search/:bech32Prefix/:namePrefix", searchProfile);
 
 // Fetch profile.
 router.get("/:publicKey", fetchProfile);
