@@ -67,7 +67,8 @@ export const EMPTY_PROFILE = {
 };
 
 export const getProfileKey = (publicKey: string) => `profile:${publicKey}`;
-export const getNameTakenKey = (name: string) => `nameTaken:${name}`;
+export const getNameTakenKey = (name: string) =>
+  `nameTaken:${name.toLowerCase()}`;
 
 export const getOwnedNftWithImage = async (
   publicKey: string,
