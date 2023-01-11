@@ -58,6 +58,12 @@ export const getImageUrl = async (
     }
   );
 
+  return await getImageUrlFromInfo(info);
+};
+
+export const getImageUrlFromInfo = async (
+  info: NftInfoResponse
+): Promise<string | undefined> => {
   // If NFT has extension with image, we're satisfied. Checks `image`,
   // `image_uri`, and `image_url`.
   if ("extension" in info && info.extension) {
