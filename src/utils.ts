@@ -1,6 +1,8 @@
 import { Secp256k1, Secp256k1Signature } from "@cosmjs/crypto";
 import { toBech32, fromHex, fromBase64 } from "@cosmjs/encoding";
 import CryptoJS from "crypto-js";
+import { getOwnedNftImageUrl } from "./chains";
+import { ProfileNft, ProfileNftWithImage } from "./types";
 
 // https://github.com/chainapsis/keplr-wallet/blob/088dc701ce14df77a1ee22b7e39c651e50879d9f/packages/crypto/src/key.ts#L56-L63
 export const secp256k1PublicKeyToBech32Address = (
@@ -52,8 +54,40 @@ export const verifySecp256k1Signature = async (
   return await Secp256k1.verifySignature(signature, messageHash, publicKeyData);
 };
 
-// Use Stargaze's IPFS gateway.
+// Use NFT.Storage's IPFS gateway.
 export const transformIpfsUrlToHttpsIfNecessary = (ipfsUrl: string) =>
   ipfsUrl.startsWith("ipfs://")
-    ? ipfsUrl.replace("ipfs://", "https://ipfs.stargaze.zone/ipfs/")
+    ? ipfsUrl.replace("ipfs://", "https://nftstorage.link/ipfs/")
     : ipfsUrl;
+
+export const EMPTY_PROFILE = {
+  nonce: 0,
+  name: null,
+  nft: null,
+};
+
+export const getProfileKey = (publicKey: string) => `profile:${publicKey}`;
+export const getNameTakenKey = (name: string) => `nameTaken:${name}`;
+
+export const getOwnedNftWithImage = async (
+  publicKey: string,
+  nft: ProfileNft
+): Promise<ProfileNftWithImage | null> => {
+  // Verify selected NFT still belongs to the public key before responding with
+  // it. If no image, return no NFT, since we can't display without an image.
+  const imageUrl = await getOwnedNftImageUrl(
+    nft.chainId,
+    publicKey,
+    nft.collectionAddress,
+    nft.tokenId
+  );
+
+  return imageUrl
+    ? {
+        chainId: nft.chainId,
+        collectionAddress: nft.collectionAddress,
+        tokenId: nft.tokenId,
+        imageUrl,
+      }
+    : null;
+};

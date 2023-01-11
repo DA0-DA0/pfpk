@@ -1,8 +1,12 @@
 import { GetOwnedNftImageUrlFunction } from "../types";
-import { KnownError } from "../error";
+import { KnownError, NotOwnerError } from "../error";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
 import { ApolloClient, InMemoryCache, gql } from "@apollo/client/core";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
+import { getImageUrlFromInfo } from "../cw721";
+
+const INDEXER_API_TEMPLATE =
+  "https://indexer-mainnet.daodao.zone/contract/{{collectionAddress}}/cw721/allNftInfo?tokenId={{tokenId}}";
 
 const JUNO_RPC = "https://rpc.juno.strange.love:443";
 const LOOP_API_TEMPLATE = "https://nft-juno-backend.loop.markets";
@@ -41,6 +45,37 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
   } catch (err) {
     console.error("PK to Address", err);
     throw new KnownError(400, "Invalid public key", err);
+  }
+
+  // Check indexer first.
+  try {
+    const indexerEndpoint = INDEXER_API_TEMPLATE.replace(
+      "{{collectionAddress}}",
+      collectionAddress
+    ).replace("{{tokenId}}", tokenId);
+    const indexerResponse = await fetch(indexerEndpoint);
+
+    if (indexerResponse.status === 200) {
+      const {
+        access: { owner },
+        info,
+      } = await indexerResponse.json<{
+        access: { owner: string };
+        info: any;
+      }>();
+
+      if (owner === junoAddress) {
+        return await getImageUrlFromInfo(info);
+      } else {
+        throw new NotOwnerError();
+      }
+    }
+  } catch (err) {
+    console.error(
+      `Error fetching cw721 indexer for ${publicKey}/${collectionAddress}/${tokenId}`,
+      err
+    );
+    // Use fallbacks.
   }
 
   try {
