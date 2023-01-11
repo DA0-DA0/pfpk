@@ -57,3 +57,11 @@ export const transformIpfsUrlToHttpsIfNecessary = (ipfsUrl: string) =>
   ipfsUrl.startsWith("ipfs://")
     ? ipfsUrl.replace("ipfs://", "https://ipfs.stargaze.zone/ipfs/")
     : ipfsUrl;
+
+export const EMPTY_PROFILE = {
+  nonce: 0,
+  name: null,
+  nft: null,
+};
+
+export const getNameTakenKey = (name: string) => `nameTaken:${name}`;
