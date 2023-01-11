@@ -1,11 +1,10 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { GetOwnedNftImageUrlFunction } from "../types";
 import { KnownError, NotOwnerError } from "../error";
-import { secp256k1PublicKeyToBech32Address } from "../utils";
 import * as Cw721 from "../cw721";
 
 export const getOwnedNftImageUrl = (rpc: string, walletAddress: string): GetOwnedNftImageUrlFunction => async (
-  publicKey,
+  _,
   collectionAddress,
   tokenId
 ) => {
