@@ -64,4 +64,5 @@ export const EMPTY_PROFILE = {
   nft: null,
 };
 
+export const getProfileKey = (publicKey: string) => `profile:${publicKey}`;
 export const getNameTakenKey = (name: string) => `nameTaken:${name}`;

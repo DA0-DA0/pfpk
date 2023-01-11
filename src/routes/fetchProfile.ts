@@ -2,7 +2,7 @@ import { Request, RouteHandler } from "itty-router";
 import { getOwnedNftImageUrl } from "../chains";
 import { KnownError, NotOwnerError } from "../error";
 import { Env, FetchProfileResponse, Profile } from "../types";
-import { EMPTY_PROFILE } from "../utils";
+import { EMPTY_PROFILE, getProfileKey } from "../utils";
 
 export const fetchProfile: RouteHandler<Request> = async (
   request,
@@ -23,7 +23,7 @@ export const fetchProfile: RouteHandler<Request> = async (
 
   let profile: Profile;
   try {
-    const stringifiedData = await env.PROFILES.get(publicKey);
+    const stringifiedData = await env.PROFILES.get(getProfileKey(publicKey));
     // If no data found in KV store, no profile set. Respond with empty data.
     if (!stringifiedData) {
       return respond(200, EMPTY_PROFILE);
@@ -90,7 +90,7 @@ export const fetchProfile: RouteHandler<Request> = async (
   } else {
     // Otherwise unset NFT from this address since they no longer own it.
     await env.PROFILES.put(
-      publicKey,
+      getProfileKey(publicKey),
       JSON.stringify({
         ...profile,
         nft: undefined,

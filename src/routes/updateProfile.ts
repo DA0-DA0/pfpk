@@ -12,6 +12,7 @@ import {
 import {
   EMPTY_PROFILE,
   getNameTakenKey,
+  getProfileKey,
   secp256k1PublicKeyToBech32Address,
   verifySecp256k1Signature,
 } from "../utils";
@@ -106,7 +107,7 @@ export const updateProfile: RouteHandler<Request> = async (
   // Get existing profile.
   let existingProfile: Profile = { ...EMPTY_PROFILE };
   try {
-    const stringifiedData = await env.PROFILES.get(publicKey);
+    const stringifiedData = await env.PROFILES.get(getProfileKey(publicKey));
     if (stringifiedData) {
       existingProfile = JSON.parse(stringifiedData);
     }
@@ -269,7 +270,7 @@ export const updateProfile: RouteHandler<Request> = async (
     }
 
     // Save new profile.
-    await env.PROFILES.put(publicKey, JSON.stringify(profile));
+    await env.PROFILES.put(getProfileKey(publicKey), JSON.stringify(profile));
   } catch (err) {
     console.error("Profile save", err);
 
