@@ -1,5 +1,4 @@
 import { Request, RouteHandler } from "itty-router";
-import { getOwnedNftImageUrl } from "../chains";
 import {
   Env,
   Profile,
@@ -13,7 +12,7 @@ import {
   secp256k1PublicKeyToBech32Address,
 } from "../utils";
 
-export const searchProfile: RouteHandler<Request> = async (
+export const searchProfiles: RouteHandler<Request> = async (
   request,
   env: Env
 ) => {
@@ -44,7 +43,6 @@ export const searchProfile: RouteHandler<Request> = async (
     });
   }
 
-  let profile: Profile;
   try {
     // Get 5
     const profileKeys = (
