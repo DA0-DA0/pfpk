@@ -1,4 +1,5 @@
 import { Request, RouteHandler } from "itty-router";
+import { getOwnedNftImageUrl } from "../chains";
 import {
   Env,
   Profile,
@@ -7,6 +8,7 @@ import {
 } from "../types";
 import {
   getNameTakenKey,
+  getOwnedNftWithImage,
   getProfileKey,
   secp256k1PublicKeyToBech32Address,
 } from "../utils";
@@ -56,9 +58,14 @@ export const searchProfile: RouteHandler<Request> = async (
       await Promise.all(
         profileKeys.map(async ({ name }) => {
           const publicKey = await env.PROFILES.get(name);
-          const profile =
-            publicKey &&
-            (await env.PROFILES.get<Profile>(getProfileKey(publicKey), "json"));
+          const profile = publicKey
+            ? await env.PROFILES.get<Profile>(getProfileKey(publicKey), "json")
+            : undefined;
+
+          const nft =
+            profile?.nft && publicKey
+              ? await getOwnedNftWithImage(publicKey, profile.nft)
+              : null;
 
           return profile && publicKey
             ? {
@@ -67,7 +74,10 @@ export const searchProfile: RouteHandler<Request> = async (
                   publicKey,
                   bech32Prefix
                 ),
-                profile,
+                profile: {
+                  ...profile,
+                  nft,
+                },
               }
             : undefined;
         })

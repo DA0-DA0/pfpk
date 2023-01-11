@@ -16,12 +16,18 @@ export interface ProfileNft {
   tokenId: string;
 }
 
+export interface ProfileNftWithImage extends ProfileNft {
+  imageUrl: string;
+}
+
+export type ProfileWithImage = Omit<Profile, "nft"> & {
+  nft: ProfileNftWithImage | null;
+};
+
 // Body of fetch profile response.
 export type FetchProfileResponse =
-  | (Omit<Profile, "nft"> & {
-      // Add imageUrl to response so frontend doesn't have to look it up.
-      nft: (ProfileNft & { imageUrl: string }) | null;
-    })
+  // Add imageUrl to response so frontend doesn't have to look it up.
+  | ProfileWithImage
   | {
       error: string;
       message?: string;
@@ -56,7 +62,7 @@ export type GetOwnedNftImageUrlFunction = (
 export type ProfileSearchHit = {
   publicKey: string;
   address: string;
-  profile: Profile;
+  profile: ProfileWithImage;
 };
 
 export type SearchProfileResponse =

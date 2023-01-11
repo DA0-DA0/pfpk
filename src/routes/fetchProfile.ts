@@ -1,8 +1,7 @@
 import { Request, RouteHandler } from "itty-router";
-import { getOwnedNftImageUrl } from "../chains";
 import { KnownError, NotOwnerError } from "../error";
 import { Env, FetchProfileResponse, Profile } from "../types";
-import { EMPTY_PROFILE, getProfileKey } from "../utils";
+import { EMPTY_PROFILE, getProfileKey, getOwnedNftWithImage } from "../utils";
 
 export const fetchProfile: RouteHandler<Request> = async (
   request,
@@ -54,16 +53,10 @@ export const fetchProfile: RouteHandler<Request> = async (
   }
 
   // Verify selected NFT still belongs to the public key before responding with
-  // it. If image is empty, it will be unset since it cannot be used as a
+  // it. If no NFT is returned, it will be unset since it cannot be used as a
   // profile picture.
-  let imageUrl: string | undefined;
   try {
-    imageUrl = await getOwnedNftImageUrl(
-      nft.chainId,
-      publicKey,
-      nft.collectionAddress,
-      nft.tokenId
-    );
+    response.nft = await getOwnedNftWithImage(publicKey, nft);
   } catch (err) {
     if (err instanceof KnownError) {
       return respond(err.statusCode, err.responseJson);
@@ -79,16 +72,9 @@ export const fetchProfile: RouteHandler<Request> = async (
     }
   }
 
-  // If found NFT, add to response.
-  if (imageUrl) {
-    response.nft = {
-      chainId: nft.chainId,
-      collectionAddress: nft.collectionAddress,
-      tokenId: nft.tokenId,
-      imageUrl,
-    };
-  } else {
-    // Otherwise unset NFT from this address since they no longer own it.
+  // If no NFT, unset from this address since it is no longer valid, either
+  // because they do not own it or there is no image.
+  if (!response.nft) {
     await env.PROFILES.put(
       getProfileKey(publicKey),
       JSON.stringify({
