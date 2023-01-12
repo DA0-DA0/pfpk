@@ -259,11 +259,14 @@ export const updateProfile: RouteHandler<Request> = async (
 
   // Save.
   try {
-    // If setting new name, set name taken to public key.
-    if (profile.name && profile.name !== existingProfile.name) {
-      await env.PROFILES.put(getNameTakenKey(profile.name), publicKey);
+    // If changing name, update ownership.
+    if (profile.name !== existingProfile.name) {
+      // If setting new name, set name taken to public key.
+      if (profile.name) {
+        await env.PROFILES.put(getNameTakenKey(profile.name), publicKey);
+      }
 
-      // If profile had name previously set, unset previous name taken.
+      // If profile had name previously set, unset previous.
       if (existingProfile.name) {
         await env.PROFILES.delete(getNameTakenKey(existingProfile.name));
       }
