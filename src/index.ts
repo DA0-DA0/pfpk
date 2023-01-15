@@ -18,8 +18,8 @@ const { preflight, corsify } = createCors({
 
 const router = Router();
 
-// Handle CORS preflight OPTIONS request.
-router.options("*", preflight);
+// Handle CORS preflight.
+router.all("*", preflight);
 
 // Search profiles.
 router.get("/search/:bech32Prefix/:namePrefix", searchProfiles);
