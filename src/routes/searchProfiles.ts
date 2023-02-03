@@ -3,7 +3,7 @@ import {
   Env,
   Profile,
   ProfileSearchHit,
-  SearchProfileResponse,
+  SearchProfilesResponse,
 } from "../types";
 import {
   getNameTakenKey,
@@ -16,7 +16,7 @@ export const searchProfiles: RouteHandler<Request> = async (
   request,
   env: Env
 ) => {
-  const respond = (status: number, response: SearchProfileResponse) =>
+  const respond = (status: number, response: SearchProfilesResponse) =>
     new Response(JSON.stringify(response), {
       status,
     });
@@ -64,20 +64,25 @@ export const searchProfiles: RouteHandler<Request> = async (
             profile?.nft && publicKey
               ? await getOwnedNftWithImage(publicKey, profile.nft)
               : null;
+          
+          if (profile && publicKey) {
+            const profileWithoutNonce: Omit<Profile, 'nonce'> & Pick<Partial<Profile>, 'nonce'> = {
+              ...profile,
+            };
+            delete profileWithoutNonce.nonce;
 
-          return profile && publicKey
-            ? {
+            return {
+              publicKey,
+              address: secp256k1PublicKeyToBech32Address(
                 publicKey,
-                address: secp256k1PublicKeyToBech32Address(
-                  publicKey,
-                  bech32Prefix
-                ),
-                profile: {
-                  ...profile,
-                  nft,
-                },
-              }
-            : undefined;
+                bech32Prefix
+              ),
+              profile: {
+                ...profileWithoutNonce,
+                nft,
+              },
+            }
+          }
         })
       )
     ).filter((hit): hit is ProfileSearchHit => !!hit);

@@ -62,10 +62,10 @@ export type GetOwnedNftImageUrlFunction = (
 export type ProfileSearchHit = {
   publicKey: string;
   address: string;
-  profile: ProfileWithImage;
+  profile: Omit<ProfileWithImage, 'nonce'>;
 };
 
-export type SearchProfileResponse =
+export type SearchProfilesResponse =
   | {
       profiles: ProfileSearchHit[];
     }

@@ -121,3 +121,42 @@ The signature is derived by calling `OfflineAminoSigner`'s `signAmino` function
 with the `signDoc` argument generated using `makeSignDoc` from the
 `@cosmjs/amino` package. This can be seen in the signature verification code
 located in [src/index.ts](./src/index.ts#L250) around line 250.
+
+### `GET /search/:bech32Prefix/:namePrefix`
+
+`bech32Prefix` is the bech32 prefix of the chain, such as `juno` or `stars`. It
+will transform the public keys associated with names to the bech32 address.
+
+`namePrefix` is the prefix of the name to search for. It is case-insensitive.
+
+The returned type is:
+
+```ts
+type SearchProfilesResponse = {
+  profiles: Array<{
+    publicKey: string;
+    address: string;
+    profile: {
+      name: string | null;
+      nft: {
+        chainId: string;
+        collectionAddress: string;
+        tokenId: string;
+        imageUrl: string;
+      } | null;
+    };
+  }>;
+};
+```
+
+or in the case of an error:
+
+```ts
+type SearchProfilesResponse = {
+  error: string;
+  message: string;
+};
+```
+
+This route lets you search for profiles with names that have a given prefix. It
+returns the top 5 results.
