@@ -12,7 +12,6 @@
     "wrangler": "2.1.10"
   },
   "dependencies": {
-    "@apollo/client": "^3.7.1",
     "@cosmjs/amino": "^0.29.0",
     "@cosmjs/cosmwasm-stargate": "^0.29.0",
     "@cosmjs/crypto": "^0.29.0",
