@@ -23,8 +23,9 @@ export const getOwnedNftImageUrl =
           const addressStakedToken =
             await DaoVotingCw721Staked.addressStakedToken(
               client,
+              // Owner is the staking contract.
               owner,
-              collectionAddress,
+              walletAddress,
               tokenId
             );
 

@@ -11,9 +11,12 @@ export const isContract = async (
   client: CosmWasmClient,
   contractAddress: string
 ): Promise<boolean> => {
-  const info: InfoResponse = await client.queryContractSmart(contractAddress, {
-    info: {},
-  });
+  const { info }: InfoResponse = await client.queryContractSmart(
+    contractAddress,
+    {
+      info: {},
+    }
+  );
 
   return (
     !!info &&
