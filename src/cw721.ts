@@ -36,12 +36,14 @@ export const getOwner = async (
   client: CosmWasmClient,
   collectionAddress: string,
   tokenId: string
-): Promise<OwnerOfResponse> =>
-  await client.queryContractSmart(collectionAddress, {
-    owner_of: {
-      token_id: tokenId,
-    },
-  });
+): Promise<string> =>
+  (
+    (await client.queryContractSmart(collectionAddress, {
+      owner_of: {
+        token_id: tokenId,
+      },
+    })) as OwnerOfResponse
+  ).owner;
 
 export const getImageUrl = async (
   client: CosmWasmClient,
