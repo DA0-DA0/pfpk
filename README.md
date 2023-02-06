@@ -1,7 +1,9 @@
 # pfpk
 
-pic for private key. A [Cloudflare Worker](https://developers.cloudflare.com/workers) that allows associating a name and
-[Stargaze](https://stargaze.zone) NFT with a given [Cosmos](https://cosmos.network) wallet / keypair.
+pic for private key. A [Cloudflare
+Worker](https://developers.cloudflare.com/workers) that allows associating a
+name and [Stargaze](https://stargaze.zone) or [Juno](https://junonetwork.io) NFT
+with a given [Cosmos](https://cosmos.network) wallet / keypair.
 
 ## Setup
 
@@ -14,6 +16,29 @@ npm install
 
 ```
 npm run dev
+```
+
+### Configuration
+
+1. Create KV namespaces for production and development:
+
+```sh
+npx wrangler kv:namespace create PROFILES
+npx wrangler kv:namespace create PROFILES --preview
+```
+
+2. Update the binding IDs in `wrangler.toml`:
+
+```toml
+kv-namespaces = [
+  { binding = "PROFILES", id = "<INSERT PROFILES_ID>", preview_id = "<INSERT PROFILES_PREVIEW_ID>" },
+]
+```
+
+3. Configure secrets:
+
+```sh
+echo <VALUE> | npx wrangler secret put INDEXER_API_KEY
 ```
 
 ## Architecture
@@ -48,9 +73,8 @@ type FetchProfileResponse = {
 
 This route checks if profile information has been set for the given public key,
 verifies that the NFT is still owned by the public key, and verifies that the
-NFT has an image URL set. If the public key no longer owns the NFT, or there
-is no image URL set, the NFT is removed from the profile to prevent future
-unnecessary checks.
+NFT has an image URL set. If the public key no longer owns the NFT, or there is
+no image URL set, no NFT is returned.
 
 The retrieval of the image URL depends on the chain:
 

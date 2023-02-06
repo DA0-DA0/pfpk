@@ -8,15 +8,30 @@ type InfoResponse = {
 };
 
 export const isContract = async (
+  indexer: string | undefined,
   client: CosmWasmClient,
   contractAddress: string
 ): Promise<boolean> => {
-  const { info }: InfoResponse = await client.queryContractSmart(
-    contractAddress,
-    {
-      info: {},
+  let info: InfoResponse["info"] | undefined;
+  // Query indexer.
+  if (indexer) {
+    try {
+      info = (await (
+        await fetch(indexer + `/contract/${contractAddress}/info`)
+      ).json()) as InfoResponse["info"];
+    } catch (err) {
+      console.error(err);
     }
-  );
+  }
+
+  // Fallback to chain.
+  if (!info) {
+    info = (
+      (await client.queryContractSmart(contractAddress, {
+        info: {},
+      })) as InfoResponse
+    ).info;
+  }
 
   return (
     !!info &&
@@ -28,33 +43,53 @@ export const isContract = async (
 // Get all NFTs an address has staked and check if the token ID is in the list.
 const LIMIT = 30;
 export const addressStakedToken = async (
+  indexer: string | undefined,
   client: CosmWasmClient,
   contractAddress: string,
   address: string,
   tokenId: string
 ): Promise<boolean> => {
-  const tokens: string[] = [];
-  while (true) {
-    const response: string[] = await client.queryContractSmart(
-      contractAddress,
-      {
-        staked_nfts: {
-          address,
-          start_after: tokens[tokens.length - 1],
-          limit: LIMIT,
-        },
-      }
-    );
-
-    if (!response?.length) {
-      break;
+  let tokens: string[] | undefined;
+  // Query indexer.
+  if (indexer) {
+    try {
+      tokens = await (
+        await fetch(
+          indexer +
+            `/contract/${contractAddress}/daoVotingCw721Staked/stakedNfts?address=${address}`
+        )
+      ).json();
+    } catch (err) {
+      console.error(err);
     }
+  }
 
-    tokens.push(...response);
+  // Fallback to chain.
+  if (!tokens) {
+    tokens = [];
 
-    // If we have less than the limit of items, we've exhausted them.
-    if (response.length < LIMIT) {
-      break;
+    while (true) {
+      const response: string[] = await client.queryContractSmart(
+        contractAddress,
+        {
+          staked_nfts: {
+            address,
+            start_after: tokens[tokens.length - 1],
+            limit: LIMIT,
+          },
+        }
+      );
+
+      if (!response?.length) {
+        break;
+      }
+
+      tokens.push(...response);
+
+      // If we have less than the limit of items, we've exhausted them.
+      if (response.length < LIMIT) {
+        break;
+      }
     }
   }
 

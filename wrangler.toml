@@ -10,3 +10,6 @@ routes = [
 kv_namespaces = [
   { binding = "PROFILES", id = "11f7f932cab14af0a5a382c7bea3c9d6", preview_id = "eb64b733815a4bf580bcbfcacfbb7ab5" }
 ]
+
+# Secrets:
+# - INDEXER_API_KEY

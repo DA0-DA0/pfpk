@@ -33,32 +33,73 @@ interface NftInfoResponse {
 }
 
 export const getOwner = async (
+  indexer: string | undefined,
   client: CosmWasmClient,
   collectionAddress: string,
   tokenId: string
-): Promise<string> =>
-  (
-    (await client.queryContractSmart(collectionAddress, {
-      owner_of: {
-        token_id: tokenId,
-      },
-    })) as OwnerOfResponse
-  ).owner;
+): Promise<string> => {
+  // Query indexer.
+  if (indexer) {
+    try {
+      const indexerOwnerOf: OwnerOfResponse = await (
+        await fetch(
+          indexer +
+            `/contract/${collectionAddress}/cw721/ownerOf?tokenId=${tokenId}`
+        )
+      ).json();
 
-export const getImageUrl = async (
-  client: CosmWasmClient,
-  collectionAddress: string,
-  tokenId: string
-): Promise<string | undefined> => {
-  // Get token info.
-  const info: NftInfoResponse = await client.queryContractSmart(
+      if (indexerOwnerOf) {
+        return indexerOwnerOf.owner;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // Fallback to chain.
+  const chainOwnerOf: OwnerOfResponse = await client.queryContractSmart(
     collectionAddress,
     {
-      nft_info: {
+      owner_of: {
         token_id: tokenId,
       },
     }
   );
+
+  return chainOwnerOf.owner;
+};
+
+export const getImageUrl = async (
+  indexer: string | undefined,
+  client: CosmWasmClient,
+  collectionAddress: string,
+  tokenId: string
+): Promise<string | undefined> => {
+  let info: NftInfoResponse | undefined;
+  // Query indexer.
+  if (indexer) {
+    try {
+      info = await (
+        await fetch(
+          indexer +
+            `/contract/${collectionAddress}/cw721/nftInfo?tokenId=${tokenId}`
+        )
+      ).json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // Fallback to chain.
+  info = await client.queryContractSmart(collectionAddress, {
+    nft_info: {
+      token_id: tokenId,
+    },
+  });
+
+  if (!info) {
+    return;
+  }
 
   return await getImageUrlFromInfo(info);
 };

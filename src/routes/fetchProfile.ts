@@ -56,7 +56,7 @@ export const fetchProfile: RouteHandler<Request> = async (
   // it. If no NFT is returned, it will be unset since it cannot be used as a
   // profile picture.
   try {
-    response.nft = await getOwnedNftWithImage(publicKey, nft);
+    response.nft = await getOwnedNftWithImage(env, publicKey, nft);
   } catch (err) {
     if (err instanceof KnownError) {
       return respond(err.statusCode, err.responseJson);
@@ -70,18 +70,6 @@ export const fetchProfile: RouteHandler<Request> = async (
         message: err instanceof Error ? err.message : `${err}`,
       });
     }
-  }
-
-  // If no NFT, unset from this address since it is no longer valid, either
-  // because they do not own it or there is no image.
-  if (!response.nft) {
-    await env.PROFILES.put(
-      getProfileKey(publicKey),
-      JSON.stringify({
-        ...profile,
-        nft: undefined,
-      })
-    );
   }
 
   return respond(200, response);

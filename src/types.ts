@@ -1,6 +1,9 @@
 // Cloudflare Worker bindings.
 export interface Env {
   PROFILES: KVNamespace;
+
+  // Secrets.
+  INDEXER_API_KEY: string;
 }
 
 // Stored in KV and included in the POST body when updating a profile.
@@ -54,6 +57,7 @@ export type UpdateProfileResponse =
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors
 // if failed to retrieve image data.
 export type GetOwnedNftImageUrlFunction = (
+  env: Env,
   publicKey: string,
   collectionAddress: string,
   tokenId: string

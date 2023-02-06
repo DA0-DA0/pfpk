@@ -16,6 +16,7 @@ interface StargazeNft {
 }
 
 export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
+  _, 
   publicKey,
   collectionAddress,
   tokenId

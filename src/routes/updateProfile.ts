@@ -205,6 +205,7 @@ export const updateProfile: RouteHandler<Request> = async (
       // Will throw error on ownership or image access error.
       const imageUrl = await getOwnedNftImageUrl(
         requestBody.profile.nft.chainId,
+        env,
         publicKey,
         requestBody.profile.nft.collectionAddress,
         requestBody.profile.nft.tokenId

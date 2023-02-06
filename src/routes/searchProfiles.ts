@@ -62,7 +62,7 @@ export const searchProfiles: RouteHandler<Request> = async (
 
           const nft =
             profile?.nft && publicKey
-              ? await getOwnedNftWithImage(publicKey, profile.nft)
+              ? await getOwnedNftWithImage(env, publicKey, profile.nft)
               : null;
           
           if (profile && publicKey) {

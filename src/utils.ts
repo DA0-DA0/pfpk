@@ -2,7 +2,7 @@ import { Secp256k1, Secp256k1Signature } from "@cosmjs/crypto";
 import { toBech32, fromHex, fromBase64 } from "@cosmjs/encoding";
 import CryptoJS from "crypto-js";
 import { getOwnedNftImageUrl } from "./chains";
-import { ProfileNft, ProfileNftWithImage } from "./types";
+import { Env, ProfileNft, ProfileNftWithImage } from "./types";
 
 // https://github.com/chainapsis/keplr-wallet/blob/088dc701ce14df77a1ee22b7e39c651e50879d9f/packages/crypto/src/key.ts#L56-L63
 export const secp256k1PublicKeyToBech32Address = (
@@ -71,6 +71,7 @@ export const getNameTakenKey = (name: string) =>
   `nameTaken:${name.toLowerCase()}`;
 
 export const getOwnedNftWithImage = async (
+  env: Env,
   publicKey: string,
   nft: ProfileNft
 ): Promise<ProfileNftWithImage | null> => {
@@ -78,6 +79,7 @@ export const getOwnedNftWithImage = async (
   // it. If no image, return no NFT, since we can't display without an image.
   const imageUrl = await getOwnedNftImageUrl(
     nft.chainId,
+    env,
     publicKey,
     nft.collectionAddress,
     nft.tokenId
