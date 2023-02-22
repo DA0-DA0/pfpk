@@ -6,7 +6,7 @@ import {
   ResolveProfileResponse,
 } from "../types";
 import {
-  getNameTakenKey,
+  getPublicKeyForNameTakenKey,
   getOwnedNftWithImage,
   getProfileKey,
   secp256k1PublicKeyToBech32Address,
@@ -40,7 +40,7 @@ export const resolveProfile: RouteHandler<Request> = async (
   try {
     let resolved: ProfileSearchHit | null = null;
 
-    const publicKey = await env.PROFILES.get(getNameTakenKey(name));
+    const publicKey = await env.PROFILES.get(getPublicKeyForNameTakenKey(name));
     const profile = publicKey
       ? await env.PROFILES.get<Profile>(getProfileKey(publicKey), "json")
       : undefined;

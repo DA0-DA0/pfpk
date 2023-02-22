@@ -11,10 +11,12 @@ import {
 } from "../types";
 import {
   EMPTY_PROFILE,
-  getNameTakenKey,
+  getPublicKeyForNameTakenKey,
   getProfileKey,
   secp256k1PublicKeyToBech32Address,
   verifySecp256k1Signature,
+  getPublicKeyForBech32HashKey,
+  secp256k1PublicKeyToBech32HexHash,
 } from "../utils";
 
 export const updateProfile: RouteHandler<Request> = async (
@@ -183,7 +185,7 @@ export const updateProfile: RouteHandler<Request> = async (
   // If setting name, verify unique.
   if (typeof normalizedName === "string") {
     try {
-      if (await env.PROFILES.get(getNameTakenKey(normalizedName))) {
+      if (await env.PROFILES.get(getPublicKeyForNameTakenKey(normalizedName))) {
         return respond(500, {
           error: "Invalid name",
           message: "Name already exists.",
@@ -264,17 +266,30 @@ export const updateProfile: RouteHandler<Request> = async (
     if (profile.name !== existingProfile.name) {
       // If setting new name, set name taken to public key.
       if (profile.name) {
-        await env.PROFILES.put(getNameTakenKey(profile.name), publicKey);
+        await env.PROFILES.put(
+          getPublicKeyForNameTakenKey(profile.name),
+          publicKey
+        );
       }
 
       // If profile had name previously set, unset previous.
       if (existingProfile.name) {
-        await env.PROFILES.delete(getNameTakenKey(existingProfile.name));
+        await env.PROFILES.delete(
+          getPublicKeyForNameTakenKey(existingProfile.name)
+        );
       }
     }
 
     // Save new profile.
     await env.PROFILES.put(getProfileKey(publicKey), JSON.stringify(profile));
+
+    // Store mapping from bech32 hex data to public key for quicker querying.
+    await env.PROFILES.put(
+      getPublicKeyForBech32HashKey(
+        secp256k1PublicKeyToBech32HexHash(publicKey)
+      ),
+      publicKey
+    );
   } catch (err) {
     console.error("Profile save", err);
 

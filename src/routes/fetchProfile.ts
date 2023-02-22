@@ -1,7 +1,12 @@
 import { Request, RouteHandler } from "itty-router";
 import { KnownError, NotOwnerError } from "../error";
 import { Env, FetchProfileResponse, Profile } from "../types";
-import { EMPTY_PROFILE, getProfileKey, getOwnedNftWithImage } from "../utils";
+import {
+  EMPTY_PROFILE,
+  getProfileKey,
+  getOwnedNftWithImage,
+  getPublicKeyForBech32HashKey,
+} from "../utils";
 
 export const fetchProfile: RouteHandler<Request> = async (
   request,
@@ -12,8 +17,9 @@ export const fetchProfile: RouteHandler<Request> = async (
       status,
     });
 
-  const publicKey = request.params?.publicKey?.trim();
-  if (!publicKey) {
+  let publicKey = request.params?.publicKey?.trim();
+  const bech32Hash = request.params?.bech32Hash?.trim();
+  if (!publicKey && !bech32Hash) {
     return respond(400, {
       error: "Invalid request",
       message: "Missing publicKey.",
@@ -22,6 +28,23 @@ export const fetchProfile: RouteHandler<Request> = async (
 
   let profile: Profile;
   try {
+    // If no public key, get from bech32 hash.
+    if (!publicKey) {
+      if (!bech32Hash) {
+        throw new Error("Missing bech32Hash.");
+      }
+
+      const resolvedPublicKey = await env.PROFILES.get(
+        getPublicKeyForBech32HashKey(bech32Hash)
+      );
+      // If no public key found in KV store, no profile set.
+      if (!resolvedPublicKey) {
+        return respond(200, EMPTY_PROFILE);
+      }
+
+      publicKey = resolvedPublicKey;
+    }
+
     const stringifiedData = await env.PROFILES.get(getProfileKey(publicKey));
     // If no data found in KV store, no profile set. Respond with empty data.
     if (!stringifiedData) {
