@@ -34,6 +34,9 @@ router.get("/:publicKey", fetchProfile);
 // Fetch profile with bech32 hash.
 router.get("/bech32/:bech32Hash", fetchProfile);
 
+// Fetch profile with bech32 address.
+router.get("/address/:bech32Address", fetchProfile);
+
 // Update profile.
 router.post("/:publicKey", updateProfile);
 

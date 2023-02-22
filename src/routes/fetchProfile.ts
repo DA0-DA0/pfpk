@@ -1,3 +1,4 @@
+import { fromBech32, toHex } from "@cosmjs/encoding";
 import { Request, RouteHandler } from "itty-router";
 import { KnownError, NotOwnerError } from "../error";
 import { Env, FetchProfileResponse, Profile } from "../types";
@@ -17,23 +18,22 @@ export const fetchProfile: RouteHandler<Request> = async (
       status,
     });
 
+  // via public key
   let publicKey = request.params?.publicKey?.trim();
-  const bech32Hash = request.params?.bech32Hash?.trim();
-  if (!publicKey && !bech32Hash) {
-    return respond(400, {
-      error: "Invalid request",
-      message: "Missing publicKey.",
-    });
-  }
+  // via bech32 hash
+  let bech32Hash = request.params?.bech32Hash?.trim();
+  // via bech32 address
+  const bech32Address = request.params?.bech32Address?.trim();
 
   let profile: Profile;
   try {
-    // If no public key, get from bech32 hash.
-    if (!publicKey) {
-      if (!bech32Hash) {
-        throw new Error("Missing bech32Hash.");
-      }
+    // If no public key nor bech32 hash is set, find bech 32 hash from address.
+    if (!publicKey && !bech32Hash && bech32Address) {
+      bech32Hash = toHex(fromBech32(bech32Address).data);
+    }
 
+    // If no public key but bech32 hash is, find public key.
+    if (!publicKey && bech32Hash) {
       const resolvedPublicKey = await env.PROFILES.get(
         getPublicKeyForBech32HashKey(bech32Hash)
       );
@@ -43,6 +43,13 @@ export const fetchProfile: RouteHandler<Request> = async (
       }
 
       publicKey = resolvedPublicKey;
+    }
+
+    if (!publicKey) {
+      return respond(400, {
+        error: "Invalid request",
+        message: "Failed to resolve public key.",
+      });
     }
 
     const stringifiedData = await env.PROFILES.get(getProfileKey(publicKey));
