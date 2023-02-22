@@ -43,7 +43,7 @@ kv-namespaces = [
 echo <VALUE> | npx wrangler secret put INDEXER_API_KEY
 ```
 
-## Architecture
+## API
 
 ### `GET /:publicKey`
 
