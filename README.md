@@ -47,7 +47,13 @@ echo <VALUE> | npx wrangler secret put INDEXER_API_KEY
 
 ### `GET /:publicKey`
 
-`publicKey` is the hexadecimal representation of a public key in the Cosmos.
+`publicKey` is the hexadecimal representation of a secp256k1 public key used in
+the Cosmos.
+
+You can also use the bech32 hash or address to query for the profile:
+
+- `GET /bech32/:bech32Hash`
+- `GET /address/:bech32Address`
 
 The returned type is:
 
