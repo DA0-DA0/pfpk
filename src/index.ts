@@ -4,6 +4,7 @@ import { Env } from "./types";
 import { updateProfile } from "./routes/updateProfile";
 import { fetchProfile } from "./routes/fetchProfile";
 import { searchProfiles } from "./routes/searchProfiles";
+import { resolveProfile } from "./routes/resolveProfile";
 
 // Create CORS handlers.
 const { preflight, corsify } = createCors({
@@ -23,6 +24,9 @@ router.all("*", preflight);
 
 // Search profiles.
 router.get("/search/:bech32Prefix/:namePrefix", searchProfiles);
+
+// Resolve profile.
+router.get("/resolve/:bech32Prefix/:name", resolveProfile);
 
 // Fetch profile.
 router.get("/:publicKey", fetchProfile);

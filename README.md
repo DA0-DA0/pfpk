@@ -5,6 +5,8 @@ Worker](https://developers.cloudflare.com/workers) that allows associating a
 name and [Stargaze](https://stargaze.zone) or [Juno](https://junonetwork.io) NFT
 with a given [Cosmos](https://cosmos.network) wallet / keypair.
 
+Currently deployed at https://pfpk.daodao.zone
+
 ## Setup
 
 ```
@@ -184,3 +186,41 @@ type SearchProfilesResponse = {
 
 This route lets you search for profiles with names that have a given prefix. It
 returns the top 5 results.
+
+### `GET /resolve/:bech32Prefix/:name`
+
+`bech32Prefix` is the bech32 prefix of the chain, such as `juno` or `stars`. It
+will transform the public keys associated with names to the bech32 address.
+
+`name` is the name to resolve. It is case-insensitive.
+
+The returned type is:
+
+```ts
+type ResolveProfileResponse = {
+  resolved: {
+    publicKey: string;
+    address: string;
+    profile: {
+      name: string | null;
+      nft: {
+        chainId: string;
+        collectionAddress: string;
+        tokenId: string;
+        imageUrl: string;
+      } | null;
+    };
+  } | null;
+};
+```
+
+or in the case of an error:
+
+```ts
+type ResolveProfileResponse = {
+  error: string;
+  message: string;
+};
+```
+
+This route lets you resolve a profile from its name.

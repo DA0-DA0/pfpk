@@ -77,3 +77,12 @@ export type SearchProfilesResponse =
       error: string;
       message: string;
     };
+
+export type ResolveProfileResponse =
+  | {
+      resolved: ProfileSearchHit | null;
+    }
+  | {
+      error: string;
+      message: string;
+    };
