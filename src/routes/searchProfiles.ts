@@ -6,7 +6,7 @@ import {
   SearchProfilesResponse,
 } from "../types";
 import {
-  getNameTakenKey,
+  getPublicKeyForNameTakenKey,
   getOwnedNftWithImage,
   getProfileKey,
   secp256k1PublicKeyToBech32Address,
@@ -48,7 +48,7 @@ export const searchProfiles: RouteHandler<Request> = async (
     const profileKeys = (
       await env.PROFILES.list<Profile>({
         limit: 5,
-        prefix: getNameTakenKey(namePrefix),
+        prefix: getPublicKeyForNameTakenKey(namePrefix),
       })
     ).keys;
 

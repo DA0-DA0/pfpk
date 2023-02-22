@@ -1,7 +1,13 @@
+import { fromBech32, toHex } from "@cosmjs/encoding";
 import { Request, RouteHandler } from "itty-router";
 import { KnownError, NotOwnerError } from "../error";
 import { Env, FetchProfileResponse, Profile } from "../types";
-import { EMPTY_PROFILE, getProfileKey, getOwnedNftWithImage } from "../utils";
+import {
+  EMPTY_PROFILE,
+  getProfileKey,
+  getOwnedNftWithImage,
+  getPublicKeyForBech32HashKey,
+} from "../utils";
 
 export const fetchProfile: RouteHandler<Request> = async (
   request,
@@ -12,16 +18,40 @@ export const fetchProfile: RouteHandler<Request> = async (
       status,
     });
 
-  const publicKey = request.params?.publicKey?.trim();
-  if (!publicKey) {
-    return respond(400, {
-      error: "Invalid request",
-      message: "Missing publicKey.",
-    });
-  }
+  // via public key
+  let publicKey = request.params?.publicKey?.trim();
+  // via bech32 hash
+  let bech32Hash = request.params?.bech32Hash?.trim();
+  // via bech32 address
+  const bech32Address = request.params?.bech32Address?.trim();
 
   let profile: Profile;
   try {
+    // If no public key nor bech32 hash is set, find bech 32 hash from address.
+    if (!publicKey && !bech32Hash && bech32Address) {
+      bech32Hash = toHex(fromBech32(bech32Address).data);
+    }
+
+    // If no public key but bech32 hash is, find public key.
+    if (!publicKey && bech32Hash) {
+      const resolvedPublicKey = await env.PROFILES.get(
+        getPublicKeyForBech32HashKey(bech32Hash)
+      );
+      // If no public key found in KV store, no profile set.
+      if (!resolvedPublicKey) {
+        return respond(200, EMPTY_PROFILE);
+      }
+
+      publicKey = resolvedPublicKey;
+    }
+
+    if (!publicKey) {
+      return respond(400, {
+        error: "Invalid request",
+        message: "Failed to resolve public key.",
+      });
+    }
+
     const stringifiedData = await env.PROFILES.get(getProfileKey(publicKey));
     // If no data found in KV store, no profile set. Respond with empty data.
     if (!stringifiedData) {

@@ -43,11 +43,17 @@ kv-namespaces = [
 echo <VALUE> | npx wrangler secret put INDEXER_API_KEY
 ```
 
-## Architecture
+## API
 
 ### `GET /:publicKey`
 
-`publicKey` is the hexadecimal representation of a public key in the Cosmos.
+`publicKey` is the hexadecimal representation of a secp256k1 public key used in
+the Cosmos.
+
+You can alternatively use the bech32 address or hash to query for the profile:
+
+- `GET /address/:bech32Address`
+- `GET /bech32/:bech32Hash`
 
 The returned type is:
 
