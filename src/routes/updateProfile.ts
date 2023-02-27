@@ -69,7 +69,7 @@ export const updateProfile: RouteHandler<Request> = async (
 
       if (!ALLOWED_NAME_CHARS.test(requestBody.profile.name)) {
         throw new Error(
-          "Name can only contain alphanumeric characters and the following special characters: . _ -"
+          "Name can only contain alphanumeric characters and the following symbols: . _ -"
         );
       }
     }
