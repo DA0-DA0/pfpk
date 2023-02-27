@@ -19,6 +19,8 @@ import {
   secp256k1PublicKeyToBech32HexHash,
 } from "../utils";
 
+const ALLOWED_NAME_CHARS = /^[a-zA-Z0-9._]+$/;
+
 export const updateProfile: RouteHandler<Request> = async (
   request,
   env: Env
@@ -55,17 +57,21 @@ export const updateProfile: RouteHandler<Request> = async (
     // Only validate name if truthy, since it can be set to null to clear it.
     if (
       "name" in requestBody.profile &&
-      typeof requestBody.profile.name === "string" &&
-      requestBody.profile.name.trim().length === 0
+      typeof requestBody.profile.name === "string"
     ) {
-      throw new Error("Name cannot be empty.");
-    }
-    if (
-      "name" in requestBody.profile &&
-      typeof requestBody.profile.name === "string" &&
-      requestBody.profile.name.trim().length > 32
-    ) {
-      throw new Error("Name cannot be longer than 32 characters.");
+      if (requestBody.profile.name.trim().length === 0) {
+        throw new Error("Name cannot be empty.");
+      }
+
+      if (requestBody.profile.name.trim().length > 32) {
+        throw new Error("Name cannot be longer than 32 characters.");
+      }
+
+      if (!ALLOWED_NAME_CHARS.test(requestBody.profile.name)) {
+        throw new Error(
+          "Name can only contain alphanumeric characters, periods, and underscores."
+        );
+      }
     }
     // Only validate NFT properties if truthy, since it can be set to null to
     // clear it.
