@@ -59,11 +59,13 @@ export const updateProfile: RouteHandler<Request> = async (
       "name" in requestBody.profile &&
       typeof requestBody.profile.name === "string"
     ) {
-      if (requestBody.profile.name.trim().length === 0) {
+      requestBody.profile.name = requestBody.profile.name.trim();
+
+      if (requestBody.profile.name.length === 0) {
         throw new Error("Name cannot be empty.");
       }
 
-      if (requestBody.profile.name.trim().length > 32) {
+      if (requestBody.profile.name.length > 32) {
         throw new Error("Name cannot be longer than 32 characters.");
       }
 
@@ -184,14 +186,12 @@ export const updateProfile: RouteHandler<Request> = async (
     });
   }
 
-  // Normalize name to prevent impersonation via whitespace.
-  const normalizedName =
-    requestBody.profile.name && requestBody.profile.name.trim();
+  const { name, nft } = requestBody.profile;
 
   // If setting name, verify unique.
-  if (typeof normalizedName === "string") {
+  if (typeof name === "string") {
     try {
-      if (await env.PROFILES.get(getPublicKeyForNameTakenKey(normalizedName))) {
+      if (await env.PROFILES.get(getPublicKeyForNameTakenKey(name))) {
         return respond(500, {
           error: "Invalid name",
           message: "Name already exists.",
@@ -208,15 +208,15 @@ export const updateProfile: RouteHandler<Request> = async (
   }
 
   // If setting NFT, verify it belongs to the public key.
-  if (requestBody.profile.nft) {
+  if (nft) {
     try {
       // Will throw error on ownership or image access error.
       const imageUrl = await getOwnedNftImageUrl(
-        requestBody.profile.nft.chainId,
+        nft.chainId,
         env,
         publicKey,
-        requestBody.profile.nft.collectionAddress,
-        requestBody.profile.nft.tokenId
+        nft.collectionAddress,
+        nft.tokenId
       );
 
       // If image is empty, cannot be used as profile picture.
@@ -251,16 +251,16 @@ export const updateProfile: RouteHandler<Request> = async (
 
   // Update fields with body data available. Both are nullable, so allow setting
   // to null or new value.
-  if (normalizedName !== undefined) {
-    profile.name = normalizedName;
+  if (name !== undefined) {
+    profile.name = name;
   }
-  if (requestBody.profile.nft !== undefined) {
+  if (nft !== undefined) {
     // Explicitly copy over values to prevent the user from setting whatever
     // values they want in this object.
-    profile.nft = requestBody.profile.nft && {
-      chainId: requestBody.profile.nft.chainId,
-      tokenId: requestBody.profile.nft.tokenId,
-      collectionAddress: requestBody.profile.nft.collectionAddress,
+    profile.nft = nft && {
+      chainId: nft.chainId,
+      tokenId: nft.tokenId,
+      collectionAddress: nft.collectionAddress,
     };
   }
   // Increment nonce to prevent replay attacks.
