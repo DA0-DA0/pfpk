@@ -26,11 +26,15 @@ export const isContract = async (
 
   // Fallback to chain.
   if (!info) {
-    info = (
-      (await client.queryContractSmart(contractAddress, {
-        info: {},
-      })) as InfoResponse
-    ).info;
+    try {
+      info = (
+        (await client.queryContractSmart(contractAddress, {
+          info: {},
+        })) as InfoResponse
+      ).info;
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   return (
