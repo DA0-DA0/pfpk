@@ -5,13 +5,24 @@ import * as Cw721 from "../cw721";
 import * as DaoVotingCw721Staked from "../daoVotingCw721Staked";
 
 export const getOwnedNftImageUrl =
-  (indexer: string | undefined, rpc: string, walletAddress: string): GetOwnedNftImageUrlFunction =>
-  async (_env, _publicKey, collectionAddress, tokenId) => {
+  (
+    indexerBase: string | undefined,
+    rpc: string,
+    walletAddress: string
+  ): GetOwnedNftImageUrlFunction =>
+  async ({ INDEXER_API_KEY }, _publicKey, collectionAddress, tokenId) => {
+    const indexer = indexerBase + "/" + INDEXER_API_KEY;
+
     let imageUrl: string | undefined;
     try {
       const client = await CosmWasmClient.connect(rpc);
 
-      const owner = await Cw721.getOwner(indexer, client, collectionAddress, tokenId);
+      const owner = await Cw721.getOwner(
+        indexer,
+        client,
+        collectionAddress,
+        tokenId
+      );
       // If wallet does not directly own NFT, check if staked with a DAO voting
       // module.
       if (owner !== walletAddress) {
@@ -39,7 +50,12 @@ export const getOwnedNftImageUrl =
         }
       }
 
-      imageUrl = await Cw721.getImageUrl(indexer, client, collectionAddress, tokenId);
+      imageUrl = await Cw721.getImageUrl(
+        indexer,
+        client,
+        collectionAddress,
+        tokenId
+      );
     } catch (err) {
       // If error already handled, pass up the chain.
       if (err instanceof KnownError || err instanceof NotOwnerError) {

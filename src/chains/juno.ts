@@ -21,7 +21,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     throw new KnownError(400, "Invalid public key", err);
   }
 
-  return await makeCw721GetOwnedNftImageUrl(env.INDEXER_API_KEY ? JUNO_INDEXER + env.INDEXER_API_KEY : undefined, JUNO_RPC, address)(
+  return await makeCw721GetOwnedNftImageUrl(JUNO_INDEXER, JUNO_RPC, address)(
     env,
     publicKey,
     collectionAddress,

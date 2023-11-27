@@ -21,10 +21,9 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     throw new KnownError(400, "Invalid public key", err);
   }
 
-  return await makeCw721GetOwnedNftImageUrl(env.INDEXER_API_KEY ? OSMOSIS_INDEXER + env.INDEXER_API_KEY : undefined, OSMOSIS_RPC, address)(
-    env,
-    publicKey,
-    collectionAddress,
-    tokenId
-  );
+  return await makeCw721GetOwnedNftImageUrl(
+    OSMOSIS_INDEXER,
+    OSMOSIS_RPC,
+    address
+  )(env, publicKey, collectionAddress, tokenId);
 };
