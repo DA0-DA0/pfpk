@@ -3,9 +3,9 @@ import { KnownError } from "../error";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
-const OSMOSIS_INDEXER = "https://osmosis-mainnet.indexer.zone";
-const OSMOSIS_RPC = "https://rpc.osmosis.zone";
-const OSMOSIS_PREFIX = "osmo";
+const NEUTRON_INDEXER = "https://neutron-mainnet.indexer.zone";
+const NEUTRON_RPC = "https://rpc-kralum.neutron-1.neutron.org";
+const NEUTRON_PREFIX = "neutron";
 
 export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
   env,
@@ -15,13 +15,13 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
 ) => {
   let address;
   try {
-    address = secp256k1PublicKeyToBech32Address(publicKey, OSMOSIS_PREFIX);
+    address = secp256k1PublicKeyToBech32Address(publicKey, NEUTRON_PREFIX);
   } catch (err) {
     console.error("PK to Address", err);
     throw new KnownError(400, "Invalid public key", err);
   }
 
-  return await makeCw721GetOwnedNftImageUrl(env.INDEXER_API_KEY ? OSMOSIS_INDEXER + env.INDEXER_API_KEY : undefined, OSMOSIS_RPC, address)(
+  return await makeCw721GetOwnedNftImageUrl(env.INDEXER_API_KEY ? NEUTRON_INDEXER + env.INDEXER_API_KEY : undefined, NEUTRON_RPC, address)(
     env,
     publicKey,
     collectionAddress,

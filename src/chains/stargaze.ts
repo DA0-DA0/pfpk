@@ -7,7 +7,7 @@ import * as DaoVotingCw721Staked from "../daoVotingCw721Staked";
 
 const STARGAZE_API_TEMPLATE =
   "https://nft-api.stargaze-apis.com/api/v1beta/profile/{{address}}/nfts";
-const STARGAZE_INDEXER = "https://stargaze-mainnet.indexer.zone/";
+const STARGAZE_INDEXER = "https://stargaze-mainnet.indexer.zone";
 const STARGAZE_RPC = "https://rpc.stargaze-apis.com";
 const STARGAZE_PREFIX = "stars";
 

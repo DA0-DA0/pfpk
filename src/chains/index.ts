@@ -1,14 +1,21 @@
-import { JUNO_CHAIN_ID, STARGAZE_CHAIN_ID, OSMOSIS_CHAIN_ID } from "../constants";
+import {
+  JUNO_CHAIN_ID,
+  STARGAZE_CHAIN_ID,
+  OSMOSIS_CHAIN_ID,
+  NEUTRON_CHAIN_ID,
+} from "../constants";
 import { GetOwnedNftImageUrlFunction } from "../types";
 import { KnownError } from "../error";
 import { getOwnedNftImageUrl as stargaze } from "./stargaze";
 import { getOwnedNftImageUrl as juno } from "./juno";
 import { getOwnedNftImageUrl as osmosis } from "./osmosis";
+import { getOwnedNftImageUrl as neutron } from "./neutron";
 
 export const CHAINS: Record<string, GetOwnedNftImageUrlFunction | undefined> = {
   [STARGAZE_CHAIN_ID]: stargaze,
   [JUNO_CHAIN_ID]: juno,
   [OSMOSIS_CHAIN_ID]: osmosis,
+  [NEUTRON_CHAIN_ID]: neutron,
 };
 
 export const getOwnedNftImageUrl = async (

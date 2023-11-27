@@ -3,7 +3,7 @@ import { KnownError } from "../error";
 import { secp256k1PublicKeyToBech32Address } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
-const JUNO_INDEXER = "https://juno-mainnet.indexer.zone/";
+const JUNO_INDEXER = "https://juno-mainnet.indexer.zone";
 const JUNO_RPC = "https://juno-rpc.reece.sh";
 const JUNO_PREFIX = "juno";
 
