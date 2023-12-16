@@ -1,8 +1,11 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { GetOwnedNftImageUrlFunction } from "../types";
-import { KnownError, NotOwnerError } from "../error";
-import * as Cw721 from "../cw721";
-import * as DaoVotingCw721Staked from "../daoVotingCw721Staked";
+import {
+  Cw721,
+  DaoVotingCw721Staked,
+  KnownError,
+  NotOwnerError,
+} from "../utils";
 
 export const getOwnedNftImageUrl =
   (

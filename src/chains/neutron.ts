@@ -1,6 +1,5 @@
 import { GetOwnedNftImageUrlFunction } from "../types";
-import { KnownError } from "../error";
-import { secp256k1PublicKeyToBech32Address } from "../utils";
+import { secp256k1PublicKeyToBech32Address, KnownError } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
 const NEUTRON_INDEXER = "https://neutron-mainnet.indexer.zone";

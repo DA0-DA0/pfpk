@@ -1,6 +1,6 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { KnownError } from "./error";
-import { transformIpfsUrlToHttpsIfNecessary } from "./utils";
+import { transformIpfsUrlToHttpsIfNecessary } from "./ipfs";
 
 type Expiration =
   | {

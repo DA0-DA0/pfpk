@@ -1,8 +1,6 @@
 import { serializeSignDoc, makeSignDoc } from "@cosmjs/amino";
 import { RouteHandler, Request } from "itty-router";
 import { CHAINS, getOwnedNftImageUrl } from "../chains";
-import { JUNO_CHAIN_ID } from "../constants";
-import { KnownError, NotOwnerError } from "../error";
 import {
   Env,
   UpdateProfileResponse,
@@ -10,6 +8,8 @@ import {
   Profile,
 } from "../types";
 import {
+  KnownError,
+  NotOwnerError,
   EMPTY_PROFILE,
   getPublicKeyForNameTakenKey,
   getProfileKey,
@@ -161,7 +161,7 @@ export const updateProfile: RouteHandler<Request> = async (
             },
           ],
         },
-        JUNO_CHAIN_ID,
+        "juno-1",
         "",
         0,
         0

@@ -1,6 +1,5 @@
 import { GetOwnedNftImageUrlFunction } from "../types";
-import { KnownError } from "../error";
-import { secp256k1PublicKeyToBech32Address } from "../utils";
+import { secp256k1PublicKeyToBech32Address, KnownError } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
 const OSMOSIS_INDEXER = "https://osmosis-mainnet.indexer.zone";

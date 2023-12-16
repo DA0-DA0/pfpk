@@ -1,8 +1,9 @@
 import { fromBech32, toHex } from "@cosmjs/encoding";
 import { Request, RouteHandler } from "itty-router";
-import { KnownError, NotOwnerError } from "../error";
 import { Env, FetchProfileResponse, Profile } from "../types";
 import {
+  KnownError,
+  NotOwnerError,
   EMPTY_PROFILE,
   getProfileKey,
   getOwnedNftWithImage,
@@ -32,7 +33,7 @@ export const fetchProfile: RouteHandler<Request> = async (
       bech32Hash = toHex(fromBech32(bech32Address).data);
     }
 
-    // If no public key but bech32 hash is, find public key.
+    // If no public key but bech32 hash is set, find public key.
     if (!publicKey && bech32Hash) {
       const resolvedPublicKey = await env.PROFILES.get(
         getPublicKeyForBech32HashKey(bech32Hash)

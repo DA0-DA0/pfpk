@@ -1,9 +1,12 @@
+import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { GetOwnedNftImageUrlFunction } from "../types";
-import { KnownError, NotOwnerError } from "../error";
-import { secp256k1PublicKeyToBech32Address } from "../utils";
-import * as DaoVotingCw721Staked from "../daoVotingCw721Staked";
-import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+import {
+  KnownError,
+  NotOwnerError,
+  secp256k1PublicKeyToBech32Address,
+  DaoVotingCw721Staked,
+} from "../utils";
 
 const STARGAZE_GQL_URI = "https://graphql.mainnet.stargaze-apis.com/graphql";
 const STARGAZE_INDEXER_BASE = "https://stargaze-mainnet.indexer.zone";

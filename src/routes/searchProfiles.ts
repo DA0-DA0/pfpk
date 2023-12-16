@@ -64,9 +64,10 @@ export const searchProfiles: RouteHandler<Request> = async (
             profile?.nft && publicKey
               ? await getOwnedNftWithImage(env, publicKey, profile.nft)
               : null;
-          
+
           if (profile && publicKey) {
-            const profileWithoutNonce: Omit<Profile, 'nonce'> & Pick<Partial<Profile>, 'nonce'> = {
+            const profileWithoutNonce: Omit<Profile, "nonce"> &
+              Pick<Partial<Profile>, "nonce"> = {
               ...profile,
             };
             delete profileWithoutNonce.nonce;
@@ -81,7 +82,7 @@ export const searchProfiles: RouteHandler<Request> = async (
                 ...profileWithoutNonce,
                 nft,
               },
-            }
+            };
           }
         })
       )
