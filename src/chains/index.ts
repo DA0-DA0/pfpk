@@ -4,12 +4,14 @@ import { getOwnedNftImageUrl as stargaze } from "./stargaze";
 import { getOwnedNftImageUrl as juno } from "./juno";
 import { getOwnedNftImageUrl as osmosis } from "./osmosis";
 import { getOwnedNftImageUrl as neutron } from "./neutron";
+import { getOwnedNftImageUrl as migaloo } from "./migaloo";
 
 export const CHAINS: Record<string, GetOwnedNftImageUrlFunction | undefined> = {
   ["stargaze-1"]: stargaze,
   ["juno-1"]: juno,
   ["osmosis-1"]: osmosis,
   ["neutron-1"]: neutron,
+  ["migaloo-1"]: migaloo,
 };
 
 export const getOwnedNftImageUrl = async (
