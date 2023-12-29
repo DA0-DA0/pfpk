@@ -1,11 +1,10 @@
-import { serializeSignDoc, makeSignDoc } from "@cosmjs/amino";
-import { RouteHandler, Request } from "itty-router";
 import { CHAINS, getOwnedNftImageUrl } from "../chains";
 import {
   Env,
   UpdateProfileResponse,
   UpdateProfileRequest,
   Profile,
+  AuthorizedRequest,
 } from "../types";
 import {
   KnownError,
@@ -13,16 +12,14 @@ import {
   EMPTY_PROFILE,
   getPublicKeyForNameTakenKey,
   getProfileKey,
-  secp256k1PublicKeyToBech32Address,
-  verifySecp256k1Signature,
   getPublicKeyForBech32HashKey,
   secp256k1PublicKeyToBech32HexHash,
 } from "../utils";
 
 const ALLOWED_NAME_CHARS = /^[a-zA-Z0-9._]+$/;
 
-export const updateProfile: RouteHandler<Request> = async (
-  request,
+export const updateProfile = async (
+  request: AuthorizedRequest<UpdateProfileRequest>,
   env: Env
 ) => {
   const respond = (status: number, response: UpdateProfileResponse) =>
@@ -30,17 +27,11 @@ export const updateProfile: RouteHandler<Request> = async (
       status,
     });
 
-  const publicKey = request.params?.publicKey?.trim();
-  if (!publicKey) {
-    return respond(400, {
-      error: "Invalid request",
-      message: "Missing publicKey.",
-    });
-  }
-
-  let requestBody: UpdateProfileRequest;
+  const {
+    auth: { publicKey },
+    ...requestBody
+  } = request.parsedBody.data;
   try {
-    requestBody = await request.json?.();
     // Validate body.
     if (!requestBody) {
       throw new Error("Missing.");
@@ -102,9 +93,6 @@ export const updateProfile: RouteHandler<Request> = async (
         `NFT's chainId must be one of: ${Object.keys(CHAINS).join(", ")}`
       );
     }
-    if (!("signature" in requestBody)) {
-      throw new Error("Missing signature.");
-    }
   } catch (err) {
     console.error("Parsing request body", err);
 
@@ -135,54 +123,6 @@ export const updateProfile: RouteHandler<Request> = async (
     return respond(401, {
       error: "Invalid body",
       message: `Invalid nonce. Expected: ${existingProfile.nonce}`,
-    });
-  }
-
-  try {
-    // Verify signature. (`requestBody.profile` contains `nonce`)
-    const signer = secp256k1PublicKeyToBech32Address(publicKey, "juno");
-    const message = serializeSignDoc(
-      makeSignDoc(
-        [
-          {
-            type: "PFPK Verification",
-            value: {
-              signer,
-              data: JSON.stringify(requestBody.profile, undefined, 2),
-            },
-          },
-        ],
-        {
-          gas: "0",
-          amount: [
-            {
-              denom: "ujuno",
-              amount: "0",
-            },
-          ],
-        },
-        "juno-1",
-        "",
-        0,
-        0
-      )
-    );
-
-    if (
-      !(await verifySecp256k1Signature(
-        publicKey,
-        message,
-        requestBody.signature
-      ))
-    ) {
-      throw new Error("Invalid signature.");
-    }
-  } catch (err) {
-    console.error("Signature verification", err);
-
-    return respond(400, {
-      error: "Signature verification failed",
-      message: err instanceof Error ? err.message : `${err}`,
     });
   }
 

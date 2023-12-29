@@ -5,6 +5,8 @@ import { updateProfile } from "./routes/updateProfile";
 import { fetchProfile } from "./routes/fetchProfile";
 import { searchProfiles } from "./routes/searchProfiles";
 import { resolveProfile } from "./routes/resolveProfile";
+import { authMiddleware } from "./utils/auth";
+import { handleNonce } from "./routes/nonce";
 
 // Create CORS handlers.
 const { preflight, corsify } = createCors({
@@ -22,6 +24,9 @@ const router = Router();
 // Handle CORS preflight.
 router.all("*", preflight);
 
+// Get nonce for publicKey.
+router.get('/nonce/:publicKey', handleNonce)
+
 // Search profiles.
 router.get("/search/:bech32Prefix/:namePrefix", searchProfiles);
 
@@ -38,7 +43,7 @@ router.get("/address/:bech32Address", fetchProfile);
 router.get("/bech32/:bech32Hash", fetchProfile);
 
 // Update profile.
-router.post("/:publicKey", updateProfile);
+router.post("/", authMiddleware, updateProfile);
 
 // 404
 router.all("*", () => new Response("404", { status: 404 }));

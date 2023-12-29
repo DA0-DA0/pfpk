@@ -1,3 +1,5 @@
+import { Request as IttyRequest } from "itty-router";
+
 // Cloudflare Worker bindings.
 export interface Env {
   PROFILES: KVNamespace;
@@ -40,8 +42,6 @@ export type FetchProfileResponse =
 export interface UpdateProfileRequest {
   // Allow Partial updates to profile, but require nonce.
   profile: Partial<Omit<Profile, "nonce">> & Pick<Profile, "nonce">;
-  signature: string;
-  signer: string;
 }
 
 // Body of profile update response.
@@ -66,7 +66,7 @@ export type GetOwnedNftImageUrlFunction = (
 export type ProfileSearchHit = {
   publicKey: string;
   address: string;
-  profile: Omit<ProfileWithImage, 'nonce'>;
+  profile: Omit<ProfileWithImage, "nonce">;
 };
 
 export type SearchProfilesResponse =
@@ -86,3 +86,27 @@ export type ResolveProfileResponse =
       error: string;
       message: string;
     };
+
+export interface Auth {
+  type: string;
+  nonce: number;
+  chainId: string;
+  chainFeeDenom: string;
+  chainBech32Prefix: string;
+  publicKey: string;
+}
+
+export type RequestBody<
+  Data extends Record<string, unknown> = Record<string, any>
+> = {
+  data: {
+    auth: Auth
+  } & Data
+  signature: string
+}
+
+export type AuthorizedRequest<
+  Data extends Record<string, any> = Record<string, any>
+> = IttyRequest & {
+  parsedBody: RequestBody<Data>
+}
