@@ -1,31 +1,16 @@
-import { GetOwnedNftImageUrlFunction } from "../types";
-import { KnownError } from "../utils/error";
-import { getOwnedNftImageUrl as stargaze } from "./stargaze";
-import { getOwnedNftImageUrl as juno } from "./juno";
-import { getOwnedNftImageUrl as osmosis } from "./osmosis";
-import { getOwnedNftImageUrl as neutron } from "./neutron";
-import { getOwnedNftImageUrl as migaloo } from "./migaloo";
+import { makeGetOwnedNftImageUrl } from './fallback'
+import { getOwnedNftImageUrl as stargaze } from './stargaze'
+import { GetOwnedNftImageUrlFunction } from '../types'
 
+// Override NFT getter for chains.
 export const CHAINS: Record<string, GetOwnedNftImageUrlFunction | undefined> = {
-  ["stargaze-1"]: stargaze,
-  ["juno-1"]: juno,
-  ["osmosis-1"]: osmosis,
-  ["neutron-1"]: neutron,
-  ["migaloo-1"]: migaloo,
-};
+  ['stargaze-1']: stargaze,
+}
 
 export const getOwnedNftImageUrl = async (
   chainId: string,
   ...params: Parameters<GetOwnedNftImageUrlFunction>
 ): ReturnType<GetOwnedNftImageUrlFunction> => {
-  const fn = CHAINS[chainId];
-  if (!fn) {
-    throw new KnownError(
-      400,
-      "Invalid chain ID",
-      `Chain ID must be one of: ${Object.keys(CHAINS).join(", ")}`
-    );
-  }
-
-  return await fn(...params);
-};
+  const fn = CHAINS[chainId] || makeGetOwnedNftImageUrl(chainId)
+  return await fn(...params)
+}

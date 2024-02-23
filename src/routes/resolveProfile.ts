@@ -1,16 +1,18 @@
-import { Request, RouteHandler } from "itty-router";
+import { Request, RouteHandler } from 'itty-router'
+
 import {
   Env,
-  Profile,
   ProfileSearchHit,
+  ProfileWithId,
   ResolveProfileResponse,
-} from "../types";
+} from '../types'
 import {
-  getPublicKeyForNameTakenKey,
+  bech32HashToAddress,
+  getChain,
   getOwnedNftWithImage,
-  getProfileKey,
-  secp256k1PublicKeyToBech32Address,
-} from "../utils";
+  getPreferredProfilePublicKey,
+  getProfileFromName,
+} from '../utils'
 
 export const resolveProfile: RouteHandler<Request> = async (
   request,
@@ -19,63 +21,92 @@ export const resolveProfile: RouteHandler<Request> = async (
   const respond = (status: number, response: ResolveProfileResponse) =>
     new Response(JSON.stringify(response), {
       status,
-    });
+    })
 
-  const bech32Prefix = request.params?.bech32Prefix?.trim();
-  if (!bech32Prefix) {
+  const chainId = request.params?.chainId?.trim()
+  if (!chainId) {
     return respond(400, {
-      error: "Invalid request",
-      message: "Missing bech32Prefix.",
-    });
+      error: 'Missing chainId.',
+    })
   }
 
-  const name = request.params?.name?.trim();
+  const name = request.params?.name?.trim()
   if (!name) {
     return respond(400, {
-      error: "Invalid request",
-      message: "Missing name.",
-    });
+      error: 'Missing name.',
+    })
+  }
+
+  const chain = await getChain(chainId)
+  if (!chain) {
+    return respond(400, {
+      error: 'Unknown chainId.',
+    })
   }
 
   try {
-    let resolved: ProfileSearchHit | null = null;
+    let resolved: ProfileSearchHit | null = null
 
-    const publicKey = await env.PROFILES.get(getPublicKeyForNameTakenKey(name));
-    const profile = publicKey
-      ? await env.PROFILES.get<Profile>(getProfileKey(publicKey), "json")
-      : undefined;
+    const profile = await getProfileFromName(env, name)
+    const publicKeyRow =
+      profile && (await getPreferredProfilePublicKey(env, profile.id, chainId))
 
-    const nft =
-      profile?.nft && publicKey
-        ? await getOwnedNftWithImage(env, publicKey, profile.nft)
-        : null;
+    let nft = null
+    if (profile?.nft) {
+      try {
+        // Get profile's public key for the NFT's chain, falling back to the
+        // current public key in case no public key has been added for that
+        // chain.
+        const nftPublicKeyRow =
+          (await getPreferredProfilePublicKey(
+            env,
+            profile.id,
+            profile.nft.chainId
+          )) || publicKeyRow
 
-    if (profile && publicKey) {
-      const profileWithoutNonce: Omit<Profile, "nonce"> &
-        Pick<Partial<Profile>, "nonce"> = {
+        nft = nftPublicKeyRow
+          ? await getOwnedNftWithImage(
+              env,
+              nftPublicKeyRow.publicKey,
+              profile.nft
+            )
+          : null
+      } catch (err) {
+        console.error('Profile resolution NFT retrieval', err)
+      }
+    }
+
+    if (profile && publicKeyRow) {
+      const profileWithoutNonce: Omit<ProfileWithId, 'id' | 'nonce'> &
+        Pick<Partial<ProfileWithId>, 'id' | 'nonce'> = {
         ...profile,
-      };
-      delete profileWithoutNonce.nonce;
+      }
+      delete profileWithoutNonce.id
+      delete profileWithoutNonce.nonce
 
       resolved = {
-        publicKey,
-        address: secp256k1PublicKeyToBech32Address(publicKey, bech32Prefix),
+        publicKey: publicKeyRow.publicKey,
+        address: bech32HashToAddress(
+          publicKeyRow.bech32Hash,
+          chain.bech32_prefix
+        ),
         profile: {
           ...profileWithoutNonce,
           nft,
         },
-      };
+      }
     }
 
     return respond(200, {
       resolved,
-    });
+    })
   } catch (err) {
-    console.error("Profile retrieval for search", err);
+    console.error('Profile retrieval for search', err)
 
     return respond(500, {
-      error: "Failed to retrieve profile for search",
-      message: err instanceof Error ? err.message : `${err}`,
-    });
+      error:
+        'Failed to retrieve profile for search: ' +
+        (err instanceof Error ? err.message : `${err}`),
+    })
   }
-};
+}

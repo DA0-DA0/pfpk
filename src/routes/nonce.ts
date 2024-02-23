@@ -1,7 +1,7 @@
 import { Request as IttyRequest } from 'itty-router'
 
-import { Env, Profile } from '../types'
-import { getProfileKey, respond, respondError } from '../utils'
+import { Env } from '../types'
+import { getNonce, respond, respondError } from '../utils'
 
 export const handleNonce = async (
   request: IttyRequest,
@@ -12,9 +12,7 @@ export const handleNonce = async (
     return respondError(400, 'Missing publicKey.')
   }
 
-  const profile = publicKey
-    ? await env.PROFILES.get<Profile>(getProfileKey(publicKey), "json")
-    : undefined;
-  
-  return respond(200, { nonce: profile?.nonce || 0 })
+  const nonce = await getNonce(env, publicKey)
+
+  return respond(200, { nonce })
 }
