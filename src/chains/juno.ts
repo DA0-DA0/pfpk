@@ -2,7 +2,7 @@ import { GetOwnedNftImageUrlFunction } from "../types";
 import { secp256k1PublicKeyToBech32Address, KnownError } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
-const JUNO_INDEXER = "https://juno-mainnet.indexer.zone";
+const JUNO_INDEXER = "https://indexer.daodao.zone/juno-1";
 const JUNO_RPC = "https://juno-rpc.reece.sh";
 const JUNO_PREFIX = "juno";
 

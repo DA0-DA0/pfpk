@@ -2,7 +2,7 @@ import { GetOwnedNftImageUrlFunction } from "../types";
 import { secp256k1PublicKeyToBech32Address, KnownError } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
-const NEUTRON_INDEXER = "https://neutron-mainnet.indexer.zone";
+const NEUTRON_INDEXER = "https://indexer.daodao.zone/neutron-1";
 const NEUTRON_RPC = "https://rpc-kralum.neutron-1.neutron.org";
 const NEUTRON_PREFIX = "neutron";
 

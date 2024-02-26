@@ -2,7 +2,7 @@ import { GetOwnedNftImageUrlFunction } from "../types";
 import { secp256k1PublicKeyToBech32Address, KnownError } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
-const OSMOSIS_INDEXER = "https://osmosis-mainnet.indexer.zone";
+const OSMOSIS_INDEXER = "https://indexer.daodao.zone/osmosis-1";
 const OSMOSIS_RPC = "https://rpc.osmosis.zone";
 const OSMOSIS_PREFIX = "osmo";
 

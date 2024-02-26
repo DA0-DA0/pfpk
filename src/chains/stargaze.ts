@@ -9,7 +9,7 @@ import {
 } from "../utils";
 
 const STARGAZE_GQL_URI = "https://graphql.mainnet.stargaze-apis.com/graphql";
-const STARGAZE_INDEXER_BASE = "https://stargaze-mainnet.indexer.zone";
+const STARGAZE_INDEXER_BASE = "https://indexer.daodao.zone/stargaze-1";
 const STARGAZE_RPC = "https://rpc.stargaze-apis.com";
 const STARGAZE_PREFIX = "stars";
 

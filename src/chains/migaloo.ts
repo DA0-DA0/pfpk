@@ -2,7 +2,7 @@ import { GetOwnedNftImageUrlFunction } from "../types";
 import { secp256k1PublicKeyToBech32Address, KnownError } from "../utils";
 import { getOwnedNftImageUrl as makeCw721GetOwnedNftImageUrl } from "./cw721";
 
-const MIGALOO_INDEXER = "https://migaloo-mainnet.indexer.zone";
+const MIGALOO_INDEXER = "https://indexer.daodao.zone/migaloo-1";
 const MIGALOO_RPC = "https://migaloo-rpc.polkachu.com";
 const MIGALOO_PREFIX = "migaloo";
 
