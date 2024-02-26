@@ -168,4 +168,5 @@ dist
 
 # wrangler project
 
+.wrangler
 .dev.vars
