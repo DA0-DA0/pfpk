@@ -84,23 +84,11 @@ export const fetchProfile: RouteHandler<Request> = async (
   }
 
   // Verify selected NFT still belongs to the public key before responding with
-  // it. If no NFT is returned, it will be unset since it cannot be used as a
-  // profile picture.
+  // it. If error, just log and ignore.
   try {
     response.nft = await getOwnedNftWithImage(env, publicKey, nft);
   } catch (err) {
-    if (err instanceof KnownError) {
-      return respond(err.statusCode, err.responseJson);
-    }
-
-    // If some other error, return unexpected. Otherwise if NotOwnerError,
-    // chainNftImageUrl remains undefined, which is handled below.
-    if (!(err instanceof NotOwnerError)) {
-      return respond(500, {
-        error: "Unexpected verification error",
-        message: err instanceof Error ? err.message : `${err}`,
-      });
-    }
+    console.error("Failed to get NFT", err);
   }
 
   return respond(200, response);
