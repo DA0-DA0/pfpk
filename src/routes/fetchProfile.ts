@@ -1,14 +1,20 @@
 import { fromBech32, toHex } from '@cosmjs/encoding'
 import { Request, RouteHandler } from 'itty-router'
 
-import { Env, FetchProfileResponse, ProfileWithId } from '../types'
 import {
-  EMPTY_PROFILE,
+  DbRowProfile,
+  Env,
+  FetchProfileResponse,
+  FetchedProfile,
+} from '../types'
+import {
+  INITIAL_NONCE,
   getOwnedNftWithImage,
-  getPreferredProfilePublicKey,
   getProfileFromBech32Hash,
   getProfileFromPublicKey,
   getProfilePublicKeyPerChain,
+  mustGetChain,
+  secp256k1PublicKeyToBech32Address,
 } from '../utils'
 
 export const fetchProfile: RouteHandler<Request> = async (
@@ -27,29 +33,26 @@ export const fetchProfile: RouteHandler<Request> = async (
   // via bech32 address
   const bech32Address = request.params?.bech32Address?.trim()
 
-  let profile: ProfileWithId
+  // Fetched profile response. Defaults to the empty profile.
+  const profile: FetchedProfile = {
+    nonce: INITIAL_NONCE,
+    name: null,
+    nft: null,
+    chains: {},
+  }
+
+  let profileRow: DbRowProfile | null = null
   try {
     // If no public key nor bech32 hash is set, get bech32 hash from address.
     if (!publicKey && !bech32Hash && bech32Address) {
       bech32Hash = toHex(fromBech32(bech32Address).data)
     }
 
-    let _profile: ProfileWithId | undefined
     if (publicKey) {
-      _profile = await getProfileFromPublicKey(env, publicKey)
+      profileRow = await getProfileFromPublicKey(env, publicKey)
     } else if (bech32Hash) {
-      _profile = await getProfileFromBech32Hash(env, bech32Hash)
-    } else {
-      return respond(400, {
-        error: 'Failed to resolve public key or bech32 hash.',
-      })
+      profileRow = await getProfileFromBech32Hash(env, bech32Hash)
     }
-
-    if (!_profile) {
-      return respond(200, EMPTY_PROFILE)
-    }
-
-    profile = _profile
   } catch (err) {
     console.error('Profile retrieval', err)
 
@@ -60,44 +63,58 @@ export const fetchProfile: RouteHandler<Request> = async (
     })
   }
 
-  // Response object for mutating with NFT if present.
-  const response: FetchProfileResponse = {
-    nonce: profile.nonce,
-    name: profile.name?.trim() || null,
-    nft: null,
-  }
+  // If profile found, load into fetched profile response.
+  if (profileRow) {
+    profile.nonce = profileRow.nonce
+    profile.name = profileRow.name?.trim() || null
 
-  // Get NFT from stored profile data.
-  const { nft } = profile
-  // If no NFT, respond with name potentially set.
-  if (!nft) {
-    return respond(200, response)
-  }
+    // Get chains.
+    const accountPerChain = (
+      await getProfilePublicKeyPerChain(env, profileRow.id)
+    ).map(
+      async ({ chainId, publicKey }) =>
+        [
+          chainId,
+          {
+            publicKey,
+            // Convert public key to bech32 address for given chain.
+            address: await secp256k1PublicKeyToBech32Address(
+              publicKey,
+              mustGetChain(chainId).bech32_prefix
+            ),
+          },
+        ] as const
+    )
 
-  // Verify selected NFT still belongs to the public key before responding with
-  // it. On error, just ignore it and return no NFT.
-  try {
-    // Get profile's public key for the NFT's chain.
-    const publicKey = (
-      await getPreferredProfilePublicKey(env, profile.id, nft.chainId)
-    )?.publicKey
-    if (publicKey) {
-      response.nft = await getOwnedNftWithImage(env, publicKey, nft)
-    }
-  } catch (err) {
-    console.error('Failed to get NFT image', err)
-  }
-
-  // Add chains.
-  try {
-    response.chains = Object.fromEntries(
-      (await getProfilePublicKeyPerChain(env, profile.id)).map(
-        ({ chainId, publicKey }) => [chainId, publicKey]
+    profile.chains = Object.fromEntries(
+      (await Promise.allSettled(accountPerChain)).flatMap((loadable) =>
+        loadable.status === 'fulfilled' ? [loadable.value] : []
       )
     )
-  } catch (err) {
-    console.error('Failed to get profile chains', err)
+
+    // Verify selected NFT still belongs to the public key before responding
+    // with it. On error, just ignore and return no NFT.
+    if (
+      profileRow.nftChainId &&
+      profileRow.nftCollectionAddress &&
+      profileRow.nftTokenId
+    ) {
+      try {
+        // Get profile's public key for the NFT's chain, and then verify that
+        // the NFT is owned by it.
+        const publicKey = profile.chains[profileRow.nftChainId]?.publicKey
+        if (publicKey) {
+          profile.nft = await getOwnedNftWithImage(env, publicKey, {
+            chainId: profileRow.nftChainId,
+            collectionAddress: profileRow.nftCollectionAddress,
+            tokenId: profileRow.nftTokenId,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to get NFT image', err)
+      }
+    }
   }
 
-  return respond(200, response)
+  return respond(200, profile)
 }

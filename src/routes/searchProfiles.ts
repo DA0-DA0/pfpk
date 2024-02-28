@@ -1,11 +1,6 @@
 import { Request, RouteHandler } from 'itty-router'
 
-import {
-  Env,
-  Profile,
-  ProfileSearchHit,
-  SearchProfilesResponse,
-} from '../types'
+import { Env, ResolvedProfile, SearchProfilesResponse } from '../types'
 import {
   bech32HashToAddress,
   getChain,
@@ -59,51 +54,45 @@ export const searchProfiles: RouteHandler<Request> = async (
     const profiles = (
       await Promise.all(
         potentialProfiles.map(
-          async ({ publicKey, bech32Hash, profileId, profile }) => {
-            let nft = null
-            if (profile.nft) {
+          async ({
+            id,
+            publicKey,
+            bech32Hash,
+            name,
+            nftChainId,
+            nftCollectionAddress,
+            nftTokenId,
+          }): Promise<ResolvedProfile> => {
+            let nft: ResolvedProfile['nft'] = null
+            if (nftChainId && nftCollectionAddress && nftTokenId) {
               try {
-                // Get profile's public key for the NFT's chain.
-                const publicKeyRow =
-                  profile &&
-                  (await getPreferredProfilePublicKey(
-                    env,
-                    profileId,
-                    profile.nft.chainId
-                  ))
+                // Get profile's public key for the NFT's chain, falling back to
+                // the current public key in case no public key has been added
+                // for that chain.
+                const nftPublicKey =
+                  (await getPreferredProfilePublicKey(env, id, nftChainId))
+                    ?.publicKey || publicKey
 
-                nft = publicKeyRow
-                  ? await getOwnedNftWithImage(
-                      env,
-                      publicKeyRow.publicKey,
-                      profile.nft
-                    )
-                  : null
+                nft = await getOwnedNftWithImage(env, nftPublicKey, {
+                  chainId: nftChainId,
+                  collectionAddress: nftCollectionAddress,
+                  tokenId: nftTokenId,
+                })
               } catch (err) {
                 console.error('Profile search NFT retrieval', err)
               }
             }
 
-            if (profile && publicKey) {
-              const profileWithoutNonce: Omit<Profile, 'nonce'> &
-                Pick<Partial<Profile>, 'nonce'> = {
-                ...profile,
-              }
-              delete profileWithoutNonce.nonce
-
-              return {
-                publicKey,
-                address: bech32HashToAddress(bech32Hash, chain.bech32_prefix),
-                profile: {
-                  ...profileWithoutNonce,
-                  nft,
-                },
-              }
+            return {
+              publicKey,
+              address: bech32HashToAddress(bech32Hash, chain.bech32_prefix),
+              name,
+              nft,
             }
           }
         )
       )
-    ).filter((hit): hit is ProfileSearchHit => !!hit)
+    ).filter((profile): profile is ResolvedProfile => !!profile)
 
     return respond(200, {
       profiles,

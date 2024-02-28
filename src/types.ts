@@ -1,7 +1,7 @@
 import { Request as IttyRequest } from 'itty-router'
 
 // Cloudflare Worker bindings.
-export interface Env {
+export type Env = {
   PROFILES: KVNamespace
   DB: D1Database
 
@@ -9,48 +9,100 @@ export interface Env {
   INDEXER_API_KEY: string
 }
 
-// Stored in KV and included in the POST body when updating a profile.
-export interface Profile {
-  nonce: number
-  name: string | null
-  nft: ProfileNft | null
+/**
+ * Profile used when updating/saving.
+ */
+export type UpdateProfile = {
   /**
-   * Map of chain ID to preferred public key for that chain.
+   * Next profile nonce.
    */
-  chains?: Record<string, string>
+  nonce: number
+  /**
+   * Profile name.
+   */
+  name: string | null
+  /**
+   * Profile NFT.
+   */
+  nft: ProfileNft | null
 }
 
-export type ProfileWithId = Profile & { id: number }
+/**
+ * Profile used when fetching directly.
+ */
+export type FetchedProfile = {
+  /**
+   * Next profile nonce.
+   */
+  nonce: number
+  /**
+   * Profile name.
+   */
+  name: string | null
+  /**
+   * Profile NFT with image loaded.
+   */
+  nft: ProfileNftWithImage | null
+  /**
+   * Map of chain ID to public key and address.
+   */
+  chains: Record<
+    string,
+    {
+      publicKey: string
+      address: string
+    }
+  >
+}
 
-export interface ProfileNft {
+/**
+ * Profile used when searching/resolving by name on a specific chain.
+ */
+export type ResolvedProfile = {
+  /**
+   * Profile public key for this chain.
+   */
+  publicKey: string
+  /**
+   * Profile address for this chain.
+   */
+  address: string
+  /**
+   * Profile name.
+   */
+  name: string | null
+  /**
+   * Profile NFT with image loaded.
+   */
+  nft: ProfileNftWithImage | null
+}
+
+export type UpdateProfileWithId = UpdateProfile & { id: number }
+
+export type ProfileNft = {
   chainId: string
   collectionAddress: string
   tokenId: string
 }
 
-export interface ProfileNftWithImage extends ProfileNft {
+export type ProfileNftWithImage = ProfileNft & {
   imageUrl: string
-}
-
-export type ProfileWithImage = Omit<Profile, 'nft'> & {
-  nft: ProfileNftWithImage | null
 }
 
 // Body of fetch profile response.
 export type FetchProfileResponse =
-  // Add imageUrl to response so frontend doesn't have to look it up.
-  | ProfileWithImage
+  | FetchedProfile
   | {
       error: string
     }
 
 // Body of profile update request.
 export type UpdateProfileRequest = {
-  // Allow Partial updates to profile, but require nonce.
-  profile: Partial<Omit<Profile, 'nonce'>> & Pick<Profile, 'nonce'>
-  // Optionally use the current public key as the preference for these chains on
-  // profile creation. If undefined, defaults to the chain used to sign this
-  // request.
+  // Allow partial updates to profile, but require nonce.
+  profile: Partial<Omit<UpdateProfile, 'nonce'>> & Pick<UpdateProfile, 'nonce'>
+  // Optionally use the current public key as the preference for these chains.
+  // If undefined, defaults to the chain used to sign this request on profile
+  // creation.
   chainIds?: string[]
 }
 
@@ -107,15 +159,9 @@ export type GetOwnedNftImageUrlFunction = (
   tokenId: string
 ) => Promise<string | undefined>
 
-export type ProfileSearchHit = {
-  publicKey: string
-  address: string
-  profile: Omit<ProfileWithImage, 'nonce'>
-}
-
 export type SearchProfilesResponse =
   | {
-      profiles: ProfileSearchHit[]
+      profiles: ResolvedProfile[]
     }
   | {
       error: string
@@ -123,13 +169,13 @@ export type SearchProfilesResponse =
 
 export type ResolveProfileResponse =
   | {
-      resolved: ProfileSearchHit | null
+      resolved: ResolvedProfile
     }
   | {
       error: string
     }
 
-export interface Auth {
+export type Auth = {
   type: string
   nonce: number
   chainId: string

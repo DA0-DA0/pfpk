@@ -1,7 +1,7 @@
 import {
   AuthorizedRequest,
+  DbRowProfile,
   Env,
-  ProfileWithId,
   UnregisterPublicKeyRequest,
   UnregisterPublicKeyResponse,
 } from '../types'
@@ -28,7 +28,7 @@ export const unregisterPublicKeys = async (
   } = request.parsedBody.data
 
   // Get existing profile.
-  let profile: ProfileWithId | undefined
+  let profile: DbRowProfile | null
   try {
     profile = await getProfileFromPublicKey(env, publicKey)
   } catch (err) {

@@ -8,8 +8,32 @@ wallets / public keys.
 Currently deployed at https://pfpk.daodao.zone
 
 A profile contains a name and NFT image and is associated with one or more
-public keys. A chain preference must be set for each public key in order for it
-to be resolvable by the name.
+public keys. Chain preferences establish which public key to use for a given
+chain.
+
+In order for the profile to be resolvable by name when searching or resolving on
+a given chain, and thus produce a public key and address to use on that chain, a
+chain preference must be set. This is because different chains use different
+default [derivation
+paths](https://help.myetherwallet.com/en/articles/5867305-hd-wallets-and-derivation-paths)
+for their wallet addresses, and thus different chains can end up with different
+public keys / wallet addresses used by one wallet. For example, Juno (and most
+Cosmos chains) uses coin type (slip44) 118, whereas Terra uses 330. This leads
+to the same wallet (i.e. private key) deriving different public keys (and thus
+addresses) for Juno and Terra. While a wallet can manually specify any
+derivation path and thus access the address for any valid public key that its
+private key controls, it would be confusing for someone to use an address with a
+non-default derivation path. Thus, we require setting a chain preference in
+order to explicitly opt-in/choose the address resolved on each chain so that
+there is never confusion about which address a profile is using.
+
+Both the update profile and register public keys routes automatically create a
+new profile if one does not exist for the calling public key; similary, the
+fetch profile route returns an empty profile object if the provided public key,
+bech32 hash, or address is not associated with any profile. Thus it externally
+appears as if all public keys/addresses are associated with an empty profile. An
+empty profile contains the initial `nonce` (0), both `name` and `nft` set to
+null, and `chains` an empty object.
 
 ## Setup
 
@@ -73,7 +97,13 @@ type FetchProfileResponse = {
     tokenId: string;
     imageUrl: string;
   } | null;
-  chains?: Record<string, string>;
+  chains: Record<
+    string,
+    {
+      publicKey: string
+      address: string
+    }
+  >;
 };
 ```
 
@@ -106,7 +136,8 @@ The retrieval of the image URL depends on the chain:
   mimetype headers (such as IPFS URLs that don't care about the contents of the
   data).
 
-It also returns a map of chain ID to preferred public key for that chain.
+It also returns a map of chain ID to public key and address for that chain based
+on the preferred public key. See the explanation at the top for more details.
 
 ### `POST /`
 
@@ -154,17 +185,18 @@ type UpdateProfileResponse = {
 };
 ```
 
-This route lets the user perform partial updates to their profile. If `name` or
-`nft` is `null`, that field is cleared. If either is `undefined` or omitted,
+This route lets the user perform partial updates to their existing profile, or
+create a new profile if one does not exist for the current public key. If `name`
+or `nft` is `null`, that field is cleared. If either is `undefined` or omitted,
 nothing happens to that field. The name must be unique, at least 1 character
 long, at most 32 characters long, and only contain alphanumeric characters,
 periods, and underscores. The NFT must be owned by any of the profile's public
 keys. If the NFT has no image, it will fail.
 
-When creating a profile for the first time, a set of chain IDs can optionally be
-provided. If provided, the public key will be registered for all of these
-chains. If no chain IDs are provided, the public key will only be registered for
-the chain used to sign the request.
+A set of chain IDs can optionally be provided. If provided, the public key will
+be registered for all of these chains. If no chain IDs are provided when
+creating a profile for the first time, the public key will be registered for the
+chain used to sign the request.
 
 The nonce from the latest GET request must be provided to prevent replay
 attacks. It starts at 0, and the GET request will return an empty profile with a
@@ -236,7 +268,16 @@ this public key. If `chainIds` is omitted for a key being registered, it will
 just set the chain preference for the chain used to sign the nested request. The
 authentication structure is nested, so first the keys being registered need to
 sign the data objects, and then the profile public key performing the
-registration needs to sign all of them.
+registration needs to sign all of them. When registering new chains for the
+profile public key performing the registration, the internal allowance signature
+is not required.
+
+If this route is called with a public key that is not attached to any profile, a
+new empty profile is created automatically.
+
+If a new public key being registered is attached to an existing profile, the
+public key will be removed from it. If an existing profile has no other public
+keys after the new public key is removed, the profile will be deleted.
 
 All public keys attached to a profile will resolve to the profile when looked up
 using the GET request at the top (by address, public key, or bech32 hash).
@@ -250,7 +291,8 @@ Although it is still safe to use any of the public keys controlled by the
 wallet/unique private key (since a user can manually add a new derivation path
 to their wallet), it would lead to unexpected behavior to use the undesired
 public key for a chain. Thus, the user needs to explicitly choose which public
-key (and thus which address) to resolve their name to on each chain.
+key (and thus which address) to resolve their name to on each chain. This is
+called a chain preference.
 
 The nonce from the latest GET request must be provided to prevent replay
 attacks.
@@ -322,15 +364,13 @@ type SearchProfilesResponse = {
   profiles: Array<{
     publicKey: string;
     address: string;
-    profile: {
-      name: string | null;
-      nft: {
-        chainId: string;
-        collectionAddress: string;
-        tokenId: string;
-        imageUrl: string;
-      } | null;
-    };
+    name: string | null;
+    nft: {
+      chainId: string;
+      collectionAddress: string;
+      tokenId: string;
+      imageUrl: string;
+    } | null;
   }>;
 };
 ```
@@ -360,15 +400,13 @@ type ResolveProfileResponse = {
   resolved: {
     publicKey: string;
     address: string;
-    profile: {
-      name: string | null;
-      nft: {
-        chainId: string;
-        collectionAddress: string;
-        tokenId: string;
-        imageUrl: string;
-      } | null;
-    };
+    name: string | null;
+    nft: {
+      chainId: string;
+      collectionAddress: string;
+      tokenId: string;
+      imageUrl: string;
+    } | null;
   } | null;
 };
 ```

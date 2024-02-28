@@ -2,12 +2,11 @@ import { getOwnedNftImageUrl } from '../chains'
 import {
   AuthorizedRequest,
   Env,
-  Profile,
+  UpdateProfile,
   UpdateProfileRequest,
   UpdateProfileResponse,
 } from '../types'
 import {
-  EMPTY_PROFILE,
   KnownError,
   NotOwnerError,
   getPreferredProfilePublicKey,
@@ -89,14 +88,32 @@ export const updateProfile = async (
     })
   }
 
-  // Get existing profile.
-  let existingProfile: Profile = { ...EMPTY_PROFILE }
+  // Get existing profile. Initialize with defaults in case no profile found.
   let existingProfileId: number | undefined
+  let profile: UpdateProfile = {
+    nonce: 0,
+    name: null,
+    nft: null,
+  }
+
   try {
-    const _profile = await getProfileFromPublicKey(env, publicKey)
-    if (_profile) {
-      existingProfile = _profile
-      existingProfileId = _profile.id
+    const profileRow = await getProfileFromPublicKey(env, publicKey)
+    if (profileRow) {
+      existingProfileId = profileRow.id
+      profile = {
+        nonce: profileRow.nonce,
+        name: profileRow.name,
+        nft:
+          profileRow.nftChainId &&
+          profileRow.nftCollectionAddress &&
+          profileRow.nftTokenId
+            ? {
+                chainId: profileRow.nftChainId,
+                collectionAddress: profileRow.nftCollectionAddress,
+                tokenId: profileRow.nftTokenId,
+              }
+            : null,
+      }
     }
   } catch (err) {
     console.error('Profile retrieval', err)
@@ -109,12 +126,13 @@ export const updateProfile = async (
   }
 
   // Validate nonce to prevent replay attacks.
-  if (requestBody.profile.nonce !== existingProfile.nonce) {
+  if (requestBody.profile.nonce !== profile.nonce) {
     return respond(401, {
-      error: `Invalid nonce. Expected: ${existingProfile.nonce}`,
+      error: `Invalid nonce. Expected: ${profile.nonce}`,
     })
   }
 
+  // Validate name and NFT partial updates.
   const { name, nft } = requestBody.profile
 
   // If setting name, verify unique.
@@ -123,7 +141,7 @@ export const updateProfile = async (
       const namedProfile = await getProfileFromName(env, name)
       // Only error if profile that is not the existing profile has the name.
       if (namedProfile && namedProfile.id !== existingProfileId) {
-        return respond(500, {
+        return respond(400, {
           error: 'Name already taken.',
         })
       }
@@ -141,7 +159,9 @@ export const updateProfile = async (
   // If setting NFT, verify it belongs to the profile's public key.
   if (nft) {
     try {
-      // If profile exists, get public key for the NFT's chain.
+      // If profile exists, get public key for the NFT's chain, falling back to
+      // the current public key in case no public key has been added for that
+      // chain..
       const chainPublicKey = existingProfileId
         ? (
             await getPreferredProfilePublicKey(
@@ -149,10 +169,13 @@ export const updateProfile = async (
               existingProfileId,
               nft.chainId
             )
-          )?.publicKey
-        : // If profile doesn't exist yet but the NFT is on a chain being added right now, use the current public key.
-          request.parsedBody.data.chainIds?.includes(nft.chainId) ||
-            request.parsedBody.data.auth.chainId === nft.chainId
+          )?.publicKey || publicKey
+        : // If profile doesn't exist yet, but the NFT is on a chain being registered for this public key right now, use the current public key. `getPreferredProfilePublicKey` will fail if no profile exists, but the profile is about to exist.
+          (
+              request.parsedBody.data.chainIds
+                ? request.parsedBody.data.chainIds.includes(nft.chainId)
+                : request.parsedBody.data.auth.chainId === nft.chainId
+            )
           ? publicKey
           : undefined
       if (!chainPublicKey) {
@@ -195,10 +218,9 @@ export const updateProfile = async (
     }
   }
 
-  const profile = { ...existingProfile }
+  // Update fields with partial updates if available. Both are nullable, so
+  // allow setting to null or new value.
 
-  // Update fields with body data available. Both are nullable, so allow setting
-  // to null or new value.
   if (name !== undefined) {
     profile.name = name
   }
@@ -207,10 +229,11 @@ export const updateProfile = async (
     // values they want in this object.
     profile.nft = nft && {
       chainId: nft.chainId,
-      tokenId: nft.tokenId,
       collectionAddress: nft.collectionAddress,
+      tokenId: nft.tokenId,
     }
   }
+
   // Increment nonce to prevent replay attacks.
   profile.nonce++
 

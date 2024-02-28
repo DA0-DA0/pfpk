@@ -1,3 +1,4 @@
+export * from './auth'
 export * from './crypto'
 export * from './chain'
 export * as Cw721 from './cw721'

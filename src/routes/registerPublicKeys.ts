@@ -1,15 +1,17 @@
 import {
   AuthorizedRequest,
+  DbRowProfile,
   Env,
-  ProfileWithId,
   RegisterPublicKeyRequest,
   RegisterPublicKeyResponse,
 } from '../types'
 import {
+  INITIAL_NONCE,
   KnownError,
   addProfilePublicKey,
   getProfileFromPublicKey,
   incrementProfileNonce,
+  saveProfile,
 } from '../utils'
 import { verifyRequestBody } from '../utils/auth'
 
@@ -27,9 +29,15 @@ export const registerPublicKeys = async (
     publicKeys,
   } = request.parsedBody.data
 
-  // Validate all keys inside.
+  // Validate all keys inside that are not the same as the public key performing
+  // the registration (since it already belongs to the profile, and its
+  // signature wrapping the entire message was validated in middleware).
   try {
-    await Promise.all(publicKeys.map((key) => verifyRequestBody(key)))
+    await Promise.all(
+      publicKeys
+        .filter((key) => key.data.auth.publicKey !== publicKey)
+        .map((key) => verifyRequestBody(key))
+    )
   } catch (err) {
     if (err instanceof KnownError) {
       return respond(err.statusCode, err.responseJson)
@@ -42,14 +50,6 @@ export const registerPublicKeys = async (
     })
   }
 
-  // Validate all keys inside are different from each other.
-  const keySet = new Set(publicKeys.map((key) => key.data.auth.publicKey))
-  if (keySet.size !== publicKeys.length) {
-    return respond(400, {
-      error: 'Keys must be unique.',
-    })
-  }
-
   // Validate all keys inside allowed this public key to register them.
   if (publicKeys.some((key) => key.data.allow !== publicKey)) {
     return respond(401, {
@@ -57,10 +57,30 @@ export const registerPublicKeys = async (
     })
   }
 
-  // Get existing profile.
-  let profile: ProfileWithId | undefined
+  // Find or create profile.
+  let profile: DbRowProfile
   try {
-    profile = await getProfileFromPublicKey(env, publicKey)
+    let _profile: DbRowProfile | null = await getProfileFromPublicKey(
+      env,
+      publicKey
+    )
+
+    // If no profile exists, create one.
+    if (!_profile) {
+      _profile = await saveProfile(
+        env,
+        publicKey,
+        {
+          nonce: INITIAL_NONCE,
+          name: null,
+          nft: null,
+        },
+        // Create with the current chain preference.
+        [request.parsedBody.data.auth.chainId]
+      )
+    }
+
+    profile = _profile
   } catch (err) {
     console.error('Profile retrieval', err)
 
@@ -68,12 +88,6 @@ export const registerPublicKeys = async (
       error:
         'Failed to retrieve existing profile: ' +
         (err instanceof Error ? err.message : `${err}`),
-    })
-  }
-
-  if (!profile) {
-    return respond(404, {
-      error: 'Profile not found.',
     })
   }
 
@@ -100,17 +114,31 @@ export const registerPublicKeys = async (
     })
   }
 
+  // Combine chain ID lists for same public keys
+  const publicKeysToAdd = Object.entries(
+    publicKeys.reduce(
+      (acc, { data }) => {
+        const existing = acc[data.auth.publicKey] || new Set<string>()
+
+        // If no chains passed, default to the chain used to sign.
+        ;(data.chainIds || [data.auth.chainId]).forEach((chainId) => {
+          if (!existing.has(chainId)) {
+            existing.add(chainId)
+          }
+        })
+
+        acc[data.auth.publicKey] = existing
+        return acc
+      },
+      {} as Record<string, Set<string>>
+    )
+  )
+
   // Add public keys to profile.
   try {
     await Promise.all(
-      publicKeys.map((key) =>
-        addProfilePublicKey(
-          env,
-          profile!.id,
-          key.data.auth.publicKey,
-          // If no chains passed, default to the chain used to sign.
-          key.data.chainIds || [key.data.auth.chainId]
-        )
+      publicKeysToAdd.map(([publicKey, chainIds]) =>
+        addProfilePublicKey(env, profile!.id, publicKey, Array.from(chainIds))
       )
     )
   } catch (err) {
