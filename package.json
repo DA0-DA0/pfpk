@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev --port 58229",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --minify",
     "seed": "wrangler d1 execute DB --file=./schema.sql",
     "seed:local": "wrangler d1 execute DB --file=./schema.sql --local",
     "lint": "eslint .",
