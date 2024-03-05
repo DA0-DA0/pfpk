@@ -1,22 +1,23 @@
-import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
-import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { GetOwnedNftImageUrlFunction } from "../types";
+import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
+import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
+
+import { GetOwnedNftImageUrlFunction } from '../types'
 import {
+  DaoVotingCw721Staked,
   KnownError,
   NotOwnerError,
   secp256k1PublicKeyToBech32Address,
-  DaoVotingCw721Staked,
-} from "../utils";
+} from '../utils'
 
-const STARGAZE_GQL_URI = "https://graphql.mainnet.stargaze-apis.com/graphql";
-const STARGAZE_INDEXER_BASE = "https://indexer.daodao.zone/stargaze-1";
-const STARGAZE_RPC = "https://rpc.stargaze-apis.com";
-const STARGAZE_PREFIX = "stars";
+const STARGAZE_GQL_URI = 'https://graphql.mainnet.stargaze-apis.com/graphql'
+const STARGAZE_RPC = 'https://rpc.cosmos.directory/stargaze'
+const STARGAZE_PREFIX = 'stars'
+const STARGAZE_CHAIN_ID = 'stargaze-1'
 
 const stargazeIndexerClient = new ApolloClient({
   uri: STARGAZE_GQL_URI,
   cache: new InMemoryCache(),
-});
+})
 
 const STARGAZE_GQL_TOKEN_QUERY = gql`
   query tokenQuery($collectionAddr: String!, $tokenId: String!) {
@@ -33,17 +34,7 @@ const STARGAZE_GQL_TOKEN_QUERY = gql`
       }
     }
   }
-`;
-
-// Stargaze API NFT object. The Stargaze API returns more data. These are the
-// only fields we care about.
-interface StargazeNft {
-  image: string;
-  tokenId: string;
-  collection: {
-    contractAddress: string;
-  };
-}
+`
 
 export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
   { INDEXER_API_KEY },
@@ -51,17 +42,17 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
   collectionAddress,
   tokenId
 ) => {
-  const indexer = STARGAZE_INDEXER_BASE + "/" + INDEXER_API_KEY;
+  const indexer = `https://indexer.daodao.zone/${STARGAZE_CHAIN_ID}/${INDEXER_API_KEY}`
 
-  let stargazeAddress;
+  let stargazeAddress
   try {
     stargazeAddress = secp256k1PublicKeyToBech32Address(
       publicKey,
       STARGAZE_PREFIX
-    );
+    )
   } catch (err) {
-    console.error("PK to Address", err);
-    throw new KnownError(400, "Invalid public key", err);
+    console.error('PK to Address', err)
+    throw new KnownError(400, 'Invalid public key', err)
   }
 
   const { error, data } = await stargazeIndexerClient.query({
@@ -70,34 +61,34 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
       collectionAddr: collectionAddress,
       tokenId,
     },
-  });
+  })
 
   if (error) {
-    console.error("Failed to load data from Stargaze indexer", error);
-    throw error;
+    console.error('Failed to load data from Stargaze indexer', error)
+    throw error
   }
 
   if (!data) {
-    console.error("Failed to load data from Stargaze indexer");
-    throw new KnownError(500, "Failed to load token from Stargaze indexer");
+    console.error('Failed to load data from Stargaze indexer')
+    throw new KnownError(500, 'Failed to load token from Stargaze indexer')
   }
 
-  const owner = data.token?.owner?.address;
+  const owner = data.token?.owner?.address
   if (!owner) {
-    throw new KnownError(500, "Failed to load owner from Stargaze indexer");
+    throw new KnownError(500, 'Failed to load owner from Stargaze indexer')
   }
 
   // If public key does not own the NFT, check if it was staked in a DAO by this
   // wallet.
   if (owner !== stargazeAddress) {
-    const client = await CosmWasmClient.connect(STARGAZE_RPC);
+    const client = await CosmWasmClient.connect(STARGAZE_RPC)
 
     // Check if NFT is staked in a DAO.
     const isStakingContract = await DaoVotingCw721Staked.isContract(
       indexer,
       client,
       owner
-    );
+    )
 
     if (isStakingContract) {
       const addressStakedToken = await DaoVotingCw721Staked.addressStakedToken(
@@ -107,19 +98,19 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
         owner,
         stargazeAddress,
         tokenId
-      );
+      )
 
       // If address did not stake the NFT, public key does not own it.
       if (!addressStakedToken) {
-        throw new NotOwnerError();
+        throw new NotOwnerError()
       }
     } else {
       // Not owned nor staked by this public key.
-      throw new NotOwnerError();
+      throw new NotOwnerError()
     }
   }
 
   if (data.token?.media?.url) {
-    return data.token.media.url;
+    return data.token.media.url
   }
-};
+}

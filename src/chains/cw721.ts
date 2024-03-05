@@ -1,31 +1,47 @@
-import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { GetOwnedNftImageUrlFunction } from "../types";
+import { Chain } from '@chain-registry/types'
+import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
+
+import { GetOwnedNftImageUrlFunction } from '../types'
 import {
   Cw721,
   DaoVotingCw721Staked,
   KnownError,
   NotOwnerError,
-} from "../utils";
+  secp256k1PublicKeyToBech32Address,
+} from '../utils'
 
 export const getOwnedNftImageUrl =
   (
-    indexerBase: string | undefined,
-    rpc: string,
-    walletAddress: string
+    {
+      chain_id: chainId,
+      chain_name: chainName,
+      bech32_prefix: bech32Prefix,
+    }: Chain,
+    publicKey: string
   ): GetOwnedNftImageUrlFunction =>
   async ({ INDEXER_API_KEY }, _publicKey, collectionAddress, tokenId) => {
-    const indexer = indexerBase + "/" + INDEXER_API_KEY;
+    const indexer = `https://indexer.daodao.zone/${chainId}/${INDEXER_API_KEY}`
 
-    let imageUrl: string | undefined;
+    let walletAddress
     try {
-      const client = await CosmWasmClient.connect(rpc);
+      walletAddress = secp256k1PublicKeyToBech32Address(publicKey, bech32Prefix)
+    } catch (err) {
+      console.error('PK to Address', err)
+      throw new KnownError(400, 'Invalid public key', err)
+    }
+
+    let imageUrl: string | undefined
+    try {
+      const client = await CosmWasmClient.connect(
+        `https://rpc.cosmos.directory/${chainName}`
+      )
 
       const owner = await Cw721.getOwner(
         indexer,
         client,
         collectionAddress,
         tokenId
-      );
+      )
       // If wallet does not directly own NFT, check if staked with a DAO voting
       // module.
       if (owner !== walletAddress) {
@@ -33,7 +49,7 @@ export const getOwnedNftImageUrl =
           indexer,
           client,
           owner
-        );
+        )
         if (isStakingContract) {
           const addressStakedToken =
             await DaoVotingCw721Staked.addressStakedToken(
@@ -43,13 +59,13 @@ export const getOwnedNftImageUrl =
               owner,
               walletAddress,
               tokenId
-            );
+            )
 
           if (!addressStakedToken) {
-            throw new NotOwnerError();
+            throw new NotOwnerError()
           }
         } else {
-          throw new NotOwnerError();
+          throw new NotOwnerError()
         }
       }
 
@@ -58,20 +74,20 @@ export const getOwnedNftImageUrl =
         client,
         collectionAddress,
         tokenId
-      );
+      )
     } catch (err) {
       // If error already handled, pass up the chain.
       if (err instanceof KnownError || err instanceof NotOwnerError) {
-        throw err;
+        throw err
       }
 
-      console.error(err);
+      console.error(err)
       throw new KnownError(
         500,
-        "Unexpected error retrieving NFT info from chain",
+        'Unexpected error retrieving NFT info from chain',
         err
-      );
+      )
     }
 
-    return imageUrl;
-  };
+    return imageUrl
+  }

@@ -1,16 +1,13 @@
-import { Request, RouteHandler } from "itty-router";
+import { Request, RouteHandler } from 'itty-router'
+
+import { Env, ResolvedProfile, SearchProfilesResponse } from '../types'
 import {
-  Env,
-  Profile,
-  ProfileSearchHit,
-  SearchProfilesResponse,
-} from "../types";
-import {
-  getPublicKeyForNameTakenKey,
+  bech32HashToAddress,
+  getChain,
   getOwnedNftWithImage,
-  getProfileKey,
-  secp256k1PublicKeyToBech32Address,
-} from "../utils";
+  getPreferredProfilePublicKey,
+  getProfilesWithNamePrefix,
+} from '../utils'
 
 export const searchProfiles: RouteHandler<Request> = async (
   request,
@@ -19,84 +16,94 @@ export const searchProfiles: RouteHandler<Request> = async (
   const respond = (status: number, response: SearchProfilesResponse) =>
     new Response(JSON.stringify(response), {
       status,
-    });
+    })
 
-  const bech32Prefix = request.params?.bech32Prefix?.trim();
-  if (!bech32Prefix) {
+  const chainId = request.params?.chainId?.trim()
+  if (!chainId) {
     return respond(400, {
-      error: "Invalid request",
-      message: "Missing bech32Prefix.",
-    });
+      error: 'Missing chainId.',
+    })
   }
 
-  const namePrefix = request.params?.namePrefix?.trim();
+  const namePrefix = request.params?.namePrefix?.trim()
   if (!namePrefix) {
     return respond(400, {
-      error: "Invalid request",
-      message: "Missing namePrefix.",
-    });
+      error: 'Missing namePrefix.',
+    })
   }
   if (namePrefix.length < 3) {
     return respond(400, {
-      error: "Invalid request",
-      message: "Name prefix must be at least 3 characters.",
-    });
+      error: 'Name prefix must be at least 3 characters.',
+    })
+  }
+
+  const chain = await getChain(chainId)
+  if (!chain) {
+    return respond(400, {
+      error: 'Unknown chainId.',
+    })
   }
 
   try {
-    // Get 5
-    const profileKeys = (
-      await env.PROFILES.list<Profile>({
-        limit: 5,
-        prefix: getPublicKeyForNameTakenKey(namePrefix),
-      })
-    ).keys;
+    const potentialProfiles = await getProfilesWithNamePrefix(
+      env,
+      namePrefix,
+      chainId
+    )
 
     const profiles = (
       await Promise.all(
-        profileKeys.map(async ({ name }) => {
-          const publicKey = await env.PROFILES.get(name);
-          const profile = publicKey
-            ? await env.PROFILES.get<Profile>(getProfileKey(publicKey), "json")
-            : undefined;
+        potentialProfiles.map(
+          async ({
+            id,
+            publicKey,
+            bech32Hash,
+            name,
+            nftChainId,
+            nftCollectionAddress,
+            nftTokenId,
+          }): Promise<ResolvedProfile> => {
+            let nft: ResolvedProfile['nft'] = null
+            if (nftChainId && nftCollectionAddress && nftTokenId) {
+              try {
+                // Get profile's public key for the NFT's chain, falling back to
+                // the current public key in case no public key has been added
+                // for that chain.
+                const nftPublicKey =
+                  (await getPreferredProfilePublicKey(env, id, nftChainId))
+                    ?.publicKey || publicKey
 
-          const nft =
-            profile?.nft && publicKey
-              ? await getOwnedNftWithImage(env, publicKey, profile.nft)
-              : null;
-
-          if (profile && publicKey) {
-            const profileWithoutNonce: Omit<Profile, "nonce"> &
-              Pick<Partial<Profile>, "nonce"> = {
-              ...profile,
-            };
-            delete profileWithoutNonce.nonce;
+                nft = await getOwnedNftWithImage(env, nftPublicKey, {
+                  chainId: nftChainId,
+                  collectionAddress: nftCollectionAddress,
+                  tokenId: nftTokenId,
+                })
+              } catch (err) {
+                console.error('Profile search NFT retrieval', err)
+              }
+            }
 
             return {
               publicKey,
-              address: secp256k1PublicKeyToBech32Address(
-                publicKey,
-                bech32Prefix
-              ),
-              profile: {
-                ...profileWithoutNonce,
-                nft,
-              },
-            };
+              address: bech32HashToAddress(bech32Hash, chain.bech32_prefix),
+              name,
+              nft,
+            }
           }
-        })
+        )
       )
-    ).filter((hit): hit is ProfileSearchHit => !!hit);
+    ).filter((profile): profile is ResolvedProfile => !!profile)
 
     return respond(200, {
       profiles,
-    });
+    })
   } catch (err) {
-    console.error("Profile retrieval for search", err);
+    console.error('Profile retrieval for search', err)
 
     return respond(500, {
-      error: "Failed to retrieve profile for search",
-      message: err instanceof Error ? err.message : `${err}`,
-    });
+      error:
+        'Failed to retrieve profile for search: ' +
+        (err instanceof Error ? err.message : `${err}`),
+    })
   }
-};
+}

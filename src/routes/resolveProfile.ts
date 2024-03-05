@@ -1,16 +1,13 @@
-import { Request, RouteHandler } from "itty-router";
+import { Request, RouteHandler } from 'itty-router'
+
+import { Env, ResolveProfileResponse, ResolvedProfile } from '../types'
 import {
-  Env,
-  Profile,
-  ProfileSearchHit,
-  ResolveProfileResponse,
-} from "../types";
-import {
-  getPublicKeyForNameTakenKey,
+  bech32HashToAddress,
+  getChain,
   getOwnedNftWithImage,
-  getProfileKey,
-  secp256k1PublicKeyToBech32Address,
-} from "../utils";
+  getPreferredProfilePublicKey,
+  getProfileFromName,
+} from '../utils'
 
 export const resolveProfile: RouteHandler<Request> = async (
   request,
@@ -19,63 +16,87 @@ export const resolveProfile: RouteHandler<Request> = async (
   const respond = (status: number, response: ResolveProfileResponse) =>
     new Response(JSON.stringify(response), {
       status,
-    });
+    })
 
-  const bech32Prefix = request.params?.bech32Prefix?.trim();
-  if (!bech32Prefix) {
+  const chainId = request.params?.chainId?.trim()
+  if (!chainId) {
     return respond(400, {
-      error: "Invalid request",
-      message: "Missing bech32Prefix.",
-    });
+      error: 'Missing chainId.',
+    })
   }
 
-  const name = request.params?.name?.trim();
+  const name = request.params?.name?.trim()
   if (!name) {
     return respond(400, {
-      error: "Invalid request",
-      message: "Missing name.",
-    });
+      error: 'Missing name.',
+    })
+  }
+
+  const chain = await getChain(chainId)
+  if (!chain) {
+    return respond(400, {
+      error: 'Unknown chainId.',
+    })
   }
 
   try {
-    let resolved: ProfileSearchHit | null = null;
+    const profile = await getProfileFromName(env, name)
+    const publicKeyRow =
+      profile && (await getPreferredProfilePublicKey(env, profile.id, chainId))
 
-    const publicKey = await env.PROFILES.get(getPublicKeyForNameTakenKey(name));
-    const profile = publicKey
-      ? await env.PROFILES.get<Profile>(getProfileKey(publicKey), "json")
-      : undefined;
+    if (!profile || !publicKeyRow) {
+      return respond(404, {
+        error: 'Profile not found.',
+      })
+    }
 
-    const nft =
-      profile?.nft && publicKey
-        ? await getOwnedNftWithImage(env, publicKey, profile.nft)
-        : null;
+    let nft: ResolvedProfile['nft'] = null
+    if (
+      profile.nftChainId &&
+      profile.nftCollectionAddress &&
+      profile.nftTokenId
+    ) {
+      try {
+        // Get profile's public key for the NFT's chain, falling back to the
+        // current public key in case no public key has been added for that
+        // chain.
+        const nftPublicKey =
+          (
+            await getPreferredProfilePublicKey(
+              env,
+              profile.id,
+              profile.nftChainId
+            )
+          )?.publicKey || publicKeyRow.publicKey
 
-    if (profile && publicKey) {
-      const profileWithoutNonce: Omit<Profile, "nonce"> &
-        Pick<Partial<Profile>, "nonce"> = {
-        ...profile,
-      };
-      delete profileWithoutNonce.nonce;
-
-      resolved = {
-        publicKey,
-        address: secp256k1PublicKeyToBech32Address(publicKey, bech32Prefix),
-        profile: {
-          ...profileWithoutNonce,
-          nft,
-        },
-      };
+        nft = await getOwnedNftWithImage(env, nftPublicKey, {
+          chainId: profile.nftChainId,
+          collectionAddress: profile.nftCollectionAddress,
+          tokenId: profile.nftTokenId,
+        })
+      } catch (err) {
+        console.error('Profile resolution NFT retrieval', err)
+      }
     }
 
     return respond(200, {
-      resolved,
-    });
+      resolved: {
+        publicKey: publicKeyRow.publicKey,
+        address: bech32HashToAddress(
+          publicKeyRow.bech32Hash,
+          chain.bech32_prefix
+        ),
+        name: profile.name,
+        nft,
+      },
+    })
   } catch (err) {
-    console.error("Profile retrieval for search", err);
+    console.error('Profile resolution', err)
 
     return respond(500, {
-      error: "Failed to retrieve profile for search",
-      message: err instanceof Error ? err.message : `${err}`,
-    });
+      error:
+        'Failed to resolve profile: ' +
+        (err instanceof Error ? err.message : `${err}`),
+    })
   }
-};
+}

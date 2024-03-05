@@ -1,58 +1,154 @@
-import { Request as IttyRequest } from "itty-router";
+import { Request as IttyRequest } from 'itty-router'
 
 // Cloudflare Worker bindings.
-export interface Env {
-  PROFILES: KVNamespace;
+export type Env = {
+  PROFILES: KVNamespace
+  DB: D1Database
 
   // Secrets.
-  INDEXER_API_KEY: string;
+  INDEXER_API_KEY: string
 }
 
-// Stored in KV and included in the POST body when updating a profile.
-export interface Profile {
-  nonce: number;
-  name: string | null;
-  nft: ProfileNft | null;
+/**
+ * Profile used when updating/saving.
+ */
+export type UpdateProfile = {
+  /**
+   * Next profile nonce.
+   */
+  nonce: number
+  /**
+   * Profile name.
+   */
+  name: string | null
+  /**
+   * Profile NFT.
+   */
+  nft: ProfileNft | null
 }
 
-export interface ProfileNft {
-  chainId: string;
-  collectionAddress: string;
-  tokenId: string;
+/**
+ * Profile used when fetching directly.
+ */
+export type FetchedProfile = {
+  /**
+   * Next profile nonce.
+   */
+  nonce: number
+  /**
+   * Profile name.
+   */
+  name: string | null
+  /**
+   * Profile NFT with image loaded.
+   */
+  nft: ProfileNftWithImage | null
+  /**
+   * Map of chain ID to public key and address.
+   */
+  chains: Record<
+    string,
+    {
+      publicKey: string
+      address: string
+    }
+  >
 }
 
-export interface ProfileNftWithImage extends ProfileNft {
-  imageUrl: string;
+/**
+ * Profile used when searching/resolving by name on a specific chain.
+ */
+export type ResolvedProfile = {
+  /**
+   * Profile public key for this chain.
+   */
+  publicKey: string
+  /**
+   * Profile address for this chain.
+   */
+  address: string
+  /**
+   * Profile name.
+   */
+  name: string | null
+  /**
+   * Profile NFT with image loaded.
+   */
+  nft: ProfileNftWithImage | null
 }
 
-export type ProfileWithImage = Omit<Profile, "nft"> & {
-  nft: ProfileNftWithImage | null;
-};
+export type UpdateProfileWithId = UpdateProfile & { id: number }
+
+export type ProfileNft = {
+  chainId: string
+  collectionAddress: string
+  tokenId: string
+}
+
+export type ProfileNftWithImage = ProfileNft & {
+  imageUrl: string
+}
 
 // Body of fetch profile response.
 export type FetchProfileResponse =
-  // Add imageUrl to response so frontend doesn't have to look it up.
-  | ProfileWithImage
+  | FetchedProfile
   | {
-      error: string;
-      message?: string;
-    };
+      error: string
+    }
 
 // Body of profile update request.
-export interface UpdateProfileRequest {
-  // Allow Partial updates to profile, but require nonce.
-  profile: Partial<Omit<Profile, "nonce">> & Pick<Profile, "nonce">;
+export type UpdateProfileRequest = {
+  // Allow partial updates to profile, but require nonce.
+  profile: Partial<Omit<UpdateProfile, 'nonce'>> & Pick<UpdateProfile, 'nonce'>
+  // Optionally use the current public key as the preference for these chains.
+  // If undefined, defaults to the chain used to sign this request on profile
+  // creation.
+  chainIds?: string[]
 }
 
 // Body of profile update response.
 export type UpdateProfileResponse =
   | {
-      success: true;
+      success: true
     }
   | {
-      error: string;
-      message: string;
-    };
+      error: string
+    }
+
+// Body of register public key request.
+export type RegisterPublicKeyRequest = {
+  // List of public key authorizations that allow this public key to register.
+  publicKeys: RequestBody<{
+    // Public key that is allowed to register this public key.
+    allow: string
+    // Optionally use this public key as the preference for chains. If
+    // undefined, no preferences set.
+    chainIds?: string[]
+  }>[]
+}
+
+// Body of register public key response.
+export type RegisterPublicKeyResponse =
+  | {
+      success: true
+    }
+  | {
+      error: string
+    }
+
+// Body of unregister public key request.
+export type UnregisterPublicKeyRequest = {
+  publicKeys: string[]
+}
+
+// Body of unregister public key response.
+export type UnregisterPublicKeyResponse =
+  | {
+      success: true
+    }
+  | {
+      error: string
+    }
 
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors
 // if failed to retrieve image data.
@@ -61,43 +157,35 @@ export type GetOwnedNftImageUrlFunction = (
   publicKey: string,
   collectionAddress: string,
   tokenId: string
-) => Promise<string | undefined>;
-
-export type ProfileSearchHit = {
-  publicKey: string;
-  address: string;
-  profile: Omit<ProfileWithImage, "nonce">;
-};
+) => Promise<string | undefined>
 
 export type SearchProfilesResponse =
   | {
-      profiles: ProfileSearchHit[];
+      profiles: ResolvedProfile[]
     }
   | {
-      error: string;
-      message: string;
-    };
+      error: string
+    }
 
 export type ResolveProfileResponse =
   | {
-      resolved: ProfileSearchHit | null;
+      resolved: ResolvedProfile
     }
   | {
-      error: string;
-      message: string;
-    };
+      error: string
+    }
 
-export interface Auth {
-  type: string;
-  nonce: number;
-  chainId: string;
-  chainFeeDenom: string;
-  chainBech32Prefix: string;
-  publicKey: string;
+export type Auth = {
+  type: string
+  nonce: number
+  chainId: string
+  chainFeeDenom: string
+  chainBech32Prefix: string
+  publicKey: string
 }
 
 export type RequestBody<
-  Data extends Record<string, unknown> = Record<string, any>
+  Data extends Record<string, unknown> = Record<string, any>,
 > = {
   data: {
     auth: Auth
@@ -106,7 +194,45 @@ export type RequestBody<
 }
 
 export type AuthorizedRequest<
-  Data extends Record<string, any> = Record<string, any>
+  Data extends Record<string, any> = Record<string, any>,
 > = IttyRequest & {
   parsedBody: RequestBody<Data>
+}
+
+/**
+ * Profile database row.
+ */
+export type DbRowProfile = {
+  id: number
+  nonce: number
+  name: string | null
+  nftChainId: string | null
+  nftCollectionAddress: string | null
+  nftTokenId: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Profile public key database row.
+ */
+export type DbRowProfilePublicKey = {
+  id: number
+  profileId: number
+  publicKey: string
+  bech32Hash: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Profile public key chain preference database row.
+ */
+export type DbRowProfilePublicKeyChainPreference = {
+  id: number
+  profileId: number
+  profilePublicKeyId: number
+  chainId: string
+  createdAt: Date
+  updatedAt: Date
 }

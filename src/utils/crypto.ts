@@ -1,6 +1,6 @@
-import { Secp256k1, Secp256k1Signature } from "@cosmjs/crypto";
-import { toBech32, fromHex, fromBase64 } from "@cosmjs/encoding";
-import CryptoJS from "crypto-js";
+import { Secp256k1, Secp256k1Signature } from '@cosmjs/crypto'
+import { fromBase64, fromHex, toBech32 } from '@cosmjs/encoding'
+import CryptoJS from 'crypto-js'
 
 // https://github.com/chainapsis/keplr-wallet/blob/088dc701ce14df77a1ee22b7e39c651e50879d9f/packages/crypto/src/key.ts#L56-L63
 export const secp256k1PublicKeyToBech32HexHash = (
@@ -17,31 +17,36 @@ export const secp256k1PublicKeyToBech32HexHash = (
     // type as individual words (i.e. 4-byte numbers) and does not properly
     // combine them.
     CryptoJS.lib.WordArray.create(fromHex(hexPublicKey) as any)
-  );
-  const ripemd160Hash = CryptoJS.RIPEMD160(sha256Hash);
+  )
+  const ripemd160Hash = CryptoJS.RIPEMD160(sha256Hash)
 
   // Output Bech32 data.
-  const bech32Hash = ripemd160Hash.toString(CryptoJS.enc.Hex);
-  return bech32Hash;
-};
+  const bech32Hash = ripemd160Hash.toString(CryptoJS.enc.Hex)
+  return bech32Hash
+}
+
+export const bech32HashToAddress = (
+  bech32Hash: string,
+  bech32Prefix: string
+): string => toBech32(bech32Prefix, fromHex(bech32Hash))
 
 export const secp256k1PublicKeyToBech32Address = (
   hexPublicKey: string,
   bech32Prefix: string
 ): string => {
-  const addressData = secp256k1PublicKeyToBech32HexHash(hexPublicKey);
-  return toBech32(bech32Prefix, fromHex(addressData));
-};
+  const addressData = secp256k1PublicKeyToBech32HexHash(hexPublicKey)
+  return bech32HashToAddress(addressData, bech32Prefix)
+}
 
 export const verifySecp256k1Signature = async (
   hexPublicKey: string,
   message: Uint8Array,
   base64DerSignature: string
 ): Promise<boolean> => {
-  const publicKeyData = fromHex(hexPublicKey);
+  const publicKeyData = fromHex(hexPublicKey)
   const signature = Secp256k1Signature.fromFixedLength(
     fromBase64(base64DerSignature)
-  );
+  )
 
   const messageHash = fromHex(
     CryptoJS.SHA256(
@@ -54,7 +59,7 @@ export const verifySecp256k1Signature = async (
       // combine them.
       CryptoJS.lib.WordArray.create(message as any)
     ).toString(CryptoJS.enc.Hex)
-  );
+  )
 
-  return await Secp256k1.verifySignature(signature, messageHash, publicKeyData);
-};
+  return await Secp256k1.verifySignature(signature, messageHash, publicKeyData)
+}
