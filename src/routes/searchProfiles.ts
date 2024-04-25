@@ -56,6 +56,7 @@ export const searchProfiles: RouteHandler<Request> = async (
         potentialProfiles.map(
           async ({
             id,
+            uuid,
             publicKey,
             bech32Hash,
             name,
@@ -84,6 +85,7 @@ export const searchProfiles: RouteHandler<Request> = async (
             }
 
             return {
+              uuid,
               publicKey,
               address: bech32HashToAddress(bech32Hash, chain.bech32_prefix),
               name,

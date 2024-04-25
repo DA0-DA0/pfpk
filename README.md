@@ -89,6 +89,7 @@ The returned type is:
 
 ```ts
 type FetchProfileResponse = {
+  uuid: string;
   nonce: number;
   name: string | null;
   nft: {
@@ -138,6 +139,15 @@ The retrieval of the image URL depends on the chain:
 
 It also returns a map of chain ID to public key and address for that chain based
 on the preferred public key. See the explanation at the top for more details.
+
+If `uuid` is null, this means the profile has not yet been created by the
+specified public key (i.e. no name, image, or chains have been set). This is the
+default response returned for all profiles that do not yet exist. Once a profile
+is created, `uuid` is set and will remain constant even if public keys attached
+to it change, allowing a profile to be referenced by external services. This is
+useful for authorizing and associating data with a specific profile instead of
+just a single public key, allowing for authorized persistent data storage and
+other usecases.
 
 ### `POST /`
 
@@ -362,6 +372,7 @@ The returned type is:
 ```ts
 type SearchProfilesResponse = {
   profiles: Array<{
+    uuid: string | null;
     publicKey: string;
     address: string;
     name: string | null;
@@ -398,6 +409,7 @@ The returned type is:
 ```ts
 type ResolveProfileResponse = {
   resolved: {
+    uuid: string;
     publicKey: string;
     address: string;
     name: string | null;

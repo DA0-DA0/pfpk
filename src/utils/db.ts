@@ -107,14 +107,19 @@ export const getProfilesWithNamePrefix = async (
 ): Promise<
   (Pick<
     DbRowProfile,
-    'id' | 'name' | 'nftChainId' | 'nftCollectionAddress' | 'nftTokenId'
+    | 'id'
+    | 'uuid'
+    | 'name'
+    | 'nftChainId'
+    | 'nftCollectionAddress'
+    | 'nftTokenId'
   > &
     Pick<DbRowProfilePublicKey, 'publicKey' | 'bech32Hash'>)[]
 > =>
   (
     await env.DB.prepare(
       `
-      SELECT profiles.id, profiles.name, profiles.nftChainId, profiles.nftCollectionAddress, profiles.nftTokenId, profile_public_keys.publicKey, profile_public_keys.bech32Hash
+      SELECT profiles.id, profiles.uuid, profiles.name, profiles.nftChainId, profiles.nftCollectionAddress, profiles.nftTokenId, profile_public_keys.publicKey, profile_public_keys.bech32Hash
       FROM profiles
       INNER JOIN profile_public_key_chain_preferences
       ON profiles.id = profile_public_key_chain_preferences.profileId
@@ -238,12 +243,13 @@ export const saveProfile = async (
   else {
     updatedProfileRow = await env.DB.prepare(
       `
-      INSERT INTO profiles (nonce, name, nftChainId, nftCollectionAddress, nftTokenId)
-      VALUES (?1, ?2, ?3, ?4, ?5)
+      INSERT INTO profiles (uuid, nonce, name, nftChainId, nftCollectionAddress, nftTokenId)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6)
       RETURNING *
       `
     )
       .bind(
+        crypto.randomUUID(),
         profile.nonce,
         profile.name,
         profile.nft?.chainId ?? null,

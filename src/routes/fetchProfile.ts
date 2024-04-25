@@ -35,6 +35,7 @@ export const fetchProfile: RouteHandler<Request> = async (
 
   // Fetched profile response. Defaults to the empty profile.
   const profile: FetchedProfile = {
+    uuid: '',
     nonce: INITIAL_NONCE,
     name: null,
     nft: null,
@@ -65,6 +66,7 @@ export const fetchProfile: RouteHandler<Request> = async (
 
   // If profile found, load into fetched profile response.
   if (profileRow) {
+    profile.uuid = profileRow.uuid
     profile.nonce = profileRow.nonce
     profile.name = profileRow.name?.trim() || null
 

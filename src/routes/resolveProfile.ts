@@ -81,6 +81,7 @@ export const resolveProfile: RouteHandler<Request> = async (
 
     return respond(200, {
       resolved: {
+        uuid: profile.uuid,
         publicKey: publicKeyRow.publicKey,
         address: bech32HashToAddress(
           publicKeyRow.bech32Hash,

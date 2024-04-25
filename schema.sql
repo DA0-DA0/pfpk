@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS profiles;
 
 CREATE TABLE profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  uuid TEXT NOT NULL,
   nonce INTEGER NOT NULL DEFAULT 0,
   name TEXT,
   nftChainId TEXT,
@@ -10,6 +11,8 @@ CREATE TABLE profiles (
   nftTokenId TEXT,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  -- unique uuid among all profiles
+  CONSTRAINT unique_uuid UNIQUE (uuid),
   -- unique name among all profiles
   CONSTRAINT unique_name UNIQUE (name)
 );

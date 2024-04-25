@@ -32,6 +32,10 @@ export type UpdateProfile = {
  */
 export type FetchedProfile = {
   /**
+   * Unique ID. If no profile set, this will be empty.
+   */
+  uuid: string
+  /**
    * Next profile nonce.
    */
   nonce: number
@@ -59,6 +63,10 @@ export type FetchedProfile = {
  * Profile used when searching/resolving by name on a specific chain.
  */
 export type ResolvedProfile = {
+  /**
+   * Unique ID.
+   */
+  uuid: string
   /**
    * Profile public key for this chain.
    */
@@ -204,6 +212,7 @@ export type AuthorizedRequest<
  */
 export type DbRowProfile = {
   id: number
+  uuid: string
   nonce: number
   name: string | null
   nftChainId: string | null
