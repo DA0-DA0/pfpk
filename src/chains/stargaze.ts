@@ -28,6 +28,11 @@ const STARGAZE_GQL_TOKEN_QUERY = gql`
       }
       media {
         url
+        visualAssets {
+          lg {
+            url
+          }
+        }
       }
       owner {
         address
@@ -110,7 +115,9 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     }
   }
 
-  if (data.token?.media?.url) {
-    return data.token.media.url
+  const imageUrl =
+    data.token?.media?.visualAssets?.lg?.url || data.token?.media?.url
+  if (imageUrl) {
+    return imageUrl
   }
 }
