@@ -1,10 +1,8 @@
 import { Chain } from '@chain-registry/types'
-import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
 
 import { GetOwnedNftImageUrlFunction } from '../types'
 import {
   Cw721,
-  DaoVotingCw721Staked,
   KnownError,
   NotOwnerError,
   secp256k1PublicKeyToBech32Address,
@@ -12,16 +10,10 @@ import {
 
 export const getOwnedNftImageUrl =
   (
-    {
-      chain_id: chainId,
-      chain_name: chainName,
-      bech32_prefix: bech32Prefix,
-    }: Chain,
+    { chain_id: chainId, bech32_prefix: bech32Prefix }: Chain,
     publicKey: string
   ): GetOwnedNftImageUrlFunction =>
-  async ({ INDEXER_API_KEY }, _publicKey, collectionAddress, tokenId) => {
-    const indexer = `https://indexer.daodao.zone/${chainId}/${INDEXER_API_KEY}`
-
+  async (_, _publicKey, collectionAddress, tokenId) => {
     let walletAddress
     try {
       walletAddress = secp256k1PublicKeyToBech32Address(publicKey, bech32Prefix)
@@ -30,51 +22,20 @@ export const getOwnedNftImageUrl =
       throw new KnownError(400, 'Invalid public key', err)
     }
 
-    let imageUrl: string | undefined
     try {
-      const client = await CosmWasmClient.connect(
-        `https://rpc.cosmos.directory/${chainName}`
-      )
-
-      const owner = await Cw721.getOwner(
-        indexer,
-        client,
+      const { imageUrl, owner, staker } = await Cw721.getImageAndOwner(
+        chainId,
         collectionAddress,
         tokenId
       )
+
       // If wallet does not directly own NFT, check if staked with a DAO voting
       // module.
-      if (owner !== walletAddress) {
-        const isStakingContract = await DaoVotingCw721Staked.isContract(
-          indexer,
-          client,
-          owner
-        )
-        if (isStakingContract) {
-          const addressStakedToken =
-            await DaoVotingCw721Staked.addressStakedToken(
-              indexer,
-              client,
-              // Owner is the staking contract.
-              owner,
-              walletAddress,
-              tokenId
-            )
-
-          if (!addressStakedToken) {
-            throw new NotOwnerError()
-          }
-        } else {
-          throw new NotOwnerError()
-        }
+      if (owner !== walletAddress && staker !== walletAddress) {
+        throw new NotOwnerError()
       }
 
-      imageUrl = await Cw721.getImageUrl(
-        indexer,
-        client,
-        collectionAddress,
-        tokenId
-      )
+      return imageUrl
     } catch (err) {
       // If error already handled, pass up the chain.
       if (err instanceof KnownError || err instanceof NotOwnerError) {
@@ -88,6 +49,4 @@ export const getOwnedNftImageUrl =
         err
       )
     }
-
-    return imageUrl
   }

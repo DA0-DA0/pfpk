@@ -1,16 +1,14 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
-import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
 
 import { GetOwnedNftImageUrlFunction } from '../types'
 import {
-  DaoVotingCw721Staked,
+  Cw721,
   KnownError,
   NotOwnerError,
   secp256k1PublicKeyToBech32Address,
 } from '../utils'
 
 const STARGAZE_GQL_URI = 'https://graphql.mainnet.stargaze-apis.com/graphql'
-const STARGAZE_RPC = 'https://rpc.cosmos.directory/stargaze'
 const STARGAZE_PREFIX = 'stars'
 const STARGAZE_CHAIN_ID = 'stargaze-1'
 
@@ -42,13 +40,11 @@ const STARGAZE_GQL_TOKEN_QUERY = gql`
 `
 
 export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
-  { INDEXER_API_KEY },
+  _,
   publicKey,
   collectionAddress,
   tokenId
 ) => {
-  const indexer = `https://indexer.daodao.zone/${STARGAZE_CHAIN_ID}/${INDEXER_API_KEY}`
-
   let stargazeAddress
   try {
     stargazeAddress = secp256k1PublicKeyToBech32Address(
@@ -86,31 +82,13 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
   // If public key does not own the NFT, check if it was staked in a DAO by this
   // wallet.
   if (owner !== stargazeAddress) {
-    const client = await CosmWasmClient.connect(STARGAZE_RPC)
-
-    // Check if NFT is staked in a DAO.
-    const isStakingContract = await DaoVotingCw721Staked.isContract(
-      indexer,
-      client,
-      owner
+    const { staker } = await Cw721.getImageAndOwner(
+      STARGAZE_CHAIN_ID,
+      collectionAddress,
+      tokenId
     )
 
-    if (isStakingContract) {
-      const addressStakedToken = await DaoVotingCw721Staked.addressStakedToken(
-        indexer,
-        client,
-        // Owner is the staking contract.
-        owner,
-        stargazeAddress,
-        tokenId
-      )
-
-      // If address did not stake the NFT, public key does not own it.
-      if (!addressStakedToken) {
-        throw new NotOwnerError()
-      }
-    } else {
-      // Not owned nor staked by this public key.
+    if (staker !== stargazeAddress) {
       throw new NotOwnerError()
     }
   }
