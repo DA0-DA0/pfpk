@@ -1,6 +1,9 @@
-import { Secp256k1, Secp256k1Signature } from '@cosmjs/crypto'
+import { Secp256k1, Secp256k1Signature, keccak256 } from '@cosmjs/crypto'
 import { fromBase64, fromHex, toBech32 } from '@cosmjs/encoding'
 import CryptoJS from 'crypto-js'
+import secp256k1 from 'secp256k1'
+
+import { mustGetChain } from './chain'
 
 // https://github.com/chainapsis/keplr-wallet/blob/088dc701ce14df77a1ee22b7e39c651e50879d9f/packages/crypto/src/key.ts#L56-L63
 export const secp256k1PublicKeyToBech32HexHash = (
@@ -38,6 +41,25 @@ export const secp256k1PublicKeyToBech32Address = (
   return bech32HashToAddress(addressData, bech32Prefix)
 }
 
+export const hexPublicKeyToBech32Address = (
+  chainId: string,
+  hexPublicKey: string
+): string => {
+  const { bech32_prefix: bech32Prefix } = mustGetChain(chainId)
+
+  // Injective uses different address derivation and signature verification.
+  if (chainId === 'injective-1') {
+    // https://github.com/InjectiveLabs/injective-ts/blob/5f44b7796441749711c170bf3ebdcbed2664bb5a/packages/sdk-ts/src/core/accounts/PublicKey.ts#L67-L84
+    const decompressed = injectiveDecompressPubKey(hexPublicKey)
+    const addressBuffer = Buffer.from(
+      keccak256(Buffer.from(decompressed, 'hex'))
+    ).subarray(-20)
+    return toBech32(bech32Prefix, addressBuffer)
+  }
+
+  return secp256k1PublicKeyToBech32Address(hexPublicKey, bech32Prefix)
+}
+
 export const verifySecp256k1Signature = async (
   hexPublicKey: string,
   message: Uint8Array,
@@ -62,4 +84,21 @@ export const verifySecp256k1Signature = async (
   )
 
   return await Secp256k1.verifySignature(signature, messageHash, publicKeyData)
+}
+
+// https://github.com/InjectiveLabs/injective-ts/blob/6e25b3f156d964666db8bc7885df653166aac523/packages/sdk-ts/src/utils/crypto.ts#L70-L84
+const injectiveDecompressPubKey = (startsWith02Or03: string) => {
+  // if already decompressed an not has trailing 04
+  const testBuffer = Buffer.from(startsWith02Or03, 'hex')
+
+  if (testBuffer.length === 64) startsWith02Or03 = '04' + startsWith02Or03
+
+  let decompressed = Buffer.from(
+    secp256k1.publicKeyConvert(Buffer.from(startsWith02Or03, 'hex'), false)
+  ).toString('hex')
+
+  // remove trailing 04
+  decompressed = decompressed.substring(2)
+
+  return decompressed
 }

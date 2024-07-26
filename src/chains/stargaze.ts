@@ -5,11 +5,10 @@ import {
   Cw721,
   KnownError,
   NotOwnerError,
-  secp256k1PublicKeyToBech32Address,
+  hexPublicKeyToBech32Address,
 } from '../utils'
 
 const STARGAZE_GQL_URI = 'https://graphql.mainnet.stargaze-apis.com/graphql'
-const STARGAZE_PREFIX = 'stars'
 const STARGAZE_CHAIN_ID = 'stargaze-1'
 
 const stargazeIndexerClient = new ApolloClient({
@@ -47,10 +46,7 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
 ) => {
   let stargazeAddress
   try {
-    stargazeAddress = secp256k1PublicKeyToBech32Address(
-      publicKey,
-      STARGAZE_PREFIX
-    )
+    stargazeAddress = hexPublicKeyToBech32Address(STARGAZE_CHAIN_ID, publicKey)
   } catch (err) {
     console.error('PK to Address', err)
     throw new KnownError(400, 'Invalid public key', err)

@@ -13,8 +13,7 @@ import {
   getProfileFromBech32Hash,
   getProfileFromPublicKey,
   getProfilePublicKeyPerChain,
-  mustGetChain,
-  secp256k1PublicKeyToBech32Address,
+  hexPublicKeyToBech32Address,
 } from '../utils'
 
 export const fetchProfile: RouteHandler<Request> = async (
@@ -80,10 +79,7 @@ export const fetchProfile: RouteHandler<Request> = async (
           {
             publicKey,
             // Convert public key to bech32 address for given chain.
-            address: await secp256k1PublicKeyToBech32Address(
-              publicKey,
-              mustGetChain(chainId).bech32_prefix
-            ),
+            address: await hexPublicKeyToBech32Address(chainId, publicKey),
           },
         ] as const
     )

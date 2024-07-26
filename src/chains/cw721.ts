@@ -5,18 +5,18 @@ import {
   Cw721,
   KnownError,
   NotOwnerError,
-  secp256k1PublicKeyToBech32Address,
+  hexPublicKeyToBech32Address,
 } from '../utils'
 
 export const getOwnedNftImageUrl =
   (
-    { chain_id: chainId, bech32_prefix: bech32Prefix }: Chain,
+    { chain_id: chainId }: Chain,
     publicKey: string
   ): GetOwnedNftImageUrlFunction =>
   async (_, _publicKey, collectionAddress, tokenId) => {
     let walletAddress
     try {
-      walletAddress = secp256k1PublicKeyToBech32Address(publicKey, bech32Prefix)
+      walletAddress = hexPublicKeyToBech32Address(chainId, publicKey)
     } catch (err) {
       console.error('PK to Address', err)
       throw new KnownError(400, 'Invalid public key', err)
