@@ -1,3 +1,4 @@
+import { makePublicKey } from '../publicKeys'
 import {
   AuthorizedRequest,
   DbRowProfile,
@@ -9,14 +10,19 @@ import {
   INITIAL_NONCE,
   KnownError,
   addProfilePublicKey,
-  getProfileFromPublicKey,
+  getProfileFromPublicKeyHex,
   incrementProfileNonce,
   saveProfile,
 } from '../utils'
-import { verifyRequestBody } from '../utils/auth'
+import { verifyRequestBodyAndGetPublicKey } from '../utils/auth'
 
 export const registerPublicKeys = async (
-  request: AuthorizedRequest<RegisterPublicKeyRequest>,
+  {
+    parsedBody: {
+      data: { auth, publicKeys },
+    },
+    publicKey,
+  }: AuthorizedRequest<RegisterPublicKeyRequest>,
   env: Env
 ) => {
   const respond = (status: number, response: RegisterPublicKeyResponse) =>
@@ -24,19 +30,14 @@ export const registerPublicKeys = async (
       status,
     })
 
-  const {
-    auth: { publicKey },
-    publicKeys,
-  } = request.parsedBody.data
-
   // Validate all keys inside that are not the same as the public key performing
   // the registration (since it already belongs to the profile, and its
   // signature wrapping the entire message was validated in middleware).
   try {
     await Promise.all(
       publicKeys
-        .filter((key) => key.data.auth.publicKey !== publicKey)
-        .map((key) => verifyRequestBody(key))
+        .filter((key) => key.data.auth.publicKeyHex !== publicKey.hex)
+        .map((key) => verifyRequestBodyAndGetPublicKey(key))
     )
   } catch (err) {
     if (err instanceof KnownError) {
@@ -51,7 +52,7 @@ export const registerPublicKeys = async (
   }
 
   // Validate all keys inside allowed this public key to register them.
-  if (publicKeys.some((key) => key.data.allow !== publicKey)) {
+  if (publicKeys.some((key) => key.data.allow !== publicKey.hex)) {
     return respond(401, {
       error: `Invalid allowed public key. Expected: ${publicKey}`,
     })
@@ -60,9 +61,9 @@ export const registerPublicKeys = async (
   // Find or create profile.
   let profile: DbRowProfile
   try {
-    let _profile: DbRowProfile | null = await getProfileFromPublicKey(
+    let _profile: DbRowProfile | null = await getProfileFromPublicKeyHex(
       env,
-      publicKey
+      publicKey.hex
     )
 
     // If no profile exists, create one.
@@ -76,7 +77,7 @@ export const registerPublicKeys = async (
           nft: null,
         },
         // Create with the current chain preference.
-        [request.parsedBody.data.auth.chainId]
+        [auth.chainId]
       )
     }
 
@@ -93,7 +94,7 @@ export const registerPublicKeys = async (
 
   // Validate all nonces to prevent replay attacks.
   if (
-    request.parsedBody.data.auth.nonce !== profile.nonce ||
+    auth.nonce !== profile.nonce ||
     publicKeys.some((key) => key.data.auth.nonce !== profile!.nonce)
   ) {
     return respond(401, {
@@ -118,7 +119,8 @@ export const registerPublicKeys = async (
   const publicKeysToAdd = Object.entries(
     publicKeys.reduce(
       (acc, { data }) => {
-        const existing = acc[data.auth.publicKey] || new Set<string>()
+        const key = `${data.auth.publicKeyType}:${data.auth.publicKeyHex}`
+        const existing = acc[key] || new Set<string>()
 
         // If no chains passed, default to the chain used to sign.
         ;(data.chainIds || [data.auth.chainId]).forEach((chainId) => {
@@ -127,7 +129,7 @@ export const registerPublicKeys = async (
           }
         })
 
-        acc[data.auth.publicKey] = existing
+        acc[key] = existing
         return acc
       },
       {} as Record<string, Set<string>>
@@ -137,9 +139,16 @@ export const registerPublicKeys = async (
   // Add public keys to profile.
   try {
     await Promise.all(
-      publicKeysToAdd.map(([publicKey, chainIds]) =>
-        addProfilePublicKey(env, profile!.id, publicKey, Array.from(chainIds))
-      )
+      publicKeysToAdd.map(([publicKey, chainIds]) => {
+        const [type, publicKeyHex] = publicKey.split(':')
+
+        return addProfilePublicKey(
+          env,
+          profile!.id,
+          makePublicKey(type, publicKeyHex),
+          Array.from(chainIds)
+        )
+      })
     )
   } catch (err) {
     console.error('Profile public key add', err)

@@ -1,22 +1,17 @@
 import { Chain } from '@chain-registry/types'
 
-import { GetOwnedNftImageUrlFunction } from '../types'
-import {
-  Cw721,
-  KnownError,
-  NotOwnerError,
-  hexPublicKeyToBech32Address,
-} from '../utils'
+import { GetOwnedNftImageUrlFunction, PublicKey } from '../types'
+import { Cw721, KnownError, NotOwnerError } from '../utils'
 
 export const getOwnedNftImageUrl =
   (
-    { chain_id: chainId }: Chain,
-    publicKey: string
+    { chain_id: chainId, bech32_prefix: bech32Prefix }: Chain,
+    publicKey: PublicKey
   ): GetOwnedNftImageUrlFunction =>
   async (_, _publicKey, collectionAddress, tokenId) => {
     let walletAddress
     try {
-      walletAddress = hexPublicKeyToBech32Address(chainId, publicKey)
+      walletAddress = await publicKey.getBech32Address(bech32Prefix)
     } catch (err) {
       console.error('PK to Address', err)
       throw new KnownError(400, 'Invalid public key', err)

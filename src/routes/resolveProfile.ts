@@ -2,7 +2,6 @@ import { Request, RouteHandler } from 'itty-router'
 
 import { Env, ResolveProfileResponse, ResolvedProfile } from '../types'
 import {
-  bech32HashToAddress,
   getChain,
   getOwnedNftWithImage,
   getPreferredProfilePublicKey,
@@ -41,14 +40,16 @@ export const resolveProfile: RouteHandler<Request> = async (
 
   try {
     const profile = await getProfileFromName(env, name)
-    const publicKeyRow =
+    const publicKey =
       profile && (await getPreferredProfilePublicKey(env, profile.id, chainId))
 
-    if (!profile || !publicKeyRow) {
+    if (!profile || !publicKey) {
       return respond(404, {
         error: 'Profile not found.',
       })
     }
+
+    const address = await publicKey.getBech32Address(chain.bech32_prefix)
 
     let nft: ResolvedProfile['nft'] = null
     if (
@@ -61,13 +62,11 @@ export const resolveProfile: RouteHandler<Request> = async (
         // current public key in case no public key has been added for that
         // chain.
         const nftPublicKey =
-          (
-            await getPreferredProfilePublicKey(
-              env,
-              profile.id,
-              profile.nftChainId
-            )
-          )?.publicKey || publicKeyRow.publicKey
+          (await getPreferredProfilePublicKey(
+            env,
+            profile.id,
+            profile.nftChainId
+          )) || publicKey
 
         nft = await getOwnedNftWithImage(env, nftPublicKey, {
           chainId: profile.nftChainId,
@@ -82,11 +81,8 @@ export const resolveProfile: RouteHandler<Request> = async (
     return respond(200, {
       resolved: {
         uuid: profile.uuid,
-        publicKey: publicKeyRow.publicKey,
-        address: bech32HashToAddress(
-          publicKeyRow.bech32Hash,
-          chain.bech32_prefix
-        ),
+        publicKey: publicKey.json,
+        address,
         name: profile.name,
         nft,
       },

@@ -1,6 +1,7 @@
 import { fromBech32, toHex } from '@cosmjs/encoding'
 import { Request, RouteHandler } from 'itty-router'
 
+import { makePublicKey } from '../publicKeys'
 import {
   DbRowProfile,
   Env,
@@ -10,10 +11,10 @@ import {
 import {
   INITIAL_NONCE,
   getOwnedNftWithImage,
-  getProfileFromBech32Hash,
-  getProfileFromPublicKey,
+  getProfileFromAddressHex,
+  getProfileFromPublicKeyHex,
   getProfilePublicKeyPerChain,
-  hexPublicKeyToBech32Address,
+  mustGetChain,
 } from '../utils'
 
 export const fetchProfile: RouteHandler<Request> = async (
@@ -27,8 +28,8 @@ export const fetchProfile: RouteHandler<Request> = async (
 
   // via public key
   let publicKey = request.params?.publicKey?.trim()
-  // via bech32 hash
-  let bech32Hash = request.params?.bech32Hash?.trim()
+  // via address hex
+  let addressHex = request.params?.addressHex?.trim()
   // via bech32 address
   const bech32Address = request.params?.bech32Address?.trim()
 
@@ -43,15 +44,16 @@ export const fetchProfile: RouteHandler<Request> = async (
 
   let profileRow: DbRowProfile | null = null
   try {
-    // If no public key nor bech32 hash is set, get bech32 hash from address.
-    if (!publicKey && !bech32Hash && bech32Address) {
-      bech32Hash = toHex(fromBech32(bech32Address).data)
+    // If no public key nor address hex is set, get address hex from bech32
+    // address.
+    if (!publicKey && !addressHex && bech32Address) {
+      addressHex = toHex(fromBech32(bech32Address).data)
     }
 
     if (publicKey) {
-      profileRow = await getProfileFromPublicKey(env, publicKey)
-    } else if (bech32Hash) {
-      profileRow = await getProfileFromBech32Hash(env, bech32Hash)
+      profileRow = await getProfileFromPublicKeyHex(env, publicKey)
+    } else if (addressHex) {
+      profileRow = await getProfileFromAddressHex(env, addressHex)
     }
   } catch (err) {
     console.error('Profile retrieval', err)
@@ -77,9 +79,10 @@ export const fetchProfile: RouteHandler<Request> = async (
         [
           chainId,
           {
-            publicKey,
-            // Convert public key to bech32 address for given chain.
-            address: await hexPublicKeyToBech32Address(chainId, publicKey),
+            publicKey: publicKey.json,
+            address: await publicKey.getBech32Address(
+              mustGetChain(chainId).bech32_prefix
+            ),
           },
         ] as const
     )
@@ -102,11 +105,15 @@ export const fetchProfile: RouteHandler<Request> = async (
         // the NFT is owned by it.
         const publicKey = profile.chains[profileRow.nftChainId]?.publicKey
         if (publicKey) {
-          profile.nft = await getOwnedNftWithImage(env, publicKey, {
-            chainId: profileRow.nftChainId,
-            collectionAddress: profileRow.nftCollectionAddress,
-            tokenId: profileRow.nftTokenId,
-          })
+          profile.nft = await getOwnedNftWithImage(
+            env,
+            makePublicKey(publicKey.type, publicKey.hex),
+            {
+              chainId: profileRow.nftChainId,
+              collectionAddress: profileRow.nftCollectionAddress,
+              tokenId: profileRow.nftTokenId,
+            }
+          )
         }
       } catch (err) {
         console.error('Failed to get NFT image', err)
