@@ -1,8 +1,8 @@
 import { Request, RouteHandler } from 'itty-router'
 
+import { makePublicKey } from '../publicKeys'
 import { Env, ResolvedProfile, SearchProfilesResponse } from '../types'
 import {
-  bech32HashToAddress,
   getChain,
   getOwnedNftWithImage,
   getPreferredProfilePublicKey,
@@ -57,13 +57,18 @@ export const searchProfiles: RouteHandler<Request> = async (
           async ({
             id,
             uuid,
-            publicKey,
-            bech32Hash,
+            type,
+            publicKeyHex,
             name,
             nftChainId,
             nftCollectionAddress,
             nftTokenId,
           }): Promise<ResolvedProfile> => {
+            const publicKey = makePublicKey(type, publicKeyHex)
+            const address = await publicKey.getBech32Address(
+              chain.bech32_prefix
+            )
+
             let nft: ResolvedProfile['nft'] = null
             if (nftChainId && nftCollectionAddress && nftTokenId) {
               try {
@@ -71,8 +76,8 @@ export const searchProfiles: RouteHandler<Request> = async (
                 // the current public key in case no public key has been added
                 // for that chain.
                 const nftPublicKey =
-                  (await getPreferredProfilePublicKey(env, id, nftChainId))
-                    ?.publicKey || publicKey
+                  (await getPreferredProfilePublicKey(env, id, nftChainId)) ||
+                  publicKey
 
                 nft = await getOwnedNftWithImage(env, nftPublicKey, {
                   chainId: nftChainId,
@@ -86,8 +91,8 @@ export const searchProfiles: RouteHandler<Request> = async (
 
             return {
               uuid,
-              publicKey,
-              address: bech32HashToAddress(bech32Hash, chain.bech32_prefix),
+              publicKey: publicKey.json,
+              address,
               name,
               nft,
             }

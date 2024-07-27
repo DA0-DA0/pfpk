@@ -1,12 +1,7 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
 
 import { GetOwnedNftImageUrlFunction } from '../types'
-import {
-  Cw721,
-  KnownError,
-  NotOwnerError,
-  hexPublicKeyToBech32Address,
-} from '../utils'
+import { Cw721, KnownError, NotOwnerError, mustGetChain } from '../utils'
 
 const STARGAZE_GQL_URI = 'https://graphql.mainnet.stargaze-apis.com/graphql'
 const STARGAZE_CHAIN_ID = 'stargaze-1'
@@ -46,7 +41,9 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
 ) => {
   let stargazeAddress
   try {
-    stargazeAddress = hexPublicKeyToBech32Address(STARGAZE_CHAIN_ID, publicKey)
+    stargazeAddress = publicKey.getBech32Address(
+      mustGetChain(STARGAZE_CHAIN_ID).bech32_prefix
+    )
   } catch (err) {
     console.error('PK to Address', err)
     throw new KnownError(400, 'Invalid public key', err)

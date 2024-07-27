@@ -23,21 +23,17 @@ DROP TABLE IF EXISTS profile_public_keys;
 CREATE TABLE profile_public_keys (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   profileId INTEGER NOT NULL,
-  publicKey TEXT NOT NULL,
-  bech32Hash TEXT NOT NULL,
+  type TEXT NOT NULL,
+  publicKeyHex TEXT NOT NULL,
+  addressHex TEXT NOT NULL,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_profiles FOREIGN KEY (profileId) REFERENCES profiles (id) ON DELETE CASCADE,
   -- unique public key, only one profile can claim a given public key
-  CONSTRAINT unique_public_key UNIQUE (publicKey),
-  -- unique bech32 hash, only one profile can claim a given bech32 hash (this is
-  -- derived from the public key, so this constraint is redundant)
-  CONSTRAINT unique_bech32_hash UNIQUE (bech32Hash)
+  CONSTRAINT unique_type_public_key_hex UNIQUE (type, publicKeyHex)
 );
 
-CREATE INDEX IF NOT EXISTS idx_profile_public_keys_public_key ON profile_public_keys(publicKey);
-
-CREATE INDEX IF NOT EXISTS idx_profile_public_keys_bech32_hash ON profile_public_keys(bech32Hash);
+CREATE INDEX IF NOT EXISTS idx_profile_public_keys_public_key_hex ON profile_public_keys(publicKeyHex);
 
 -- ProfilePublicKeyChainPreference
 DROP TABLE IF EXISTS profile_public_key_chain_preferences;

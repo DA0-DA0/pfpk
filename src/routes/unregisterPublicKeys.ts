@@ -1,3 +1,4 @@
+import { PublicKeyBase, makePublicKeyFromJson } from '../publicKeys'
 import {
   AuthorizedRequest,
   DbRowProfile,
@@ -7,14 +8,19 @@ import {
 } from '../types'
 import {
   KnownError,
-  getProfileFromPublicKey,
+  getProfileFromPublicKeyHex,
   getProfilePublicKeys,
   incrementProfileNonce,
   removeProfilePublicKeys,
 } from '../utils'
 
 export const unregisterPublicKeys = async (
-  request: AuthorizedRequest<UnregisterPublicKeyRequest>,
+  {
+    parsedBody: {
+      data: { auth, publicKeys: publicKeyJsons },
+    },
+    publicKey,
+  }: AuthorizedRequest<UnregisterPublicKeyRequest>,
   env: Env
 ) => {
   const respond = (status: number, response: UnregisterPublicKeyResponse) =>
@@ -22,15 +28,10 @@ export const unregisterPublicKeys = async (
       status,
     })
 
-  const {
-    auth: { publicKey },
-    publicKeys,
-  } = request.parsedBody.data
-
   // Get existing profile.
   let profile: DbRowProfile | null
   try {
-    profile = await getProfileFromPublicKey(env, publicKey)
+    profile = await getProfileFromPublicKeyHex(env, publicKey.hex)
   } catch (err) {
     console.error('Profile retrieval', err)
 
@@ -47,18 +48,25 @@ export const unregisterPublicKeys = async (
     })
   }
 
+  const publicKeys = publicKeyJsons.map((json) => makePublicKeyFromJson(json))
+
   // Validate that all public keys are attached to this profile.
-  const profilePublicKeys = (await getProfilePublicKeys(env, profile.id)).map(
-    (row) => row.publicKey
-  )
-  if (publicKeys.some((key) => !profilePublicKeys.includes(key))) {
+  const profilePublicKeys = await getProfilePublicKeys(env, profile.id)
+  if (
+    publicKeys.some(
+      (key) =>
+        !profilePublicKeys.some(({ publicKey }) =>
+          PublicKeyBase.publicKeysEqual(publicKey, key)
+        )
+    )
+  ) {
     return respond(401, {
       error: 'Not all public keys are attached to this profile.',
     })
   }
 
   // Validate nonce to prevent replay attacks.
-  if (request.parsedBody.data.auth.nonce !== profile.nonce) {
+  if (auth.nonce !== profile.nonce) {
     return respond(401, {
       error: `Invalid nonce. Expected: ${profile.nonce}`,
     })

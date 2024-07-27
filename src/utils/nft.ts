@@ -1,11 +1,11 @@
 import { getOwnedNftImageUrl } from '../chains'
-import { Env, ProfileNft, ProfileNftWithImage } from '../types'
+import { Env, ProfileNft, ProfileNftWithImage, PublicKey } from '../types'
 
 export const INITIAL_NONCE = 0
 
 export const getOwnedNftWithImage = async (
   env: Env,
-  publicKey: string,
+  publicKey: PublicKey,
   nft: ProfileNft
 ): Promise<ProfileNftWithImage | null> => {
   // Verify selected NFT still belongs to the public key before responding with

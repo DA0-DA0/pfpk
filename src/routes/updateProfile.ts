@@ -11,14 +11,17 @@ import {
   NotOwnerError,
   getPreferredProfilePublicKey,
   getProfileFromName,
-  getProfileFromPublicKey,
+  getProfileFromPublicKeyHex,
   saveProfile,
 } from '../utils'
 
 const ALLOWED_NAME_CHARS = /^[a-zA-Z0-9._]+$/
 
 export const updateProfile = async (
-  request: AuthorizedRequest<UpdateProfileRequest>,
+  {
+    parsedBody: { data: requestBody },
+    publicKey,
+  }: AuthorizedRequest<UpdateProfileRequest>,
   env: Env
 ) => {
   const respond = (status: number, response: UpdateProfileResponse) =>
@@ -26,10 +29,6 @@ export const updateProfile = async (
       status,
     })
 
-  const {
-    auth: { publicKey },
-    ...requestBody
-  } = request.parsedBody.data
   try {
     // Validate body.
     if (!requestBody) {
@@ -97,7 +96,7 @@ export const updateProfile = async (
   }
 
   try {
-    const profileRow = await getProfileFromPublicKey(env, publicKey)
+    const profileRow = await getProfileFromPublicKeyHex(env, publicKey.hex)
     if (profileRow) {
       existingProfileId = profileRow.id
       profile = {
@@ -162,23 +161,21 @@ export const updateProfile = async (
       // If profile exists, get public key for the NFT's chain, falling back to
       // the current public key in case no public key has been added for that
       // chain..
-      const chainPublicKey = existingProfileId
-        ? (
-            await getPreferredProfilePublicKey(
-              env,
-              existingProfileId,
-              nft.chainId
-            )
-          )?.publicKey || publicKey
+      const chainPublicKeyHex = existingProfileId
+        ? (await getPreferredProfilePublicKey(
+            env,
+            existingProfileId,
+            nft.chainId
+          )) || publicKey
         : // If profile doesn't exist yet, but the NFT is on a chain being registered for this public key right now, use the current public key. `getPreferredProfilePublicKey` will fail if no profile exists, but the profile is about to exist.
           (
-              request.parsedBody.data.chainIds
-                ? request.parsedBody.data.chainIds.includes(nft.chainId)
-                : request.parsedBody.data.auth.chainId === nft.chainId
+              requestBody.chainIds
+                ? requestBody.chainIds.includes(nft.chainId)
+                : requestBody.auth.chainId === nft.chainId
             )
           ? publicKey
           : undefined
-      if (!chainPublicKey) {
+      if (!chainPublicKeyHex) {
         throw new KnownError(
           405,
           "No public key is associated with the NFT's chain."
@@ -189,7 +186,7 @@ export const updateProfile = async (
       const imageUrl = await getOwnedNftImageUrl(
         nft.chainId,
         env,
-        chainPublicKey,
+        chainPublicKeyHex,
         nft.collectionAddress,
         nft.tokenId
       )
@@ -244,7 +241,7 @@ export const updateProfile = async (
       publicKey,
       profile,
       // If no chains passed, default to the current chain used to sign.
-      request.parsedBody.data.chainIds || [request.parsedBody.data.auth.chainId]
+      requestBody.chainIds || [requestBody.auth.chainId]
     )
   } catch (err) {
     console.error('Profile save', err)

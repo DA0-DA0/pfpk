@@ -53,7 +53,7 @@ export type FetchedProfile = {
   chains: Record<
     string,
     {
-      publicKey: string
+      publicKey: PublicKeyJson
       address: string
     }
   >
@@ -70,7 +70,7 @@ export type ResolvedProfile = {
   /**
    * Profile public key for this chain.
    */
-  publicKey: string
+  publicKey: PublicKeyJson
   /**
    * Profile address for this chain.
    */
@@ -127,7 +127,7 @@ export type UpdateProfileResponse =
 export type RegisterPublicKeyRequest = {
   // List of public key authorizations that allow this public key to register.
   publicKeys: RequestBody<{
-    // Public key that is allowed to register this public key.
+    // Public key hex that is allowed to register this public key.
     allow: string
     // Optionally use this public key as the preference for chains. If
     // undefined, no preferences set.
@@ -146,7 +146,7 @@ export type RegisterPublicKeyResponse =
 
 // Body of unregister public key request.
 export type UnregisterPublicKeyRequest = {
-  publicKeys: string[]
+  publicKeys: PublicKeyJson[]
 }
 
 // Body of unregister public key response.
@@ -162,7 +162,7 @@ export type UnregisterPublicKeyResponse =
 // if failed to retrieve image data.
 export type GetOwnedNftImageUrlFunction = (
   env: Env,
-  publicKey: string,
+  publicKey: PublicKey,
   collectionAddress: string,
   tokenId: string
 ) => Promise<string | undefined>
@@ -189,7 +189,8 @@ export type Auth = {
   chainId: string
   chainFeeDenom: string
   chainBech32Prefix: string
-  publicKey: string
+  publicKeyType: string
+  publicKeyHex: string
 }
 
 export type RequestBody<
@@ -205,6 +206,7 @@ export type AuthorizedRequest<
   Data extends Record<string, any> = Record<string, any>,
 > = IttyRequest & {
   parsedBody: RequestBody<Data>
+  publicKey: PublicKey
 }
 
 /**
@@ -228,8 +230,9 @@ export type DbRowProfile = {
 export type DbRowProfilePublicKey = {
   id: number
   profileId: number
-  publicKey: string
-  bech32Hash: string
+  type: string
+  publicKeyHex: string
+  addressHex: string
   createdAt: Date
   updatedAt: Date
 }
@@ -244,4 +247,40 @@ export type DbRowProfilePublicKeyChainPreference = {
   chainId: string
   createdAt: Date
   updatedAt: Date
+}
+
+/**
+ * Known public key types.
+ */
+export enum PublicKeyType {
+  CosmosSecp256k1 = '/cosmos.crypto.secp256k1.PubKey',
+  InjectiveEthSecp256k1 = '/injective.crypto.v1beta1.ethsecp256k1.PubKey',
+}
+
+export type PublicKeyJson = {
+  /**
+   * Type of public key.
+   */
+  type: string
+  /**
+   * Public key data hexstring.
+   */
+  hex: string
+}
+
+export interface PublicKey extends PublicKeyJson {
+  /**
+   * Address data hexstring.
+   */
+  addressHex: string
+  /**
+   * JSON representation of public key data.
+   */
+  json: PublicKeyJson
+
+  getBech32Address(bech32Prefix: string): string
+  verifySignature(
+    message: Uint8Array,
+    base64DerSignature: string
+  ): Promise<boolean>
 }

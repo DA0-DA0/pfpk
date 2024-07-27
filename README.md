@@ -83,7 +83,7 @@ the Cosmos.
 You can alternatively use the bech32 address or hash to query for the profile:
 
 - `GET /address/:bech32Address`
-- `GET /bech32/:bech32Hash`
+- `GET /hex/:addressHex`
 
 The returned type is:
 
@@ -101,8 +101,11 @@ type FetchProfileResponse = {
   chains: Record<
     string,
     {
-      publicKey: string
-      address: string
+      publicKey: {
+        type: string;
+        hex: string;
+      }
+      address: string;
     }
   >;
 };
@@ -172,7 +175,8 @@ type UpdateProfileRequest = {
       chainId: string;
       chainFeeDenom: string;
       chainBech32Prefix: string;
-      publicKey: string;
+      publicKeyType: string;
+      publicKeyHex: string;
     };
   };
   signature: string;
@@ -234,7 +238,8 @@ type RegisterPublicKeyRequest = {
           chainId: string;
           chainFeeDenom: string;
           chainBech32Prefix: string;
-          publicKey: string;
+          publicKeyType: string;
+          publicKeyHex: string;
         };
       };
       signature: string;
@@ -245,7 +250,8 @@ type RegisterPublicKeyRequest = {
       chainId: string;
       chainFeeDenom: string;
       chainBech32Prefix: string;
-      publicKey: string;
+      publicKeyType: string;
+      publicKeyHex: string;
     };
   };
   signature: string;
@@ -319,14 +325,18 @@ The expected request body type is:
 ```ts
 type UnregisterPublicKeyRequest = {
   data: {
-    publicKeys: string[]
+    publicKeys: {
+      type: string
+      hex: string
+    }[]
     auth: {
       type: string;
       nonce: number;
       chainId: string;
       chainFeeDenom: string;
       chainBech32Prefix: string;
-      publicKey: string;
+      publicKeyType: string;
+      publicKeyHex: string;
     };
   };
   signature: string;
@@ -373,7 +383,10 @@ The returned type is:
 type SearchProfilesResponse = {
   profiles: Array<{
     uuid: string | null;
-    publicKey: string;
+    publicKey: {
+      type: string;
+      hex: string;
+    };
     address: string;
     name: string | null;
     nft: {
@@ -410,7 +423,10 @@ The returned type is:
 type ResolveProfileResponse = {
   resolved: {
     uuid: string;
-    publicKey: string;
+    publicKey: {
+      type: string;
+      hex: string;
+    };
     address: string;
     name: string | null;
     nft: {
