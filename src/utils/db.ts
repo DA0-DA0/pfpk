@@ -147,7 +147,7 @@ export const getPreferredProfilePublicKey = async (
 ): Promise<PublicKey | null> => {
   const row = await env.DB.prepare(
     `
-    SELECT profile_public_keys.publicKeyHex AS publicKeyHex, profile_public_keys.addressHex AS addressHex
+    SELECT profile_public_keys.type AS type, profile_public_keys.publicKeyHex AS publicKeyHex
     FROM profile_public_keys
     INNER JOIN profile_public_key_chain_preferences
     ON profile_public_keys.id = profile_public_key_chain_preferences.profilePublicKeyId
