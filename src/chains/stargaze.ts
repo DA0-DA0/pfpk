@@ -20,6 +20,7 @@ const STARGAZE_GQL_TOKEN_QUERY = gql`
       }
       media {
         url
+        type
         visualAssets {
           lg {
             url
@@ -86,8 +87,13 @@ export const getOwnedNftImageUrl: GetOwnedNftImageUrlFunction = async (
     }
   }
 
+  // The Stargaze API resizes animated images (gifs) into `video/mp4` mimetype,
+  // which cannot display in an `img` tag. If this is a gif, use the original
+  // media URL instead of the resized one.
   const imageUrl =
-    data.token?.media?.visualAssets?.lg?.url || data.token?.media?.url
+    (data.token?.media?.type !== 'animated_image' &&
+      data.token?.media?.visualAssets?.lg?.url) ||
+    data.token?.media?.url
   if (imageUrl) {
     return imageUrl
   }
