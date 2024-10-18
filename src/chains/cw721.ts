@@ -1,7 +1,5 @@
-import { Chain } from '@chain-registry/types'
-
 import { GetOwnedNftImageUrlFunction, PublicKey } from '../types'
-import { Cw721, KnownError, NotOwnerError } from '../utils'
+import { Chain, Cw721, KnownError, NotOwnerError } from '../utils'
 
 export const getOwnedNftImageUrl =
   (

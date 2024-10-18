@@ -11,7 +11,7 @@
     "format": "eslint . --fix"
   },
   "devDependencies": {
-    "@chain-registry/types": "^0.18.0",
+    "@chain-registry/types": "^0.50.1",
     "@cloudflare/workers-types": "^4.20240222.0",
     "@types/crypto-js": "^4.1.1",
     "@types/secp256k1": "^4.0.6",
@@ -32,7 +32,7 @@
     "@cosmjs/cosmwasm-stargate": "^0.29.0",
     "@cosmjs/crypto": "^0.29.0",
     "@cosmjs/encoding": "^0.29.0",
-    "chain-registry": "^1.28.1",
+    "chain-registry": "^1.69.4",
     "crypto-js": "^4.1.1",
     "graphql": "^16.8.1",
     "itty-cors": "^0.2.2",
