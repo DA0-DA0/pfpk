@@ -448,3 +448,23 @@ type ResolveProfileResponse = {
 ```
 
 This route lets you resolve a profile from its name.
+
+### `GET /stats`
+
+This route returns statistics about the profiles.
+
+The returned type is:
+
+```ts
+type StatsResponse = {
+  total: number;
+};
+```
+
+or in the case of an error:
+
+```ts
+type StatsResponse = {
+  error: string;
+};
+```

@@ -6,6 +6,7 @@ import { handleNonce } from './routes/nonce'
 import { registerPublicKeys } from './routes/registerPublicKeys'
 import { resolveProfile } from './routes/resolveProfile'
 import { searchProfiles } from './routes/searchProfiles'
+import { stats } from './routes/stats'
 import { unregisterPublicKeys } from './routes/unregisterPublicKeys'
 import { updateProfile } from './routes/updateProfile'
 import { Env } from './types'
@@ -27,6 +28,9 @@ const router = Router()
 
 // Handle CORS preflight.
 router.all('*', preflight)
+
+// Get stats.
+router.get('/stats', stats)
 
 // Get nonce for publicKey.
 router.get('/nonce/:publicKey', handleNonce)
