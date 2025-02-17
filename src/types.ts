@@ -4,9 +4,6 @@ import { Request as IttyRequest } from 'itty-router'
 export type Env = {
   PROFILES: KVNamespace
   DB: D1Database
-
-  // Secrets.
-  INDEXER_API_KEY: string
 }
 
 /**

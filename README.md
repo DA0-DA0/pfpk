@@ -52,19 +52,13 @@ npm run dev
 
 1. Copy `wrangler.toml.example` to `wrangler.toml`.
 
-2. Configure secrets:
-
-```sh
-echo <VALUE> | npx wrangler secret put INDEXER_API_KEY
-```
-
-3. Create D1 database for production:
+2. Create D1 database for production:
 
 ```sh
 npx wrangler d1 create pfpk
 ```
 
-4. Update the binding ID in `wrangler.toml`:
+3. Update the binding ID in `wrangler.toml`:
 
 ```toml
 [[ d1_databases ]]
