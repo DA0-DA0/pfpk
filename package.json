@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "wrangler dev --port 58229",
     "deploy": "wrangler deploy --minify",
+    "log": "wrangler tail",
     "seed": "wrangler d1 execute DB --file=./schema.sql",
     "seed:local": "wrangler d1 execute DB --file=./schema.sql --local",
     "lint": "eslint .",

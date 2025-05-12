@@ -15,7 +15,7 @@ export const getImageAndOwner = async (
 }> => {
   try {
     const res = await fetch(
-      `https://snapper.daodao.zone/q/nft-image-and-owner?chainId=${chainId}&collectionAddress=${collectionAddress}&tokenId=${tokenId}`
+      `https://snapper.indexer.zone/q/nft-image-and-owner?chainId=${chainId}&collectionAddress=${collectionAddress}&tokenId=${tokenId}`
     )
 
     if (!res.ok) {
