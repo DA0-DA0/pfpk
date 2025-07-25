@@ -154,6 +154,10 @@ export type UnregisterPublicKeyResponse = {
   success: true
 }
 
+export type ErrorResponse = {
+  error: string
+}
+
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors
 // if failed to retrieve image data.
 export type GetOwnedNftImageUrlFunction = (

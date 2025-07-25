@@ -28,7 +28,7 @@ export const getImageAndOwner = async (
       staker?: string
     }
   } catch (err) {
-    console.error(err)
+    console.error('Failed to get NFT image and owner.', err)
     throw new KnownError(500, 'Failed to get NFT image and owner.', err)
   }
 }

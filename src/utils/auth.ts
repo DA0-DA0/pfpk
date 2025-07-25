@@ -29,11 +29,7 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
   // If JWT token is provided, verify it.
   const authHeader = request.headers.get('Authorization')
   if (!authHeader) {
-    throw new KnownError(
-      401,
-      'Unauthorized',
-      'No authorization header provided.'
-    )
+    throw new KnownError(401, 'Unauthorized', 'No authorization header.')
   }
 
   const [type, token] = authHeader.split(' ')
@@ -60,7 +56,9 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
     )
   }
 
-  const body: RequestBody = await request.json?.()
+  const body = await request.json<RequestBody>().catch(() => {
+    throw new KnownError(400, 'Invalid request body.')
+  })
 
   // If auth is provided, validate that it matches the profile. If it does not
   // match, strip it since it is untrusted.
@@ -100,7 +98,9 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
 export const signatureAuthMiddleware: RequestHandler<
   AuthorizedRequest
 > = async (request, env: Env) => {
-  const body: RequestBody = await request.json?.()
+  const body = await request.json<RequestBody>?.().catch(() => {
+    throw new KnownError(400, 'Invalid request body.')
+  })
 
   // Verify body and add generated public key to request.
   request.publicKey = await verifyRequestBodyAndGetPublicKey(body)

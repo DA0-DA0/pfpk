@@ -84,8 +84,11 @@ export const updateProfile: RequestHandler<
         throw new KnownError(400, 'Name already taken.')
       }
     } catch (err) {
-      console.error('Name uniqueness retrieval', err)
+      if (err instanceof KnownError) {
+        throw err
+      }
 
+      console.error('Name uniqueness retrieval', err)
       throw new KnownError(500, 'Failed to check name uniqueness', err)
     }
   }
@@ -122,13 +125,12 @@ export const updateProfile: RequestHandler<
         throw new KnownError(415, 'Failed to retrieve image from NFT.')
       }
     } catch (err) {
-      if (err instanceof NotOwnerError) {
-        throw new KnownError(401, 'You do not own this NFT.')
-      }
-
-      // If already handled, respond with specific error.
       if (err instanceof KnownError) {
         throw err
+      }
+
+      if (err instanceof NotOwnerError) {
+        throw new KnownError(401, 'You do not own this NFT.')
       }
 
       throw new KnownError(500, 'Unexpected ownership verification error', err)
@@ -159,8 +161,11 @@ export const updateProfile: RequestHandler<
         body.chainIds || (body.auth?.chainId ? [body.auth.chainId] : undefined),
     })
   } catch (err) {
-    console.error('Profile save', err)
+    if (err instanceof KnownError) {
+      throw err
+    }
 
+    console.error('Profile save', err)
     throw new KnownError(500, 'Failed to save profile', err)
   }
 

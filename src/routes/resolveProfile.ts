@@ -76,6 +76,10 @@ export const resolveProfile: RequestHandler = async (
       },
     }
   } catch (err) {
+    if (err instanceof KnownError) {
+      throw err
+    }
+
     console.error('Profile resolution', err)
     throw new KnownError(500, 'Failed to resolve profile', err)
   }

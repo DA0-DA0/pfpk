@@ -93,6 +93,10 @@ export const searchProfiles: RequestHandler = async (
       profiles,
     }
   } catch (err) {
+    if (err instanceof KnownError) {
+      throw err
+    }
+
     console.error('Profile retrieval for search', err)
     throw new KnownError(500, 'Failed to retrieve profile for search', err)
   }
