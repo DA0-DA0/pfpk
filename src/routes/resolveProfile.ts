@@ -1,41 +1,31 @@
-import { Request, RouteHandler } from 'itty-router'
+import { RequestHandler } from 'itty-router'
 
 import { Env, ResolveProfileResponse, ResolvedProfile } from '../types'
 import {
+  KnownError,
   getChain,
   getOwnedNftWithImage,
   getPreferredProfilePublicKey,
   getProfileFromName,
 } from '../utils'
 
-export const resolveProfile: RouteHandler<Request> = async (
+export const resolveProfile: RequestHandler = async (
   request,
   env: Env
-) => {
-  const respond = (status: number, response: ResolveProfileResponse) =>
-    new Response(JSON.stringify(response), {
-      status,
-    })
-
+): Promise<ResolveProfileResponse> => {
   const chainId = request.params?.chainId?.trim()
   if (!chainId) {
-    return respond(400, {
-      error: 'Missing chainId.',
-    })
+    throw new KnownError(400, 'Missing chainId.')
   }
 
   const name = request.params?.name?.trim()
   if (!name) {
-    return respond(400, {
-      error: 'Missing name.',
-    })
+    throw new KnownError(400, 'Missing name.')
   }
 
   const chain = await getChain(chainId)
   if (!chain) {
-    return respond(400, {
-      error: 'Unknown chainId.',
-    })
+    throw new KnownError(400, 'Unknown chainId.')
   }
 
   try {
@@ -44,9 +34,7 @@ export const resolveProfile: RouteHandler<Request> = async (
       profile && (await getPreferredProfilePublicKey(env, profile.id, chainId))
 
     if (!profile || !publicKey) {
-      return respond(404, {
-        error: 'Profile not found.',
-      })
+      throw new KnownError(404, 'Profile not found.')
     }
 
     const address = await publicKey.getBech32Address(chain.bech32_prefix)
@@ -78,7 +66,7 @@ export const resolveProfile: RouteHandler<Request> = async (
       }
     }
 
-    return respond(200, {
+    return {
       resolved: {
         uuid: profile.uuid,
         publicKey: publicKey.json,
@@ -86,14 +74,9 @@ export const resolveProfile: RouteHandler<Request> = async (
         name: profile.name,
         nft,
       },
-    })
+    }
   } catch (err) {
     console.error('Profile resolution', err)
-
-    return respond(500, {
-      error:
-        'Failed to resolve profile: ' +
-        (err instanceof Error ? err.message : `${err}`),
-    })
+    throw new KnownError(500, 'Failed to resolve profile', err)
   }
 }

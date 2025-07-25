@@ -1,21 +1,22 @@
-import { RouteHandler } from 'itty-router'
+import { RequestHandler } from 'itty-router'
 
-import { Env } from '../types'
-import { respond } from '../utils'
+import { Env, StatsResponse } from '../types'
+import { KnownError } from '../utils'
 
-export const stats: RouteHandler<Request> = async (_, env: Env) => {
+export const stats: RequestHandler = async (
+  _,
+  env: Env
+): Promise<StatsResponse> => {
   const { total } =
     (await env.DB.prepare('SELECT COUNT(*) AS total FROM profiles').first<{
       total: number
     }>()) ?? {}
 
   if (typeof total !== 'number') {
-    return respond(500, {
-      error: 'Failed to get stats.',
-    })
+    throw new KnownError(500, 'Failed to get stats.')
   }
 
-  return respond(200, {
+  return {
     total,
-  })
+  }
 }

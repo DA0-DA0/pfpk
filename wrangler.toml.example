@@ -7,3 +7,6 @@ node_compat = true
 binding = "DB"
 database_name = "pfpk"
 database_id = "DB_ID"
+
+# Secrets:
+# - JWT_SECRET

@@ -1,18 +1,18 @@
-import { Request as IttyRequest } from 'itty-router'
+import { RequestHandler } from 'itty-router'
 
-import { Env } from '../types'
-import { getNonce, respond, respondError } from '../utils'
+import { Env, NonceResponse } from '../types'
+import { KnownError, getNonce } from '../utils'
 
-export const handleNonce = async (
-  request: IttyRequest,
+export const handleNonce: RequestHandler = async (
+  request,
   env: Env
-): Promise<Response> => {
+): Promise<NonceResponse> => {
   const publicKey = request.params?.publicKey
   if (!publicKey) {
-    return respondError(400, 'Missing publicKey.')
+    throw new KnownError(400, 'Missing publicKey.')
   }
 
   const nonce = await getNonce(env, publicKey)
 
-  return respond(200, { nonce })
+  return { nonce }
 }

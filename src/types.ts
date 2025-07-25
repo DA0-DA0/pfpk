@@ -1,9 +1,10 @@
-import { Request as IttyRequest } from 'itty-router'
+import { IRequestStrict } from 'itty-router'
 
 // Cloudflare Worker bindings.
 export type Env = {
   PROFILES: KVNamespace
   DB: D1Database
+  JWT_SECRET: string
 }
 
 /**
@@ -94,52 +95,61 @@ export type ProfileNftWithImage = ProfileNft & {
   imageUrl: string
 }
 
+export type NonceResponse = {
+  nonce: number
+}
+
+export type StatsResponse = {
+  total: number
+}
+
 // Body of fetch profile response.
-export type FetchProfileResponse =
-  | FetchedProfile
-  | {
-      error: string
-    }
+export type FetchProfileResponse = FetchedProfile
 
 // Body of profile update request.
 export type UpdateProfileRequest = {
-  // Allow partial updates to profile, but require nonce.
-  profile: Partial<Omit<UpdateProfile, 'nonce'>> & Pick<UpdateProfile, 'nonce'>
-  // Optionally use the current public key as the preference for these chains.
-  // If undefined, defaults to the chain used to sign this request on profile
-  // creation.
+  /**
+   * Allow partial updates to profile, but require nonce.
+   */
+  profile: Partial<UpdateProfile>
+  /**
+   * Optionally use the current public key as the preference for these chains.
+   * If undefined, defaults to the chain used to sign this request on profile
+   * creation.
+   */
   chainIds?: string[]
 }
 
 // Body of profile update response.
-export type UpdateProfileResponse =
-  | {
-      success: true
-    }
-  | {
-      error: string
-    }
+export type UpdateProfileResponse = {
+  success: true
+}
 
 // Body of register public key request.
 export type RegisterPublicKeyRequest = {
-  // List of public key authorizations that allow this public key to register.
-  publicKeys: RequestBody<{
-    // Public key hex that is allowed to register this public key.
-    allow: string
-    // Optionally use this public key as the preference for chains. If
-    // undefined, no preferences set.
-    chainIds?: string[]
-  }>[]
+  /**
+   * List of public key authorizations to register.
+   */
+  publicKeys: RequestBody<
+    {
+      /**
+       * Profile UUID that is allowed to register this public key.
+       */
+      allow: string
+      /**
+       * Optionally use this public key as the preference for certain chains. If
+       * undefined, no preferences set.
+       */
+      chainIds?: string[]
+    },
+    true
+  >[]
 }
 
 // Body of register public key response.
-export type RegisterPublicKeyResponse =
-  | {
-      success: true
-    }
-  | {
-      error: string
-    }
+export type RegisterPublicKeyResponse = {
+  success: true
+}
 
 // Body of unregister public key request.
 export type UnregisterPublicKeyRequest = {
@@ -147,13 +157,9 @@ export type UnregisterPublicKeyRequest = {
 }
 
 // Body of unregister public key response.
-export type UnregisterPublicKeyResponse =
-  | {
-      success: true
-    }
-  | {
-      error: string
-    }
+export type UnregisterPublicKeyResponse = {
+  success: true
+}
 
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors
 // if failed to retrieve image data.
@@ -164,21 +170,17 @@ export type GetOwnedNftImageUrlFunction = (
   tokenId: string
 ) => Promise<string | undefined>
 
-export type SearchProfilesResponse =
-  | {
-      profiles: ResolvedProfile[]
-    }
-  | {
-      error: string
-    }
+export type SearchProfilesResponse = {
+  profiles: ResolvedProfile[]
+}
 
-export type ResolveProfileResponse =
-  | {
-      resolved: ResolvedProfile
-    }
-  | {
-      error: string
-    }
+export type ResolveProfileResponse = {
+  resolved: ResolvedProfile
+}
+
+export type AuthenticateResponse = {
+  token: string
+}
 
 export type Auth = {
   type: string
@@ -188,22 +190,73 @@ export type Auth = {
   chainBech32Prefix: string
   publicKeyType: string
   publicKeyHex: string
+  /**
+   * Timestamp must be within the last 5 minutes.
+   */
+  timestamp: number
 }
 
 export type RequestBody<
   Data extends Record<string, unknown> = Record<string, any>,
+  /**
+   * Whether or not the request body requires authentication.
+   */
+  RequireAuth extends boolean = false,
 > = {
-  data: {
-    auth: Auth
-  } & Data
-  signature: string
+  data: (RequireAuth extends true
+    ? {
+        /**
+         * Authentication data that must be provided.
+         */
+        auth: Auth
+      }
+    : {
+        /**
+         * Authentication data. Only set if the request is authenticated via:
+         * 1. wallet signature.
+         * 2. JWT token AND EITHER the public key auth provided matches the
+         *    profile of the JWT token.
+         *
+         * If `auth` is sent in the body when using a JWT token, and it doesn't
+         * match the profile, it will be stripped since it is untrusted. This is the
+         * same as the `publicKey` field in the authorized request object.
+         */
+        auth?: Auth
+      }) &
+    Data
+  /**
+   * Signature of the `data` field using ADR-036 (see `verifySignature` in
+   * `auth.ts`).
+   *
+   * If not provided, a valid JWT bearer token must be provided via the
+   * `Authorization` header for the profile associated with the public key used
+   * in the `data.auth` field.
+   */
+  signature?: string
 }
 
 export type AuthorizedRequest<
   Data extends Record<string, any> = Record<string, any>,
-> = IttyRequest & {
-  parsedBody: RequestBody<Data>
-  publicKey: PublicKey
+> = IRequestStrict & {
+  /**
+   * Validated request body.
+   */
+  validatedBody: RequestBody<Data>
+  /**
+   * Authorized profile.
+   */
+  profile: DbRowProfile
+  /**
+   * Public key provided in the `data.auth` field. Only set if the request is
+   * authenticated via:
+   * 1. wallet signature.
+   * 2. JWT token AND a public key was provided that matches the profile of the
+   *    JWT token.
+   *
+   * This is the same as the `data.auth` field in the request body, since this
+   * public key is generated after `data.auth` is validated.
+   */
+  publicKey?: PublicKey
 }
 
 /**

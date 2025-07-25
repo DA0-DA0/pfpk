@@ -33,11 +33,11 @@
     "@cosmjs/cosmwasm-stargate": "^0.29.0",
     "@cosmjs/crypto": "^0.29.0",
     "@cosmjs/encoding": "^0.29.0",
+    "@tsndr/cloudflare-worker-jwt": "^3.2.0",
     "chain-registry": "^1.69.4",
     "crypto-js": "^4.1.1",
     "graphql": "^16.8.1",
-    "itty-cors": "^0.2.2",
-    "itty-router": "^2.6.6",
+    "itty-router": "^5.0.18",
     "react": "^18.2.0",
     "secp256k1": "^5.0.0"
   }

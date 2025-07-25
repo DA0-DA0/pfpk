@@ -52,13 +52,19 @@ npm run dev
 
 1. Copy `wrangler.toml.example` to `wrangler.toml`.
 
-2. Create D1 database for production:
+2. Create D1 database:
 
 ```sh
 npx wrangler d1 create pfpk
 ```
 
-3. Update the binding ID in `wrangler.toml`:
+3. Create secrets:
+
+```sh
+echo -n "your-secret" | npx wrangler secret put JWT_SECRET
+```
+
+4. Update the binding ID in `wrangler.toml`:
 
 ```toml
 [[ d1_databases ]]

@@ -1,123 +1,75 @@
+import { RequestHandler } from 'itty-router'
+
 import { makePublicKey } from '../publicKeys'
 import {
   AuthorizedRequest,
-  DbRowProfile,
   Env,
   RegisterPublicKeyRequest,
   RegisterPublicKeyResponse,
+  RequestBody,
 } from '../types'
-import {
-  INITIAL_NONCE,
-  KnownError,
-  addProfilePublicKey,
-  getProfileFromPublicKeyHex,
-  incrementProfileNonce,
-  saveProfile,
-} from '../utils'
+import { KnownError, addProfilePublicKey, getProfilePublicKeys } from '../utils'
 import { verifyRequestBodyAndGetPublicKey } from '../utils/auth'
 
-export const registerPublicKeys = async (
+export const registerPublicKeys: RequestHandler<
+  AuthorizedRequest<RegisterPublicKeyRequest>
+> = async (
   {
-    parsedBody: {
-      data: { auth, publicKeys },
+    validatedBody: {
+      data: { publicKeys: toRegister },
     },
-    publicKey,
-  }: AuthorizedRequest<RegisterPublicKeyRequest>,
+    profile,
+  },
   env: Env
-) => {
-  const respond = (status: number, response: RegisterPublicKeyResponse) =>
-    new Response(JSON.stringify(response), {
-      status,
-    })
+): Promise<RegisterPublicKeyResponse> => {
+  // Get all public keys in the profile.
+  const profilePublicKeys = await getProfilePublicKeys(env, profile.id)
 
-  // Validate all keys inside that are not the same as the public key performing
-  // the registration (since it already belongs to the profile, and its
-  // signature wrapping the entire message was validated in middleware).
+  // Validate all public keys being registered that are not the same as the
+  // those that belong to the profile.
   try {
     await Promise.all(
-      publicKeys
-        .filter((key) => key.data.auth.publicKeyHex !== publicKey.hex)
-        .map((key) => verifyRequestBodyAndGetPublicKey(key))
+      toRegister
+        .filter(
+          (newKey) =>
+            !profilePublicKeys.some(
+              ({ publicKey }) => publicKey.hex === newKey.data.auth.publicKeyHex
+            )
+        )
+        .map((key) =>
+          verifyRequestBodyAndGetPublicKey(key as unknown as RequestBody)
+        )
     )
   } catch (err) {
     if (err instanceof KnownError) {
-      return respond(err.statusCode, err.responseJson)
+      throw err
     }
 
-    return respond(400, {
-      error:
-        'Failed to validate public keys: ' +
-        (err instanceof Error ? err.message : `${err}`),
-    })
+    throw new KnownError(400, 'Failed to validate public keys', err)
   }
 
-  // Validate all keys inside allowed this public key to register them.
-  if (publicKeys.some((key) => key.data.allow !== publicKey.hex)) {
-    return respond(401, {
-      error: `Invalid allowed public key. Expected: ${publicKey}`,
-    })
-  }
-
-  // Find or create profile.
-  let profile: DbRowProfile
-  try {
-    let _profile: DbRowProfile | null = await getProfileFromPublicKeyHex(
-      env,
-      publicKey.hex
+  // Validate that all public keys being registered allow this profile to
+  // register them.
+  if (toRegister.some((newKey) => newKey.data.allow !== profile.uuid)) {
+    throw new KnownError(
+      401,
+      'Unauthorized',
+      `Invalid allowed profile UUID, expected: ${profile.uuid}.`
     )
-
-    // If no profile exists, create one.
-    if (!_profile) {
-      _profile = await saveProfile(
-        env,
-        publicKey,
-        {
-          nonce: INITIAL_NONCE,
-          name: null,
-          nft: null,
-        },
-        // Create with the current chain preference.
-        [auth.chainId]
-      )
-    }
-
-    profile = _profile
-  } catch (err) {
-    console.error('Profile retrieval', err)
-
-    return respond(500, {
-      error:
-        'Failed to retrieve existing profile: ' +
-        (err instanceof Error ? err.message : `${err}`),
-    })
   }
 
-  // Validate all nonces to prevent replay attacks.
-  if (
-    auth.nonce !== profile.nonce ||
-    publicKeys.some((key) => key.data.auth.nonce !== profile!.nonce)
-  ) {
-    return respond(401, {
-      error: `Invalid nonce. Expected: ${profile.nonce}`,
-    })
-  }
-
-  // Increment nonce to prevent replay attacks.
-  try {
-    await incrementProfileNonce(env, profile.id)
-  } catch (err) {
-    console.error('Profile nonce increment', err)
-
-    return respond(500, {
-      error:
-        'Failed to increment profile nonce: ' +
-        (err instanceof Error ? err.message : `${err}`),
-    })
+  // Validate all nonces match the profile to prevent replay attacks.
+  if (toRegister.some((newKey) => newKey.data.auth.nonce !== profile.nonce)) {
+    throw new KnownError(
+      401,
+      'Unauthorized',
+      `Invalid nonce, expected: ${profile.nonce}.`
+    )
   }
 
   // Combine chain ID lists for same public keys
   const publicKeysToAdd = Object.entries(
-    publicKeys.reduce(
+    toRegister.reduce(
       (acc, { data }) => {
         const key = `${data.auth.publicKeyType}:${data.auth.publicKeyHex}`
         const existing = acc[key] || new Set<string>()
@@ -144,25 +96,20 @@ export const registerPublicKeys = async (
 
         return addProfilePublicKey(
           env,
-          profile!.id,
+          profile.id,
           makePublicKey(type, publicKeyHex),
           Array.from(chainIds)
         )
       })
     )
   } catch (err) {
-    console.error('Profile public key add', err)
-
     if (err instanceof KnownError) {
-      return respond(err.statusCode, err.responseJson)
+      throw err
     }
 
-    return respond(500, {
-      error:
-        'Failed to add profile public keys: ' +
-        (err instanceof Error ? err.message : `${err}`),
-    })
+    console.error('Profile public key registration', profile.uuid, err)
+    throw new KnownError(500, 'Failed to register profile public keys', err)
   }
 
-  return respond(200, { success: true })
+  return { success: true }
 }

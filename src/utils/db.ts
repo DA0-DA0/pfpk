@@ -1,5 +1,5 @@
+import { INITIAL_NONCE } from './auth'
 import { KnownError } from './error'
-import { INITIAL_NONCE } from './nft'
 import { PublicKeyBase, makePublicKey } from '../publicKeys'
 import {
   DbRowProfile,
@@ -10,6 +10,23 @@ import {
   PublicKeyJson,
   UpdateProfile,
 } from '../types'
+
+/**
+ * Get the profile for a given UUID.
+ */
+export const getProfileFromUuid = async (
+  env: Env,
+  uuid: string
+): Promise<DbRowProfile | null> =>
+  await env.DB.prepare(
+    `
+    SELECT *
+    FROM profiles
+    WHERE uuid = ?1
+    `
+  )
+    .bind(uuid)
+    .first<DbRowProfile>()
 
 /**
  * Get the profile for a given name.
@@ -228,52 +245,103 @@ export const getProfilePublicKeyPerChain = async (
  */
 export const saveProfile = async (
   env: Env,
-  publicKey: PublicKey,
-  profile: UpdateProfile,
-  // Optionally set chain preferences for this public key.
-  chainIds?: string[]
+  profileUpdates: Partial<UpdateProfile>,
+  {
+    chainIds,
+    ...options
+  }: {
+    /**
+     * Optionally set chain preferences for this public key.
+     */
+    chainIds?: string[]
+  } & (
+    | {
+        /**
+         * Public key to locate the profile or add to the new profile if it
+         * doesn't exist yet.
+         *
+         * This is required to create a new profile or else no one will be able
+         * to access it.
+         */
+        publicKey: PublicKey
+      }
+    | {
+        /**
+         * Existing profile UUID to update.
+         */
+        uuid: string
+      }
+  )
 ): Promise<DbRowProfile> => {
-  const existingProfile = await getProfileFromPublicKeyHex(env, publicKey.hex)
+  const existingProfile: (DbRowProfile & { publicKeyId?: number }) | null =
+    'uuid' in options
+      ? await getProfileFromUuid(env, options.uuid)
+      : 'publicKey' in options
+        ? await getProfileFromPublicKeyHex(env, options.publicKey.hex)
+        : null
+
+  // If no profile exists and a UUID is provided, throw an error.
+  if ('uuid' in options && !existingProfile) {
+    throw new KnownError(404, 'Profile not found.')
+  }
 
   let updatedProfileRow: DbRowProfile | null
   let profilePublicKeyId = existingProfile?.publicKeyId
+
+  const fieldsToUpdate: [string, string | number | undefined | null][] = [
+    ['nonce', profileUpdates.nonce] as [string, number],
+    ['name', profileUpdates.name] as [string, string | null | undefined],
+    ['nftChainId', profileUpdates.nft?.chainId] as [
+      string,
+      string | null | undefined,
+    ],
+    ['nftCollectionAddress', profileUpdates.nft?.collectionAddress] as [
+      string,
+      string | null | undefined,
+    ],
+    ['nftTokenId', profileUpdates.nft?.tokenId] as [
+      string,
+      string | null | undefined,
+    ],
+  ].filter(([, value]) => value !== undefined)
 
   // If profile exists, update.
   if (existingProfile) {
     updatedProfileRow = await env.DB.prepare(
       `
       UPDATE profiles
-      SET nonce = ?1, name = ?2, nftChainId = ?3, nftCollectionAddress = ?4, nftTokenId = ?5, updatedAt = CURRENT_TIMESTAMP
-      WHERE id = ?6
+      SET ${fieldsToUpdate.map(([key], index) => `${key} = ?${index + 2}`).join(', ')}, updatedAt = CURRENT_TIMESTAMP
+      WHERE id = ?1
       RETURNING *
       `
     )
       .bind(
-        profile.nonce,
-        profile.name,
-        profile.nft?.chainId ?? null,
-        profile.nft?.collectionAddress ?? null,
-        profile.nft?.tokenId ?? null,
-        existingProfile.id
+        existingProfile.id,
+        ...fieldsToUpdate.map(([, value]) => value ?? null)
       )
       .first<DbRowProfile>()
   }
   // Otherwise, create.
   else {
+    // If no public key is provided, throw an error. This should never happen,
+    // since the public key is required if not passing an existing profile UUID.
+    if (!('publicKey' in options)) {
+      throw new KnownError(
+        400,
+        'Public key is required when creating a new profile.'
+      )
+    }
+
     updatedProfileRow = await env.DB.prepare(
       `
-      INSERT INTO profiles (uuid, nonce, name, nftChainId, nftCollectionAddress, nftTokenId)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+      INSERT INTO profiles (uuid, ${fieldsToUpdate.map(([key]) => key).join(', ')})
+      VALUES (?1, ${fieldsToUpdate.map((_, index) => `?${index + 2}`).join(', ')})
       RETURNING *
       `
     )
       .bind(
         crypto.randomUUID(),
-        profile.nonce,
-        profile.name,
-        profile.nft?.chainId ?? null,
-        profile.nft?.collectionAddress ?? null,
-        profile.nft?.tokenId ?? null
+        ...fieldsToUpdate.map(([, value]) => value ?? null)
       )
       .first<DbRowProfile>()
     if (!updatedProfileRow) {
@@ -289,9 +357,9 @@ export const saveProfile = async (
     )
       .bind(
         updatedProfileRow.id,
-        publicKey.type,
-        publicKey.hex,
-        publicKey.addressHex
+        options.publicKey.type,
+        options.publicKey.hex,
+        options.publicKey.addressHex
       )
       .first<DbRowProfilePublicKey>()
     if (!profilePublicKeyRow) {
@@ -316,24 +384,6 @@ export const saveProfile = async (
   }
 
   return updatedProfileRow
-}
-
-/**
- * Increment profile nonce.
- */
-export const incrementProfileNonce = async (
-  env: Env,
-  profileId: number
-): Promise<void> => {
-  await env.DB.prepare(
-    `
-    UPDATE profiles
-    SET nonce = nonce + 1, updatedAt = CURRENT_TIMESTAMP
-    WHERE id = ?1
-    `
-  )
-    .bind(profileId)
-    .run()
 }
 
 /**
