@@ -1,7 +1,7 @@
 import { fromBech32, toHex } from '@cosmjs/encoding'
 import { RequestHandler } from 'itty-router'
 
-import { DbRowProfile, Env, FetchProfileResponse } from '../types'
+import { DbRowProfile, FetchProfileResponse } from '../types'
 import {
   INITIAL_NONCE,
   KnownError,

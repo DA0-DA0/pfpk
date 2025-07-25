@@ -1,9 +1,8 @@
 # pfpk
 
-pic for public key. A [Cloudflare
-Worker](https://developers.cloudflare.com/workers) that allows associating a
-name and NFT (image) with a given set of [Cosmos](https://cosmos.network)
-wallets / public keys.
+profile for public key. A [Cloudflare
+Worker](https://developers.cloudflare.com/workers) that allows creating profiles
+attached to wallets / public keys.
 
 Currently deployed at https://pfpk.daodao.zone
 
@@ -52,19 +51,21 @@ npm run dev
 
 1. Copy `wrangler.toml.example` to `wrangler.toml`.
 
-2. Create D1 database:
+2. Copy `.dev.vars.example` to `.dev.vars`.
+
+3. Create D1 database:
 
 ```sh
 npx wrangler d1 create pfpk
 ```
 
-3. Create secrets:
+4. Create secrets:
 
 ```sh
 echo -n "your-secret" | npx wrangler secret put JWT_SECRET
 ```
 
-4. Update the binding ID in `wrangler.toml`:
+5. Update the binding ID in `wrangler.toml`:
 
 ```toml
 [[ d1_databases ]]

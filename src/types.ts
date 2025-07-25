@@ -1,12 +1,5 @@
 import { IRequestStrict } from 'itty-router'
 
-// Cloudflare Worker bindings.
-export type Env = {
-  PROFILES: KVNamespace
-  DB: D1Database
-  JWT_SECRET: string
-}
-
 /**
  * Profile used when updating/saving.
  */

@@ -1,7 +1,6 @@
 import { makePublicKey } from '../publicKeys'
-import { DbRowProfile, Env, FetchedProfile } from '../types'
+import { DbRowProfile, FetchedProfile } from '../types'
 import {
-  INITIAL_NONCE,
   getOwnedNftWithImage,
   getProfilePublicKeyPerChain,
   mustGetChain,
@@ -15,16 +14,12 @@ export const getFetchedProfileJsonForProfile = async (
   profileRow: DbRowProfile
 ): Promise<FetchedProfile> => {
   const fetchedProfile: FetchedProfile = {
-    uuid: '',
-    nonce: INITIAL_NONCE,
-    name: null,
+    uuid: profileRow.uuid,
+    nonce: profileRow.nonce,
+    name: profileRow.name?.trim() || null,
     nft: null,
     chains: {},
   }
-
-  fetchedProfile.uuid = profileRow.uuid
-  fetchedProfile.nonce = profileRow.nonce
-  fetchedProfile.name = profileRow.name?.trim() || null
 
   // Get chains.
   const accountPerChain = (

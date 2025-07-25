@@ -1,6 +1,6 @@
 import { RequestHandler } from 'itty-router'
 
-import { Env, NonceResponse } from '../types'
+import { NonceResponse } from '../types'
 import { KnownError, getNonce } from '../utils'
 
 export const handleNonce: RequestHandler = async (

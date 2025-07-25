@@ -1,7 +1,7 @@
 import { RequestHandler } from 'itty-router'
 
 import { makePublicKey } from '../publicKeys'
-import { Env, ResolvedProfile, SearchProfilesResponse } from '../types'
+import { ResolvedProfile, SearchProfilesResponse } from '../types'
 import {
   KnownError,
   getChain,

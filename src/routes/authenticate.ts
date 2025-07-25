@@ -1,6 +1,6 @@
 import { RequestHandler } from 'itty-router'
 
-import { AuthenticateResponse, AuthorizedRequest, Env } from '../types'
+import { AuthenticateResponse, AuthorizedRequest } from '../types'
 import { createJwt } from '../utils'
 
 export const authenticate: RequestHandler<AuthorizedRequest> = async (

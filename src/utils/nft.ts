@@ -1,5 +1,5 @@
 import { getOwnedNftImageUrl } from '../chains'
-import { Env, ProfileNft, ProfileNftWithImage, PublicKey } from '../types'
+import { ProfileNft, ProfileNftWithImage, PublicKey } from '../types'
 
 export const getOwnedNftWithImage = async (
   env: Env,

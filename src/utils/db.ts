@@ -5,7 +5,6 @@ import {
   DbRowProfile,
   DbRowProfilePublicKey,
   DbRowProfilePublicKeyChainPreference,
-  Env,
   PublicKey,
   PublicKeyJson,
   UpdateProfile,

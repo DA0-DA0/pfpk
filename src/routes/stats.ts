@@ -1,6 +1,6 @@
 import { RequestHandler } from 'itty-router'
 
-import { Env, StatsResponse } from '../types'
+import { StatsResponse } from '../types'
 import { KnownError } from '../utils'
 
 export const stats: RequestHandler = async (

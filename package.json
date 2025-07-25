@@ -3,17 +3,20 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "test": "vitest",
+    "build": "tsc",
     "dev": "wrangler dev --port 58229",
     "deploy": "wrangler deploy --minify",
     "log": "wrangler tail",
     "seed": "wrangler d1 execute DB --file=./schema.sql",
     "seed:local": "wrangler d1 execute DB --file=./schema.sql --local",
     "lint": "eslint .",
-    "format": "eslint . --fix"
+    "format": "eslint . --fix",
+    "generate:types": "wrangler types"
   },
   "devDependencies": {
     "@chain-registry/types": "^0.50.1",
-    "@cloudflare/workers-types": "^4.20240222.0",
+    "@cloudflare/vitest-pool-workers": "^0.8.57",
     "@types/crypto-js": "^4.1.1",
     "@types/secp256k1": "^4.0.6",
     "@typescript-eslint/eslint-plugin": "^7.0.2",
@@ -25,14 +28,15 @@
     "eslint-plugin-unused-imports": "^3.1.0",
     "prettier": "^3.2.5",
     "typescript": "^5.3.3",
-    "wrangler": "^3.67.1"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.26.0"
   },
   "dependencies": {
     "@apollo/client": "^3.8.7",
-    "@cosmjs/amino": "^0.29.0",
-    "@cosmjs/cosmwasm-stargate": "^0.29.0",
-    "@cosmjs/crypto": "^0.29.0",
-    "@cosmjs/encoding": "^0.29.0",
+    "@cosmjs/amino": "^0.34.0",
+    "@cosmjs/cosmwasm-stargate": "^0.34.0",
+    "@cosmjs/crypto": "^0.34.0",
+    "@cosmjs/encoding": "^0.34.0",
     "@tsndr/cloudflare-worker-jwt": "^3.2.0",
     "chain-registry": "^1.69.4",
     "crypto-js": "^4.1.1",

@@ -1,7 +1,11 @@
 name = "pfpk"
 main = "src/index.ts"
-compatibility_date = "2024-02-23"
-node_compat = true
+compatibility_date = "2025-07-12"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "pfpk.daodao.zone", custom_domain = true, zone_name = "daodao.zone" },
+]
 
 [[ d1_databases ]]
 binding = "DB"

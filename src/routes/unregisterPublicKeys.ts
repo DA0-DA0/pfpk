@@ -3,7 +3,6 @@ import { RequestHandler } from 'itty-router'
 import { PublicKeyBase, makePublicKeyFromJson } from '../publicKeys'
 import {
   AuthorizedRequest,
-  Env,
   UnregisterPublicKeyRequest,
   UnregisterPublicKeyResponse,
 } from '../types'

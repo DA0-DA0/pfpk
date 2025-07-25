@@ -10,7 +10,7 @@ import { KnownError } from './error'
 import { verifyJwt } from './jwt'
 import { objectMatchesStructure } from './objectMatchesStructure'
 import { makePublicKey } from '../publicKeys'
-import { AuthorizedRequest, Env, PublicKey, RequestBody } from '../types'
+import { AuthorizedRequest, PublicKey, RequestBody } from '../types'
 
 export const INITIAL_NONCE = 0
 
@@ -27,7 +27,16 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
   env: Env
 ) => {
   // If JWT token is provided, verify it.
-  const [type, token] = request.headers.get('Authorization')?.split(' ') ?? []
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader) {
+    throw new KnownError(
+      401,
+      'Unauthorized',
+      'No authorization header provided.'
+    )
+  }
+
+  const [type, token] = authHeader.split(' ')
 
   if (type !== 'Bearer') {
     throw new KnownError(

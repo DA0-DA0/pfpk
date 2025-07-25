@@ -10,7 +10,6 @@ import { searchProfiles } from './routes/searchProfiles'
 import { stats } from './routes/stats'
 import { unregisterPublicKeys } from './routes/unregisterPublicKeys'
 import { updateProfile } from './routes/updateProfile'
-import { Env } from './types'
 import {
   KnownError,
   jwtAuthMiddleware,
@@ -42,9 +41,6 @@ router.get('/search/:chainId/:namePrefix', searchProfiles)
 // Resolve profile.
 router.get('/resolve/:chainId/:name', resolveProfile)
 
-// Fetch profile.
-router.get('/:publicKey', fetchProfile)
-
 // Fetch profile with bech32 address.
 router.get('/address/:bech32Address', fetchProfile)
 
@@ -68,13 +64,20 @@ router.post('/register', jwtOrSignatureAuthMiddleware, registerPublicKeys)
 // Unregister existing public keys.
 router.post('/unregister', jwtOrSignatureAuthMiddleware, unregisterPublicKeys)
 
+// Fetch profile. Must be last since it matches all routes.
+router.get('/:publicKey', fetchProfile)
+
 // 404
-router.all('*', () => text('404', { status: 404 }))
+router.all('*', () => text('Not found', { status: 404 }))
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
     return router
-      .fetch(request, env)
+      .fetch(request, env, ctx)
       .then(json)
       .catch((err) => {
         if (err instanceof KnownError) {

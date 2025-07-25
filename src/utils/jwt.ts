@@ -1,7 +1,6 @@
 import jwt from '@tsndr/cloudflare-worker-jwt'
 
 import { KnownError } from './error'
-import { Env } from '../types'
 
 /**
  * Create a JWT token.

@@ -1,6 +1,6 @@
 import { RequestHandler } from 'itty-router'
 
-import { AuthorizedRequest, Env, FetchProfileResponse } from '../types'
+import { AuthorizedRequest, FetchProfileResponse } from '../types'
 import { getFetchedProfileJsonForProfile } from '../utils'
 
 export const fetchAuthenticatedProfile: RequestHandler<

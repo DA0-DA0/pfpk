@@ -1,6 +1,6 @@
 import { RequestHandler } from 'itty-router'
 
-import { Env, ResolveProfileResponse, ResolvedProfile } from '../types'
+import { ResolveProfileResponse, ResolvedProfile } from '../types'
 import {
   KnownError,
   getChain,

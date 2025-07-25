@@ -3,7 +3,6 @@ import { RequestHandler } from 'itty-router'
 import { getOwnedNftImageUrl } from '../chains'
 import {
   AuthorizedRequest,
-  Env,
   UpdateProfile,
   UpdateProfileRequest,
   UpdateProfileResponse,
