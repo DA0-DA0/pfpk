@@ -5,6 +5,7 @@ import {
   DbRowProfile,
   DbRowProfilePublicKey,
   DbRowProfilePublicKeyChainPreference,
+  DbRowProfileToken,
   ProfileUpdate,
   PublicKey,
   PublicKeyJson,
@@ -515,4 +516,108 @@ export const removeProfilePublicKeys = async (
       ).bind(id)
     )
   )
+}
+
+/**
+ * Get valid (not expired) tokens for a given profile.
+ */
+export const getValidTokensForProfile = async (
+  env: Env,
+  profileId: number
+): Promise<DbRowProfileToken[]> =>
+  (
+    await env.DB.prepare(
+      `
+      SELECT id, profileId, uuid, expiresAt, createdAt
+      FROM profile_tokens
+      WHERE profileId = ?1 AND expiresAt > ?2
+      `
+    )
+      .bind(profileId, Math.floor(Date.now() / 1000))
+      .all<DbRowProfileToken>()
+  ).results
+
+/**
+ * Retrieve a specific token for a given profile.
+ */
+export const getTokenForProfile = async (
+  env: Env,
+  profileId: number,
+  tokenUuid: string
+): Promise<DbRowProfileToken | null> => {
+  const token = await env.DB.prepare(
+    `
+    SELECT id, profileId, uuid, expiresAt, createdAt
+    FROM profile_tokens
+    WHERE profileId = ?1 AND uuid = ?2
+    `
+  )
+    .bind(profileId, tokenUuid)
+    .first<DbRowProfileToken>()
+
+  return token
+}
+
+/**
+ * Save token ID to a profile.
+ */
+export const saveTokenIdToProfile = async (
+  env: Env,
+  {
+    profileId,
+    tokenUuid,
+    expiresAt,
+    issuedAt,
+  }: {
+    profileId: number
+    tokenUuid: string
+    expiresAt: number
+    issuedAt: number
+  }
+) => {
+  await env.DB.prepare(
+    `
+    INSERT INTO profile_tokens (profileId, uuid, expiresAt, createdAt, updatedAt)
+    VALUES (?1, ?2, ?3, ?4, ?4)
+    `
+  )
+    .bind(profileId, tokenUuid, expiresAt, issuedAt)
+    .run()
+}
+
+/**
+ * Remove token ID from a profile.
+ */
+export const removeTokenIdFromProfile = async (
+  env: Env,
+  {
+    profileId,
+    tokenUuid,
+  }: {
+    profileId: number
+    tokenUuid: string
+  }
+) => {
+  await env.DB.prepare(
+    `
+    DELETE FROM profile_tokens
+    WHERE profileId = ?1 AND uuid = ?2
+    `
+  )
+    .bind(profileId, tokenUuid)
+    .run()
+}
+
+/**
+ * Clean up expired tokens for a given profile.
+ */
+export const cleanUpExpiredTokens = async (env: Env, profileId: number) => {
+  await env.DB.prepare(
+    `
+    DELETE FROM profile_tokens
+    WHERE profileId = ?1 AND expiresAt <= ?2
+    `
+  )
+    .bind(profileId, Math.floor(Date.now() / 1000))
+    .run()
 }

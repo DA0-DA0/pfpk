@@ -152,6 +152,22 @@ export type UnregisterPublicKeyResponse = {
   success: true
 }
 
+export type InvalidateTokensRequest = {
+  /**
+   * Token IDs to invalidate. If not provided, only expired tokens will be
+   * invalidated.
+   */
+  tokens?: string[]
+}
+
+export type FetchTokensResponse = {
+  tokens: {
+    id: string
+    issuedAt: number
+    expiresAt: number
+  }[]
+}
+
 export type ErrorResponse = {
   error: string
 }
@@ -173,8 +189,10 @@ export type ResolveProfileResponse = {
   resolved: ResolvedProfile
 }
 
-export type AuthenticateResponse = {
+export type CreateTokenResponse = {
+  id: string
   token: string
+  expiresAt: number
 }
 
 export type Auth = {
@@ -267,8 +285,6 @@ export type DbRowProfile = {
   nftChainId: string | null
   nftCollectionAddress: string | null
   nftTokenId: string | null
-  createdAt: Date
-  updatedAt: Date
 }
 
 /**
@@ -280,8 +296,7 @@ export type DbRowProfilePublicKey = {
   type: string
   publicKeyHex: string
   addressHex: string
-  createdAt: Date
-  updatedAt: Date
+  updatedAt: number
 }
 
 /**
@@ -292,8 +307,21 @@ export type DbRowProfilePublicKeyChainPreference = {
   profileId: number
   profilePublicKeyId: number
   chainId: string
-  createdAt: Date
-  updatedAt: Date
+}
+
+export type DbRowProfileToken = {
+  id: number
+  profileId: number
+  uuid: string
+  expiresAt: number
+  createdAt: number
+}
+
+export type JwtPayload = {
+  sub: string
+  exp: number
+  iat: number
+  jti: string
 }
 
 /**

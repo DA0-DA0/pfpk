@@ -1,11 +1,13 @@
 import { Router, cors, json, text } from 'itty-router'
 
-import { authenticate } from './routes/authenticate'
+import { createToken } from './routes/createToken'
 import { fetchAuthenticated } from './routes/fetchAuthenticated'
 import { fetchMe } from './routes/fetchMe'
 import { fetchNonce } from './routes/fetchNonce'
 import { fetchProfile } from './routes/fetchProfile'
 import { fetchStats } from './routes/fetchStats'
+import { fetchTokens } from './routes/fetchTokens'
+import { invalidateTokens } from './routes/invalidateTokens'
 import { registerPublicKeys } from './routes/registerPublicKeys'
 import { resolveProfile } from './routes/resolveProfile'
 import { searchProfiles } from './routes/searchProfiles'
@@ -20,7 +22,7 @@ import {
 
 // Create CORS handlers.
 const { preflight, corsify } = cors({
-  allowMethods: ['GET', 'POST'],
+  allowMethods: ['GET', 'POST', 'DELETE'],
   maxAge: 3600,
   exposeHeaders: ['Content-Type'],
 })
@@ -30,45 +32,47 @@ const router = Router()
 // Handle CORS preflight.
 router.all('*', preflight)
 
-// Get stats.
-router.get('/stats', fetchStats)
+// Miscellaneous stuff
+router
+  // Get stats.
+  .get('/stats', fetchStats)
+  // Get nonce for publicKey.
+  .get('/nonce/:publicKey', fetchNonce)
 
-// Get nonce for publicKey.
-router.get('/nonce/:publicKey', fetchNonce)
+// Profile stuff
+router
+  // Update profile.
+  .post('/me', jwtOrSignatureAuthMiddleware, updateProfile)
+  // Register more public keys.
+  .post('/register', jwtOrSignatureAuthMiddleware, registerPublicKeys)
+  // Unregister existing public keys.
+  .post('/unregister', jwtOrSignatureAuthMiddleware, unregisterPublicKeys)
+  // Resolve profile.
+  .get('/resolve/:chainId/:name', resolveProfile)
+  // Search profiles.
+  .get('/search/:chainId/:namePrefix', searchProfiles)
+  // Fetch profile with bech32 address.
+  .get('/address/:bech32Address', fetchProfile)
+  // Fetch profile with address hex.
+  .get('/hex/:addressHex', fetchProfile)
+  // Backwards compatible.
+  .get('/bech32/:addressHex', fetchProfile)
 
-// Search profiles.
-router.get('/search/:chainId/:namePrefix', searchProfiles)
+// Token stuff
+router
+  // Create JWT token via wallet auth.
+  .post('/token', signatureAuthMiddleware, createToken)
+  // Fetch tokens for profile (only JWT auth since GET cannot have a body).
+  .get('/tokens', jwtAuthMiddleware, fetchTokens)
+  // Invalidate tokens.
+  .delete('/tokens', jwtOrSignatureAuthMiddleware, invalidateTokens)
+  // Return successfully if authenticated via JWT token.
+  .get('/auth', jwtAuthMiddleware, fetchAuthenticated)
+  // Get the token-authenticated profile, validating the JWT token.
+  .get('/me', jwtAuthMiddleware, fetchMe)
 
-// Resolve profile.
-router.get('/resolve/:chainId/:name', resolveProfile)
-
-// Fetch profile with bech32 address.
-router.get('/address/:bech32Address', fetchProfile)
-
-// Fetch profile with address hex.
-router.get('/hex/:addressHex', fetchProfile)
-// Backwards compatible.
-router.get('/bech32/:addressHex', fetchProfile)
-
-// Generate JWT token via wallet auth.
-router.post('/auth', signatureAuthMiddleware, authenticate)
-
-// Get the token-authenticated profile, validating the JWT token.
-router.get('/me', jwtAuthMiddleware, fetchMe)
-
-// Return successfully if authenticated via JWT token.
-router.get('/authenticated', jwtAuthMiddleware, fetchAuthenticated)
-
-// Update profile.
-router.post('/', jwtOrSignatureAuthMiddleware, updateProfile)
-
-// Register more public keys.
-router.post('/register', jwtOrSignatureAuthMiddleware, registerPublicKeys)
-
-// Unregister existing public keys.
-router.post('/unregister', jwtOrSignatureAuthMiddleware, unregisterPublicKeys)
-
-// Fetch profile. Must be last since it matches all routes.
+//! MUST BE LAST SINCE IT MATCHES ALL ROUTES
+// Fetch profile with public key hex.
 router.get('/:publicKey', fetchProfile)
 
 // 404

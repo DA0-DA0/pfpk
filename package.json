@@ -8,8 +8,9 @@
     "dev": "wrangler dev --port 58229",
     "deploy": "wrangler deploy --minify",
     "log": "wrangler tail",
-    "seed": "wrangler d1 execute pfpk --file=./schema.sql",
-    "seed:local": "wrangler d1 execute pfpk --file=./schema.sql --local",
+    "db:migrate": "wrangler d1 migrations apply pfpk",
+    "db:seed": "wrangler d1 execute pfpk --file=./schema.sql",
+    "db:seed:local": "wrangler d1 execute pfpk --file=./schema.sql --local",
     "lint": "eslint .",
     "format": "eslint . --fix",
     "generate:types": "wrangler types"

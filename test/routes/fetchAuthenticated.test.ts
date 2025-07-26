@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fetchAuthenticated } from './routes'
 import { TestUser } from './TestUser'
 
-describe('GET /authenticated', () => {
+describe('GET /auth', () => {
   it('returns 204 if authenticated', async () => {
     const user = await TestUser.create('neutron-1')
     await user.authenticate()

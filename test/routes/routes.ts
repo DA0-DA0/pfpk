@@ -1,8 +1,10 @@
 import { SELF } from 'cloudflare:test'
 
 import {
-  AuthenticateResponse,
+  CreateTokenResponse,
   FetchProfileResponse,
+  FetchTokensResponse,
+  InvalidateTokensRequest,
   NonceResponse,
   RegisterPublicKeyRequest,
   RegisterPublicKeyResponse,
@@ -19,8 +21,8 @@ import {
 const BASE_URL = 'https://pfpk.test'
 const url = (path: string) => BASE_URL + path
 
-export const authenticate = async (data?: RequestBody<{}, true>) => {
-  const request = new Request(url('/auth'), {
+export const createToken = async (data?: RequestBody<{}, true>) => {
+  const request = new Request(url('/token'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -31,7 +33,7 @@ export const authenticate = async (data?: RequestBody<{}, true>) => {
   const body = await response.json<any>()
   return {
     response,
-    body: body as AuthenticateResponse,
+    body: body as CreateTokenResponse,
     error: body.error as string | undefined,
   }
 }
@@ -40,7 +42,7 @@ export const fetchAuthenticated = async (
   token?: string,
   headers?: HeadersInit
 ) => {
-  const request = new Request(url('/authenticated'), {
+  const request = new Request(url('/auth'), {
     method: 'GET',
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -137,6 +139,43 @@ export const fetchStats = async () => {
   }
 }
 
+export const fetchTokens = async (token?: string) => {
+  const request = new Request(url('/tokens'), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+  const response = await SELF.fetch(request)
+  const body = await response.json<any>()
+  return {
+    response,
+    body: body as FetchTokensResponse,
+    error: body.error as string | undefined,
+  }
+}
+
+export const invalidateTokens = async (
+  data: RequestBody<InvalidateTokensRequest>,
+  token?: string
+) => {
+  const request = new Request(url('/tokens'), {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  })
+  const response = await SELF.fetch(request)
+  const body = response.body ? await response.json<any>() : undefined
+  return {
+    response,
+    error: body?.error as string | undefined,
+  }
+}
+
 export const registerPublicKey = async (
   data: RequestBody<RegisterPublicKeyRequest>,
   token?: string
@@ -209,7 +248,7 @@ export const updateProfile = async (
   data: RequestBody<UpdateProfileRequest>,
   token?: string
 ) => {
-  const request = new Request(url('/'), {
+  const request = new Request(url('/me'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

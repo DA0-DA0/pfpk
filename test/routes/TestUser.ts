@@ -7,17 +7,22 @@ import { stringToPath as stringToHdPath } from '@cosmjs/crypto'
 import { fromBech32, toHex } from '@cosmjs/encoding'
 
 import {
-  authenticate,
+  createToken,
   fetchAuthenticated,
   fetchMe,
   fetchNonce,
   fetchProfileViaPublicKey,
+  fetchTokens,
+  invalidateTokens,
   registerPublicKey,
   unregisterPublicKey,
   updateProfile,
 } from './routes'
 import {
+  CreateTokenResponse,
   FetchProfileResponse,
+  FetchTokensResponse,
+  InvalidateTokensRequest,
   ProfileUpdate,
   RegisterPublicKeyRequest,
   RequestBody,
@@ -111,19 +116,19 @@ export class TestUser {
   }
 
   /**
-   * Authenticate the user and return the JWT token.
+   * Create a new JWT token for the user via wallet signature auth.
    */
-  async authenticate(): Promise<string> {
-    const { body } = await authenticate(await this.signRequestBody({}))
+  async authenticate(): Promise<CreateTokenResponse> {
+    const { body } = await createToken(await this.signRequestBody({}))
     this._token = body.token
-    return this._token
+    return body
   }
 
   /**
    * Fetch whether or not the user is authenticated.
    */
   async fetchAuthenticated(): Promise<boolean> {
-    const token = this._token || (await this.authenticate())
+    const token = this._token || (await this.authenticate()).token
     const { response } = await fetchAuthenticated(token)
     return response.status === 204
   }
@@ -132,7 +137,7 @@ export class TestUser {
    * Fetch the authenticated user's profile.
    */
   async fetchMe(): Promise<FetchProfileResponse> {
-    const token = this._token || (await this.authenticate())
+    const token = this._token || (await this.authenticate()).token
     const { body } = await fetchMe(token)
     return body
   }
@@ -158,6 +163,52 @@ export class TestUser {
   ): Promise<FetchProfileResponse> {
     const { body } = await fetchProfileViaPublicKey(this.getPublicKey(chainId))
     return body
+  }
+
+  /**
+   * Fetch the tokens created during authentications.
+   */
+  async fetchTokens(): Promise<FetchTokensResponse['tokens']> {
+    const token = this._token || (await this.authenticate()).token
+    const {
+      body: { tokens },
+    } = await fetchTokens(token)
+    return tokens
+  }
+
+  /**
+   * Invalidate tokens for the user.
+   */
+  async invalidateTokens(
+    tokens: string[],
+    {
+      withToken = true,
+    }: {
+      /**
+       * Use JWT token authentication, if already authenticated. Defaults to
+       * true.
+       */
+      withToken?: boolean
+    } = {}
+  ) {
+    const request: RequestBody<InvalidateTokensRequest> =
+      await this.signRequestBody({
+        tokens,
+      })
+    // Remove auth if using token authentication.
+    if (withToken && this._token) {
+      delete request.data.auth
+    }
+
+    const { response, error } = await invalidateTokens(
+      request,
+      withToken ? this._token : undefined
+    )
+    if (response.status !== 204) {
+      throw new Error(
+        `Failed to invalidate tokens: ${response.status} ${error}`
+      )
+    }
   }
 
   /**

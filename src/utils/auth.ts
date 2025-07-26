@@ -4,6 +4,7 @@ import { RequestHandler } from 'itty-router'
 import {
   getProfileFromPublicKeyHex,
   getProfileFromUuid,
+  getTokenForProfile,
   saveProfile,
 } from './db'
 import { KnownError } from './error'
@@ -46,10 +47,23 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
     throw new KnownError(401, 'Unauthorized', 'No token provided.')
   }
 
-  const uuid = await verifyJwt(env, token)
+  const { sub: uuid, jti: tokenId } = await verifyJwt(env, token)
   const profile = await getProfileFromUuid(env, uuid)
   if (!profile) {
     throw new KnownError(404, 'Profile not found.')
+  }
+
+  // Validate token exists and is still valid for profile.
+  const dbToken = await getTokenForProfile(env, profile.id, tokenId)
+  // If token not found in DB, it must have been invalidated. Expiration was
+  // checked in verifyJwt above, so we should only get here if the token is
+  // valid but was manually invalidated.
+  if (!dbToken) {
+    throw new KnownError(401, 'Unauthorized', 'Token invalidated.')
+  }
+  // Should never happen since JWT verification above also checks expiration.
+  if (dbToken.expiresAt < Math.floor(Date.now() / 1000)) {
+    throw new KnownError(401, 'Unauthorized', 'Token expired.')
   }
 
   const body: RequestBody = request.body

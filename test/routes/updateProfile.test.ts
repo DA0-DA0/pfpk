@@ -1,3 +1,3 @@
 import { describe } from 'vitest'
 
-describe('POST /', () => {})
+describe('POST /me', () => {})
