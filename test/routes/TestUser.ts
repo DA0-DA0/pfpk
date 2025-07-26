@@ -4,7 +4,7 @@ import {
   makeSignDoc,
 } from '@cosmjs/amino'
 import { stringToPath as stringToHdPath } from '@cosmjs/crypto'
-import { toHex } from '@cosmjs/encoding'
+import { fromBech32, toHex } from '@cosmjs/encoding'
 
 import {
   authenticate,
@@ -98,6 +98,10 @@ export class TestUser {
     return this.getChain(chainId).address
   }
 
+  getAddressHex(chainId: string): string {
+    return toHex(fromBech32(this.getAddress(chainId)).data)
+  }
+
   getPublicKey(chainId: string): string {
     return this.getChain(chainId).publicKey
   }
@@ -159,7 +163,7 @@ export class TestUser {
   /**
    * Register public keys to the user's profile.
    */
-  async registerPublicKey({
+  async registerPublicKeys({
     chainIds,
     withToken = true,
   }: {
@@ -172,7 +176,13 @@ export class TestUser {
      */
     withToken?: boolean
   }) {
-    const profile = await this.fetchProfile()
+    // Use first chain ID already prepared.
+    const chainId = Object.keys(this.signers)[0]
+    const profile = await this.fetchProfile(chainId)
+    if (!profile.uuid) {
+      throw new Error('Profile not found.')
+    }
+
     const publicKeys: RegisterPublicKeyRequest['publicKeys'] =
       await Promise.all(
         chainIds.map((chainId) =>
@@ -198,17 +208,22 @@ export class TestUser {
       delete request.data.auth
     }
 
-    const { body } = await registerPublicKey(
+    const { response, body, error } = await registerPublicKey(
       request,
       withToken ? this._token : undefined
     )
+    if (response.status !== 200) {
+      throw new Error(
+        `Failed to register public keys: ${response.status} ${error}`
+      )
+    }
     return body
   }
 
   /**
    * Unregister public keys from the user's profile.
    */
-  async unregisterPublicKey({
+  async unregisterPublicKeys({
     chainIds,
     withToken = true,
   }: {
@@ -235,10 +250,15 @@ export class TestUser {
       delete request.data.auth
     }
 
-    const { body } = await unregisterPublicKey(
+    const { response, body, error } = await unregisterPublicKey(
       request,
       withToken ? this._token : undefined
     )
+    if (response.status !== 200) {
+      throw new Error(
+        `Failed to unregister public keys: ${response.status} ${error}`
+      )
+    }
     return body
   }
 
@@ -266,7 +286,13 @@ export class TestUser {
       delete request.data.auth
     }
 
-    await updateProfile(request, withToken ? this._token : undefined)
+    const { response, error } = await updateProfile(
+      request,
+      withToken ? this._token : undefined
+    )
+    if (response.status !== 200) {
+      throw new Error(`Failed to update profile: ${response.status} ${error}`)
+    }
   }
 
   /**

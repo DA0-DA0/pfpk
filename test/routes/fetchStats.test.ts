@@ -30,7 +30,7 @@ describe('GET /stats', () => {
     })
 
     // remove a profile by removing its only public key
-    await user1.unregisterPublicKey({
+    await user1.unregisterPublicKeys({
       chainIds: 'neutron-1',
     })
 

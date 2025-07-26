@@ -21,14 +21,18 @@ export const fetchProfile: RequestHandler = async (
   // via bech32 address
   const bech32Address = request.params?.bech32Address?.trim()
 
-  let profileRow: DbRowProfile | null = null
+  // If no public key nor address hex is set, get address hex from bech32
+  // address.
   try {
-    // If no public key nor address hex is set, get address hex from bech32
-    // address.
     if (!publicKey && !addressHex && bech32Address) {
       addressHex = toHex(fromBech32(bech32Address).data)
     }
+  } catch (err) {
+    throw new KnownError(400, 'Invalid bech32 address', err)
+  }
 
+  let profileRow: DbRowProfile | null = null
+  try {
     if (publicKey) {
       profileRow = await getProfileFromPublicKeyHex(env, publicKey)
     } else if (addressHex) {
@@ -36,7 +40,6 @@ export const fetchProfile: RequestHandler = async (
     }
   } catch (err) {
     console.error('Profile retrieval', err)
-
     throw new KnownError(500, 'Failed to retrieve profile', err)
   }
 

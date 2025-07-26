@@ -84,7 +84,7 @@ describe('GET /authenticated', () => {
     await user.authenticate()
 
     // remove a profile by removing its only public key
-    await user.unregisterPublicKey({
+    await user.unregisterPublicKeys({
       chainIds: 'neutron-1',
     })
 

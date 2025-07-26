@@ -1,3 +1,12 @@
-import { describe } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-describe('GET /nonce/:publicKey', () => {})
+import { fetchNonce } from './routes'
+import { TestUser } from './TestUser'
+
+describe('GET /nonce/:publicKey', () => {
+  it('returns 200 for valid public key', async () => {
+    const user = await TestUser.create('neutron-1')
+    const { response } = await fetchNonce(user.getPublicKey('neutron-1'))
+    expect(response.status).toBe(200)
+  })
+})

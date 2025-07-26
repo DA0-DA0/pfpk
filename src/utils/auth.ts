@@ -166,6 +166,9 @@ export const signatureAuthMiddleware: RequestHandler<
     )
   }
 
+  // Decrement nonce to match for the request handler.
+  request.profile.nonce--
+
   // If all is valid, add validated body to request.
   request.validatedBody = body
 }

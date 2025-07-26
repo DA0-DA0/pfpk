@@ -238,7 +238,9 @@ export type AuthorizedRequest<
    */
   validatedBody: RequestBody<Data>
   /**
-   * Authorized profile.
+   * Authorized profile, before nonce is incremented (if at all). The nonce is
+   * incremented in the DB, but if request handlers need to access the nonce,
+   * they want the nonce before the increment.
    */
   profile: DbRowProfile
   /**
