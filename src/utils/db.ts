@@ -5,9 +5,9 @@ import {
   DbRowProfile,
   DbRowProfilePublicKey,
   DbRowProfilePublicKeyChainPreference,
+  ProfileUpdate,
   PublicKey,
   PublicKeyJson,
-  UpdateProfile,
 } from '../types'
 
 /**
@@ -244,7 +244,7 @@ export const getProfilePublicKeyPerChain = async (
  */
 export const saveProfile = async (
   env: Env,
-  profileUpdates: Partial<UpdateProfile>,
+  profileUpdate: ProfileUpdate,
   {
     chainIds,
     ...options
@@ -288,17 +288,17 @@ export const saveProfile = async (
   let profilePublicKeyId = existingProfile?.publicKeyId
 
   const fieldsToUpdate: [string, string | number | undefined | null][] = [
-    ['nonce', profileUpdates.nonce] as [string, number],
-    ['name', profileUpdates.name] as [string, string | null | undefined],
-    ['nftChainId', profileUpdates.nft?.chainId] as [
+    ['nonce', profileUpdate.nonce] as [string, number],
+    ['name', profileUpdate.name] as [string, string | null | undefined],
+    ['nftChainId', profileUpdate.nft?.chainId] as [
       string,
       string | null | undefined,
     ],
-    ['nftCollectionAddress', profileUpdates.nft?.collectionAddress] as [
+    ['nftCollectionAddress', profileUpdate.nft?.collectionAddress] as [
       string,
       string | null | undefined,
     ],
-    ['nftTokenId', profileUpdates.nft?.tokenId] as [
+    ['nftTokenId', profileUpdate.nft?.tokenId] as [
       string,
       string | null | undefined,
     ],

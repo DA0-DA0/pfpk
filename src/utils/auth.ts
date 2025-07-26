@@ -56,9 +56,14 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
     )
   }
 
-  const body = await request.json<RequestBody>().catch(() => {
-    throw new KnownError(400, 'Invalid request body.')
-  })
+  const body: RequestBody = request.body
+    ? await request.json<RequestBody>().catch(() => {
+        throw new KnownError(400, 'Invalid request body.')
+      })
+    : // If no body, use empty object for data and no signature.
+      {
+        data: {},
+      }
 
   // If auth is provided, validate that it matches the profile. If it does not
   // match, strip it since it is untrusted.
@@ -234,7 +239,7 @@ export const verifyRequestBodyAndGetPublicKey = async (
 
   // Validate signature.
   if (!(await verifySignature(publicKey, body))) {
-    throw new KnownError(401, 'Unauthorized. Invalid signature.')
+    throw new KnownError(401, 'Unauthorized', 'Invalid signature.')
   }
 
   return publicKey

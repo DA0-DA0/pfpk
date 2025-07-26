@@ -1,8 +1,7 @@
 import { toBech32 } from '@cosmjs/encoding'
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { resetTestDb } from './utils'
 import {
   ErrorResponse,
   FetchProfileResponse,
@@ -13,10 +12,6 @@ import {
 import { INITIAL_NONCE } from '../src/utils'
 
 describe('pfpk worker integration', () => {
-  beforeEach(async () => {
-    await resetTestDb()
-  })
-
   const fetch = async (path: string, init?: RequestInit): Promise<Response> => {
     const request = new Request('https://pfpk.test' + path, init)
     return await SELF.fetch(request)
@@ -91,7 +86,7 @@ describe('pfpk worker integration', () => {
 
   describe('Search and resolution', () => {
     it('handles profile search with empty results', async () => {
-      const response = await fetch('/search/cosmoshub-4/nonexistentname')
+      const response = await fetch('/search/neutron-1/nonexistentname')
 
       expect(response.status).toBe(200)
       const data = await response.json<SearchProfilesResponse>()
@@ -99,7 +94,7 @@ describe('pfpk worker integration', () => {
     })
 
     it('handles name resolution with 404', async () => {
-      const response = await fetch('/resolve/cosmoshub-4/nonexistentname')
+      const response = await fetch('/resolve/neutron-1/nonexistentname')
 
       expect(response.status).toBe(404)
       const data = await response.json<ErrorResponse>()

@@ -6,7 +6,6 @@ import {
 } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { resetTestDb } from './utils'
 import worker from '../src'
 import {
   ErrorResponse,
@@ -20,8 +19,6 @@ describe('pfpk worker unit', () => {
   let ctx: ExecutionContext
 
   beforeEach(async () => {
-    await resetTestDb()
-
     ctx = createExecutionContext()
   })
 
@@ -142,7 +139,7 @@ describe('pfpk worker unit', () => {
 
   describe('GET /search/:chainId/:namePrefix', () => {
     it('returns empty search results for non-existent names', async () => {
-      const response = await fetch('/search/cosmoshub-4/nonexistent')
+      const response = await fetch('/search/neutron-1/nonexistent')
 
       expect(response.status).toBe(200)
       const data = await response.json<SearchProfilesResponse>()
@@ -152,7 +149,7 @@ describe('pfpk worker unit', () => {
 
   describe('GET /resolve/:chainId/:name', () => {
     it('returns 404 for non-existent name resolution', async () => {
-      const response = await fetch('/resolve/cosmoshub-4/nonexistent')
+      const response = await fetch('/resolve/neutron-1/nonexistent')
 
       expect(response.status).toBe(404)
     })

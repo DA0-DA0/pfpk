@@ -1,22 +1,41 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { StatsResponse } from '../../src/types'
-import { resetTestDb } from '../utils'
+import { fetchStats } from './routes'
+import { TestUser } from './TestUser'
 
 describe('GET /stats', () => {
-  beforeEach(async () => {
-    await resetTestDb()
+  it('returns 200', async () => {
+    const { response } = await fetchStats()
+    expect(response.status).toBe(200)
   })
 
-  const fetch = async () => {
-    const request = new Request('https://pfpk.test/stats', {
-      method: 'GET',
+  it('should return the correct stats', async () => {
+    expect((await fetchStats()).body).toEqual({
+      total: 0,
     })
-    const response = await SELF.fetch(request)
-    return {
-      response,
-      body: await response.json<StatsResponse>(),
-    }
-  }
+
+    // create 2 profiles
+    const user1 = await TestUser.create('neutron-1')
+    await user1.updateProfile({
+      name: 'user',
+    })
+
+    const user2 = await TestUser.create('neutron-1')
+    await user2.updateProfile({
+      name: 'user2',
+    })
+
+    expect((await fetchStats()).body).toEqual({
+      total: 2,
+    })
+
+    // remove a profile by removing its only public key
+    await user1.unregisterPublicKey({
+      chainIds: 'neutron-1',
+    })
+
+    expect((await fetchStats()).body).toEqual({
+      total: 1,
+    })
+  })
 })

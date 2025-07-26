@@ -3,7 +3,7 @@ import { RequestHandler } from 'itty-router'
 import { getOwnedNftImageUrl } from '../chains'
 import {
   AuthorizedRequest,
-  UpdateProfile,
+  ProfileUpdate,
   UpdateProfileRequest,
   UpdateProfileResponse,
 } from '../types'
@@ -139,7 +139,7 @@ export const updateProfile: RequestHandler<
 
   // Update fields with partial updates if available. Both are nullable, so
   // allow setting to null or new value.
-  const profileUpdate: Partial<UpdateProfile> = {
+  const profileUpdate: ProfileUpdate = {
     ...(name !== undefined && { name }),
     ...(nft !== undefined && {
       // Explicitly copy over values to prevent the user from setting whatever

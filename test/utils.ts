@@ -16,6 +16,9 @@ export const resetTestDb = async () => {
   }
 }
 
+/**
+ * Copied from [schema.sql](../schema.sql).
+ */
 const SCHEMA_SQL = `
 -- Profile
 DROP TABLE IF EXISTS profiles;

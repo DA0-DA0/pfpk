@@ -106,25 +106,6 @@ Additional Tests Needed:
 - Invalid chains: Non-existent chainIds
 - Name validation: Edge cases, reserved names
 
-8. POST /auth (signatureAuthMiddleware)
-
-Current Coverage ✅
-
-- Invalid request body handling
-- Missing auth data structure validation
-- Malformed JSON handling
-
-Additional Tests Needed:
-
-- Valid signatures: Successful authentication flow
-- Signature verification: Invalid signatures, wrong keys
-- Timestamp validation: Within 5-minute window, expired timestamps
-- Nonce validation: Correct nonce usage, replay prevention
-- Chain validation: Valid chain IDs, fee denoms, prefixes
-- Public key types: Cosmos vs Injective keys
-- JWT generation: Token format, expiration, payload
-- Profile creation: Auto-creation on first auth
-
 9. GET /me (jwtAuthMiddleware)
 
 Current Coverage ✅

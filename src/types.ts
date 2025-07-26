@@ -3,7 +3,7 @@ import { IRequestStrict } from 'itty-router'
 /**
  * Profile used when updating/saving.
  */
-export type UpdateProfile = {
+export type ProfileUpdate = Partial<{
   /**
    * Next profile nonce.
    */
@@ -16,7 +16,7 @@ export type UpdateProfile = {
    * Profile NFT.
    */
   nft: ProfileNft | null
-}
+}>
 
 /**
  * Profile used when fetching directly.
@@ -76,8 +76,6 @@ export type ResolvedProfile = {
   nft: ProfileNftWithImage | null
 }
 
-export type UpdateProfileWithId = UpdateProfile & { id: number }
-
 export type ProfileNft = {
   chainId: string
   collectionAddress: string
@@ -102,9 +100,9 @@ export type FetchProfileResponse = FetchedProfile
 // Body of profile update request.
 export type UpdateProfileRequest = {
   /**
-   * Allow partial updates to profile, but require nonce.
+   * Allow partial updates to profile.
    */
-  profile: Partial<UpdateProfile>
+  profile: Omit<ProfileUpdate, 'nonce'>
   /**
    * Optionally use the current public key as the preference for these chains.
    * If undefined, defaults to the chain used to sign this request on profile
@@ -198,7 +196,7 @@ export type RequestBody<
   /**
    * Whether or not the request body requires authentication.
    */
-  RequireAuth extends boolean = false,
+  RequireAuth extends boolean = boolean,
 > = {
   data: (RequireAuth extends true
     ? {
