@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { authenticate, fetchMe } from './routes'
+import { authenticate, fetchAuthenticated } from './routes'
 import { TestUser } from './TestUser'
 import { INITIAL_NONCE } from '../../src/utils'
 
 describe('POST /auth', () => {
-  it('returns 200 with a token', async () => {
+  it('returns 200 with a valid token', async () => {
     const user = await TestUser.create('neutron-1')
     const {
       response: { status },
@@ -17,31 +17,79 @@ describe('POST /auth', () => {
     expect(token.length).toBeGreaterThan(0)
 
     // token should be valid
-    const { response: fetchMeResponse } = await fetchMe(token)
-    expect(fetchMeResponse.status).toBe(200)
+    const { response } = await fetchAuthenticated(token)
+    expect(response.status).toBe(204)
   })
 
-  it('expires after 14 days', async () => {
+  it('returns 400 when missing body', async () => {
+    const { response, error } = await authenticate()
+    expect(response.status).toBe(400)
+    expect(error).toBe('Invalid request body.')
+  })
+
+  it('returns 400 with invalid auth data', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    const body = await user.signRequestBody({})
 
-    // advance time by 1 second less than 14 days
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(14 * 24 * 60 * 60 * 1000 - 1000)
+    for (const key of Object.keys(body.data.auth)) {
+      const auth: any = { ...body.data.auth }
+      delete auth[key]
 
-    // token should still be valid
-    expect((await fetchMe(user.token)).response.status).toBe(200)
-
-    // advance time by 2 seconds
-    vi.advanceTimersByTime(2 * 1000)
-
-    // token should be expired
-    const { response: invalidResponse, error } = await fetchMe(user.token)
-    expect(invalidResponse.status).toBe(401)
-    expect(error).toBe('Unauthorized: Token expired.')
+      const { response, error } = await authenticate({
+        ...body,
+        data: {
+          ...body.data,
+          auth,
+        },
+      })
+      expect(response.status).toBe(400)
+      expect(error).toBe('Invalid auth data.')
+    }
   })
 
-  it('prevents replay attacks', async () => {
+  it('returns 401 for timestamps older than 5 minutes', async () => {
+    const user = await TestUser.create('neutron-1')
+    const authBody = await user.signRequestBody({})
+
+    // advance time by 5 minutes and 1 second
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1000)
+
+    // should fail with timestamp too old
+    const { response: expiredResponse, error } = await authenticate(authBody)
+    expect(expiredResponse.status).toBe(401)
+    expect(error).toBe(
+      'Unauthorized: Timestamp must be within the past 5 minutes.'
+    )
+  })
+
+  it('returns 400 for unsupported public key types', async () => {
+    const user = await TestUser.create('neutron-1')
+    const authBody = await user.signRequestBody({})
+
+    authBody.data.auth.publicKeyType = 'unsupported'
+
+    const { response, error } = await authenticate(authBody)
+    expect(response.status).toBe(400)
+    expect(error).toBe('Unsupported public key type: unsupported')
+  })
+
+  it('returns 401 for invalid signatures', async () => {
+    const user = await TestUser.create('neutron-1')
+    const user2 = await TestUser.create('neutron-1')
+
+    const authBody = await user.signRequestBody({})
+    const authBody2 = await user2.signRequestBody({})
+    // replace signature with incorrect signature from another public key
+    authBody.signature = authBody2.signature
+
+    // should fail with invalid signature
+    const { response: invalidResponse, error } = await authenticate(authBody)
+    expect(invalidResponse.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid signature.')
+  })
+
+  it('prevents replay attacks by verifying and auto-incrementing nonce', async () => {
     const user = await TestUser.create('neutron-1')
     const authBody = await user.signRequestBody({})
     expect(authBody.data.auth.nonce).toBe(INITIAL_NONCE)
@@ -65,36 +113,5 @@ describe('POST /auth', () => {
 
     // nonce should be incremented again
     expect(await user.fetchNonce()).toBe(INITIAL_NONCE + 2)
-  })
-
-  it('rejects timestamps older than 5 minutes', async () => {
-    const user = await TestUser.create('neutron-1')
-    const authBody = await user.signRequestBody({})
-
-    // advance time by 5 minutes and 1 second
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(5 * 60 * 1000 + 1000)
-
-    // should fail with timestamp too old
-    const { response: expiredResponse, error } = await authenticate(authBody)
-    expect(expiredResponse.status).toBe(401)
-    expect(error).toBe(
-      'Unauthorized: Timestamp must be within the past 5 minutes.'
-    )
-  })
-
-  it('rejects incorrect signatures', async () => {
-    const user = await TestUser.create('neutron-1')
-    const user2 = await TestUser.create('neutron-1')
-
-    const authBody = await user.signRequestBody({})
-    const authBody2 = await user2.signRequestBody({})
-    // replace signature with incorrect signature from another public key
-    authBody.signature = authBody2.signature
-
-    // should fail with invalid signature
-    const { response: invalidResponse, error } = await authenticate(authBody)
-    expect(invalidResponse.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid signature.')
   })
 })

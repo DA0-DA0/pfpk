@@ -49,7 +49,7 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
   const uuid = await verifyJwt(env, token)
   const profile = await getProfileFromUuid(env, uuid)
   if (!profile) {
-    throw new KnownError(401, 'Unauthorized', 'Profile not found.')
+    throw new KnownError(404, 'Profile not found.')
   }
 
   const body: RequestBody = request.body
@@ -76,8 +76,12 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
         body.data.auth.publicKeyHex
       )
     } else {
-      // If auth does not match the profile, strip it since it is untrusted.
-      delete body.data.auth
+      // If public key auth does not match the profile, error.
+      throw new KnownError(
+        401,
+        'Unauthorized',
+        'Mismatched token and public key auth.'
+      )
     }
   }
 

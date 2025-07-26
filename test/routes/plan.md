@@ -1,17 +1,3 @@
-1.  GET /stats
-
-Current Coverage ✅
-
-- Returns 200 with total count of profiles
-- Basic response structure validation
-
-Additional Tests Needed:
-
-- Performance: Response time under load
-- Database states: Test with various profile counts (0, 1, 100, 1000+)
-- Concurrency: Multiple simultaneous requests
-- Error handling: Database connection failures
-
 2. GET /nonce/:publicKey
 
 Current Coverage ✅

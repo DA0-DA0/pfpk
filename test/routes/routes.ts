@@ -19,13 +19,13 @@ import {
 const BASE_URL = 'https://pfpk.test'
 const url = (path: string) => BASE_URL + path
 
-export const authenticate = async (data: RequestBody<{}, true>) => {
+export const authenticate = async (data?: RequestBody<{}, true>) => {
   const request = new Request(url('/auth'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: data && JSON.stringify(data),
   })
   const response = await SELF.fetch(request)
   const body = await response.json<any>()
@@ -36,11 +36,15 @@ export const authenticate = async (data: RequestBody<{}, true>) => {
   }
 }
 
-export const fetchAuthenticated = async (token: string) => {
+export const fetchAuthenticated = async (
+  token?: string,
+  headers?: HeadersInit
+) => {
   const request = new Request(url('/authenticated'), {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
     },
   })
   const response = await SELF.fetch(request)
