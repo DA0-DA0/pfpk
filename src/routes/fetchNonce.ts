@@ -3,7 +3,7 @@ import { RequestHandler } from 'itty-router'
 import { NonceResponse } from '../types'
 import { KnownError, getNonce } from '../utils'
 
-export const handleNonce: RequestHandler = async (
+export const fetchNonce: RequestHandler = async (
   request,
   env: Env
 ): Promise<NonceResponse> => {

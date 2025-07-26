@@ -1,13 +1,13 @@
 import { Router, cors, json, text } from 'itty-router'
 
 import { authenticate } from './routes/authenticate'
-import { fetchAuthenticatedProfile } from './routes/fetchAuthenticatedProfile'
+import { fetchMe } from './routes/fetchMe'
+import { fetchNonce } from './routes/fetchNonce'
 import { fetchProfile } from './routes/fetchProfile'
-import { handleNonce } from './routes/nonce'
+import { fetchStats } from './routes/fetchStats'
 import { registerPublicKeys } from './routes/registerPublicKeys'
 import { resolveProfile } from './routes/resolveProfile'
 import { searchProfiles } from './routes/searchProfiles'
-import { stats } from './routes/stats'
 import { unregisterPublicKeys } from './routes/unregisterPublicKeys'
 import { updateProfile } from './routes/updateProfile'
 import {
@@ -30,10 +30,10 @@ const router = Router()
 router.all('*', preflight)
 
 // Get stats.
-router.get('/stats', stats)
+router.get('/stats', fetchStats)
 
 // Get nonce for publicKey.
-router.get('/nonce/:publicKey', handleNonce)
+router.get('/nonce/:publicKey', fetchNonce)
 
 // Search profiles.
 router.get('/search/:chainId/:namePrefix', searchProfiles)
@@ -53,7 +53,7 @@ router.get('/bech32/:addressHex', fetchProfile)
 router.post('/auth', signatureAuthMiddleware, authenticate)
 
 // Get the token-authenticated profile, validating the JWT token.
-router.get('/me', jwtAuthMiddleware, fetchAuthenticatedProfile)
+router.get('/me', jwtAuthMiddleware, fetchMe)
 
 // Update profile.
 router.post('/', jwtOrSignatureAuthMiddleware, updateProfile)

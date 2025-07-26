@@ -3,7 +3,7 @@ import { RequestHandler } from 'itty-router'
 import { StatsResponse } from '../types'
 import { KnownError } from '../utils'
 
-export const stats: RequestHandler = async (
+export const fetchStats: RequestHandler = async (
   _,
   env: Env
 ): Promise<StatsResponse> => {
