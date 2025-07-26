@@ -36,6 +36,22 @@ export const authenticate = async (data: RequestBody<{}, true>) => {
   }
 }
 
+export const fetchAuthenticated = async (token: string) => {
+  const request = new Request(url('/authenticated'), {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  const response = await SELF.fetch(request)
+  const body = response.body ? await response.json<any>() : undefined
+  return {
+    response,
+    body,
+    error: body?.error as string | undefined,
+  }
+}
+
 export const fetchMe = async (token: string) => {
   const request = new Request(url('/me'), {
     method: 'GET',

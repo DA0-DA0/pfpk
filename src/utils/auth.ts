@@ -49,11 +49,7 @@ export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
   const uuid = await verifyJwt(env, token)
   const profile = await getProfileFromUuid(env, uuid)
   if (!profile) {
-    throw new KnownError(
-      401,
-      'Unauthorized',
-      'Profile not found. Please re-authenticate.'
-    )
+    throw new KnownError(401, 'Unauthorized', 'Profile not found.')
   }
 
   const body: RequestBody = request.body

@@ -8,6 +8,7 @@ import { toHex } from '@cosmjs/encoding'
 
 import {
   authenticate,
+  fetchAuthenticated,
   fetchMe,
   fetchNonce,
   fetchProfileViaPublicKey,
@@ -112,6 +113,15 @@ export class TestUser {
     const { body } = await authenticate(await this.signRequestBody({}))
     this._token = body.token
     return this._token
+  }
+
+  /**
+   * Fetch whether or not the user is authenticated.
+   */
+  async fetchAuthenticated(): Promise<boolean> {
+    const token = this._token || (await this.authenticate())
+    const { response } = await fetchAuthenticated(token)
+    return response.status === 204
   }
 
   /**

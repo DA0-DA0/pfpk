@@ -38,7 +38,7 @@ describe('POST /auth', () => {
     // token should be expired
     const { response: invalidResponse, error } = await fetchMe(user.token)
     expect(invalidResponse.status).toBe(401)
-    expect(error).toBe('Unauthorized: Token expired. Please re-authenticate.')
+    expect(error).toBe('Unauthorized: Token expired.')
   })
 
   it('prevents replay attacks', async () => {

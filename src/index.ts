@@ -1,6 +1,7 @@
 import { Router, cors, json, text } from 'itty-router'
 
 import { authenticate } from './routes/authenticate'
+import { fetchAuthenticated } from './routes/fetchAuthenticated'
 import { fetchMe } from './routes/fetchMe'
 import { fetchNonce } from './routes/fetchNonce'
 import { fetchProfile } from './routes/fetchProfile'
@@ -54,6 +55,9 @@ router.post('/auth', signatureAuthMiddleware, authenticate)
 
 // Get the token-authenticated profile, validating the JWT token.
 router.get('/me', jwtAuthMiddleware, fetchMe)
+
+// Return successfully if authenticated via JWT token.
+router.get('/authenticated', jwtAuthMiddleware, fetchAuthenticated)
 
 // Update profile.
 router.post('/', jwtOrSignatureAuthMiddleware, updateProfile)

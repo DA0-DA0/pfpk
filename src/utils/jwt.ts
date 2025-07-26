@@ -54,7 +54,7 @@ export const verifyJwt = async (env: Env, token: string): Promise<string> => {
         401,
         'Unauthorized',
         message === 'EXPIRED'
-          ? 'Token expired. Please re-authenticate.'
+          ? 'Token expired.'
           : `Invalid token. Error: ${message}`
       )
     })
