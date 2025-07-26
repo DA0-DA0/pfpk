@@ -111,11 +111,6 @@ export type UpdateProfileRequest = {
   chainIds?: string[]
 }
 
-// Body of profile update response.
-export type UpdateProfileResponse = {
-  success: true
-}
-
 // Body of register public key request.
 export type RegisterPublicKeyRequest = {
   /**
@@ -137,19 +132,9 @@ export type RegisterPublicKeyRequest = {
   >[]
 }
 
-// Body of register public key response.
-export type RegisterPublicKeyResponse = {
-  success: true
-}
-
 // Body of unregister public key request.
 export type UnregisterPublicKeyRequest = {
   publicKeys: PublicKeyJson[]
-}
-
-// Body of unregister public key response.
-export type UnregisterPublicKeyResponse = {
-  success: true
 }
 
 export type InvalidateTokensRequest = {

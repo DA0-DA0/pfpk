@@ -7,15 +7,12 @@ import {
   InvalidateTokensRequest,
   NonceResponse,
   RegisterPublicKeyRequest,
-  RegisterPublicKeyResponse,
   RequestBody,
   ResolveProfileResponse,
   SearchProfilesResponse,
   StatsResponse,
   UnregisterPublicKeyRequest,
-  UnregisterPublicKeyResponse,
   UpdateProfileRequest,
-  UpdateProfileResponse,
 } from '../../src/types'
 
 const BASE_URL = 'https://pfpk.test'
@@ -189,11 +186,10 @@ export const registerPublicKey = async (
     body: JSON.stringify(data),
   })
   const response = await SELF.fetch(request)
-  const body = await response.json<any>()
+  const body = response.body ? await response.json<any>() : undefined
   return {
     response,
-    body: body as RegisterPublicKeyResponse,
-    error: body.error as string | undefined,
+    error: body?.error as string | undefined,
   }
 }
 
@@ -236,11 +232,10 @@ export const unregisterPublicKey = async (
     body: JSON.stringify(data),
   })
   const response = await SELF.fetch(request)
-  const body = await response.json<any>()
+  const body = response.body ? await response.json<any>() : undefined
   return {
     response,
-    body: body as UnregisterPublicKeyResponse,
-    error: body.error as string | undefined,
+    error: body?.error as string | undefined,
   }
 }
 
@@ -257,10 +252,9 @@ export const updateProfile = async (
     body: JSON.stringify(data),
   })
   const response = await SELF.fetch(request)
-  const body = await response.json<any>()
+  const body = response.body ? await response.json<any>() : undefined
   return {
     response,
-    body: body as UpdateProfileResponse,
-    error: body.error as string | undefined,
+    error: body?.error as string | undefined,
   }
 }

@@ -184,15 +184,10 @@ type UpdateProfileRequest = {
 };
 ```
 
-The returned type is:
+The successful response is a 204 status code.
 
-```ts
-type UpdateProfileResponse = {
-  success: true;
-};
-```
-
-or in the case of an error:
+In case of an error, the response status is >= 400 and the response body
+contains an error message:
 
 ```ts
 type UpdateProfileResponse = {
@@ -259,15 +254,10 @@ type RegisterPublicKeyRequest = {
 };
 ```
 
-The returned type is:
+The successful response is a 204 status code.
 
-```ts
-type RegisterPublicKeyResponse = {
-  success: true;
-};
-```
-
-or in the case of an error:
+In case of an error, the response status is >= 400 and the response body
+contains an error message:
 
 ```ts
 type RegisterPublicKeyResponse = {
@@ -344,15 +334,10 @@ type UnregisterPublicKeyRequest = {
 };
 ```
 
-The returned type is:
+The successful response is a 204 status code.
 
-```ts
-type UnregisterPublicKeyResponse = {
-  success: true;
-};
-```
-
-or in the case of an error:
+In case of an error, the response status is >= 400 and the response body
+contains an error message:
 
 ```ts
 type UnregisterPublicKeyResponse = {

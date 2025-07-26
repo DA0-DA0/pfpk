@@ -259,16 +259,15 @@ export class TestUser {
       delete request.data.auth
     }
 
-    const { response, body, error } = await registerPublicKey(
+    const { response, error } = await registerPublicKey(
       request,
       withToken ? this._token : undefined
     )
-    if (response.status !== 200) {
+    if (response.status !== 204) {
       throw new Error(
         `Failed to register public keys: ${response.status} ${error}`
       )
     }
-    return body
   }
 
   /**
@@ -301,16 +300,15 @@ export class TestUser {
       delete request.data.auth
     }
 
-    const { response, body, error } = await unregisterPublicKey(
+    const { response, error } = await unregisterPublicKey(
       request,
       withToken ? this._token : undefined
     )
-    if (response.status !== 200) {
+    if (response.status !== 204) {
       throw new Error(
         `Failed to unregister public keys: ${response.status} ${error}`
       )
     }
-    return body
   }
 
   /**
@@ -341,7 +339,7 @@ export class TestUser {
       request,
       withToken ? this._token : undefined
     )
-    if (response.status !== 200) {
+    if (response.status !== 204) {
       throw new Error(`Failed to update profile: ${response.status} ${error}`)
     }
   }

@@ -1,11 +1,7 @@
 import { RequestHandler } from 'itty-router'
 
 import { PublicKeyBase, makePublicKeyFromJson } from '../publicKeys'
-import {
-  AuthorizedRequest,
-  UnregisterPublicKeyRequest,
-  UnregisterPublicKeyResponse,
-} from '../types'
+import { AuthorizedRequest, UnregisterPublicKeyRequest } from '../types'
 import {
   KnownError,
   getProfilePublicKeys,
@@ -22,7 +18,7 @@ export const unregisterPublicKeys: RequestHandler<
     profile,
   },
   env: Env
-): Promise<UnregisterPublicKeyResponse> => {
+) => {
   const publicKeys = toUnregister.map((json) => makePublicKeyFromJson(json))
 
   // Validate that all public keys are attached to this profile.
@@ -53,5 +49,5 @@ export const unregisterPublicKeys: RequestHandler<
     throw new KnownError(500, 'Failed to unregister profile public keys', err)
   }
 
-  return { success: true }
+  return new Response(null, { status: 204 })
 }

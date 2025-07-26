@@ -4,7 +4,6 @@ import { makePublicKey } from '../publicKeys'
 import {
   AuthorizedRequest,
   RegisterPublicKeyRequest,
-  RegisterPublicKeyResponse,
   RequestBody,
 } from '../types'
 import { KnownError, addProfilePublicKey, getProfilePublicKeys } from '../utils'
@@ -20,7 +19,7 @@ export const registerPublicKeys: RequestHandler<
     profile,
   },
   env: Env
-): Promise<RegisterPublicKeyResponse> => {
+) => {
   // Get all public keys in the profile.
   const profilePublicKeys = await getProfilePublicKeys(env, profile.id)
 
@@ -110,5 +109,5 @@ export const registerPublicKeys: RequestHandler<
     throw new KnownError(500, 'Failed to register profile public keys', err)
   }
 
-  return { success: true }
+  return new Response(null, { status: 204 })
 }

@@ -5,7 +5,6 @@ import {
   AuthorizedRequest,
   ProfileUpdate,
   UpdateProfileRequest,
-  UpdateProfileResponse,
 } from '../types'
 import {
   KnownError,
@@ -23,7 +22,7 @@ export const updateProfile: RequestHandler<
 > = async (
   { validatedBody: { data: body }, publicKey, profile: existingProfile },
   env: Env
-): Promise<UpdateProfileResponse> => {
+) => {
   try {
     // Validate profile exists.
     if (
@@ -169,5 +168,5 @@ export const updateProfile: RequestHandler<
     throw new KnownError(500, 'Failed to save profile', err)
   }
 
-  return { success: true }
+  return new Response(null, { status: 204 })
 }
