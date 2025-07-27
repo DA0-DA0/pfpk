@@ -9,16 +9,19 @@ describe('POST /token', () => {
     const user = await TestUser.create('neutron-1')
     const {
       response: { status },
-      body: { token },
+      body: { tokens },
     } = await createToken(await user.signRequestBody({}))
 
     expect(status).toBe(200)
-    expect(token).toBeDefined()
-    expect(token.length).toBeGreaterThan(0)
+    expect(tokens.admin).toBeTruthy()
+    expect(tokens.verify).toBeTruthy()
 
-    // token should be valid
-    const { response } = await fetchAuthenticated(token)
+    // both tokens should be valid
+    const { response } = await fetchAuthenticated(tokens.admin)
     expect(response.status).toBe(204)
+
+    const { response: verifyResponse } = await fetchAuthenticated(tokens.verify)
+    expect(verifyResponse.status).toBe(204)
   })
 
   it('returns 400 when missing body', async () => {

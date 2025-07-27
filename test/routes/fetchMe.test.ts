@@ -10,7 +10,8 @@ describe('GET /me', () => {
     const user = await TestUser.create('neutron-1')
     await user.authenticate()
 
-    const { response, body } = await fetchMe(user.token)
+    // verify token should work
+    const { response, body } = await fetchMe(user.tokens.verify)
     expect(response.status).toBe(200)
     expect(body.uuid.length).toBeGreaterThan(0)
     expect(body.nonce).toBe(INITIAL_NONCE + 1)
@@ -25,6 +26,13 @@ describe('GET /me', () => {
         address: user.getAddress('neutron-1'),
       },
     })
+
+    // admin token should work too
+    const { response: response2, body: body2 } = await fetchMe(
+      user.tokens.admin
+    )
+    expect(response2.status).toBe(200)
+    expect(body2).toEqual(body)
   })
 
   it('returns 401 if no token', async () => {

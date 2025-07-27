@@ -30,7 +30,7 @@ describe('DELETE /tokens', () => {
 
     // deleted token should no longer be valid
     const { response: invalidResponse, error: invalidError } =
-      await fetchAuthenticated(tokenToDelete.token)
+      await fetchAuthenticated(tokenToDelete.tokens.verify)
     expect(invalidResponse.status).toBe(401)
     expect(invalidError).toBe('Unauthorized: Token invalidated.')
 
@@ -39,7 +39,7 @@ describe('DELETE /tokens', () => {
       await user.signRequestBody({
         tokens: [tokens[0].id],
       }),
-      user.token
+      user.tokens.admin
     )
     expect(response2.status).toBe(204)
   })
@@ -82,7 +82,7 @@ describe('DELETE /tokens', () => {
     const user2 = await TestUser.create('neutron-1')
 
     await user1.authenticate()
-    await user2.authenticate()
+    const { id: user2TokenId } = await user2.authenticate()
 
     // both tokens work
     expect(await user1.fetchAuthenticated()).toBe(true)
@@ -91,7 +91,7 @@ describe('DELETE /tokens', () => {
     // attempt to delete token from user2 as user1. doesn't throw an error.
     const { response } = await invalidateTokens(
       await user1.signRequestBody({
-        tokens: [user2.token],
+        tokens: [user2TokenId],
       })
     )
     expect(response.status).toBe(204)

@@ -13,10 +13,11 @@ import { resolveProfile } from './routes/resolveProfile'
 import { searchProfiles } from './routes/searchProfiles'
 import { unregisterPublicKeys } from './routes/unregisterPublicKeys'
 import { updateProfile } from './routes/updateProfile'
+import { JwtRole } from './types'
 import {
   KnownError,
-  jwtAuthMiddleware,
-  jwtOrSignatureAuthMiddleware,
+  makeJwtAuthMiddleware,
+  makeJwtOrSignatureAuthMiddleware,
   signatureAuthMiddleware,
 } from './utils'
 
@@ -42,11 +43,19 @@ router
 // Profile stuff
 router
   // Update profile.
-  .post('/me', jwtOrSignatureAuthMiddleware, updateProfile)
+  .post('/me', makeJwtOrSignatureAuthMiddleware(JwtRole.Admin), updateProfile)
   // Register more public keys.
-  .post('/register', jwtOrSignatureAuthMiddleware, registerPublicKeys)
+  .post(
+    '/register',
+    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    registerPublicKeys
+  )
   // Unregister existing public keys.
-  .post('/unregister', jwtOrSignatureAuthMiddleware, unregisterPublicKeys)
+  .post(
+    '/unregister',
+    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    unregisterPublicKeys
+  )
   // Resolve profile.
   .get('/resolve/:chainId/:name', resolveProfile)
   // Search profiles.
@@ -63,13 +72,21 @@ router
   // Create JWT token via wallet auth.
   .post('/token', signatureAuthMiddleware, createToken)
   // Fetch tokens for profile (only JWT auth since GET cannot have a body).
-  .get('/tokens', jwtAuthMiddleware, fetchTokens)
+  .get('/tokens', makeJwtAuthMiddleware(JwtRole.Admin), fetchTokens)
   // Invalidate tokens.
-  .delete('/tokens', jwtOrSignatureAuthMiddleware, invalidateTokens)
+  .delete(
+    '/tokens',
+    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    invalidateTokens
+  )
   // Return successfully if authenticated via JWT token.
-  .get('/auth', jwtAuthMiddleware, fetchAuthenticated)
+  .get(
+    '/auth',
+    makeJwtAuthMiddleware(JwtRole.Verify, JwtRole.Admin),
+    fetchAuthenticated
+  )
   // Get the token-authenticated profile, validating the JWT token.
-  .get('/me', jwtAuthMiddleware, fetchMe)
+  .get('/me', makeJwtAuthMiddleware(JwtRole.Verify, JwtRole.Admin), fetchMe)
 
 //! MUST BE LAST SINCE IT MATCHES ALL ROUTES
 // Fetch profile with public key hex.

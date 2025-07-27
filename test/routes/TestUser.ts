@@ -23,6 +23,7 @@ import {
   FetchProfileResponse,
   FetchTokensResponse,
   InvalidateTokensRequest,
+  JwtRole,
   ProfileUpdate,
   RegisterPublicKeyRequest,
   RequestBody,
@@ -46,9 +47,9 @@ export class TestUser {
   private readonly signers: Record<string, TestUserChain> = {}
 
   /**
-   * JWT token for the user if authenticated.
+   * JWT tokens for the user if authenticated.
    */
-  private _token: string | undefined = undefined
+  private _tokens: Record<JwtRole, string> | undefined = undefined
 
   constructor(private readonly mnemonic: string) {}
 
@@ -84,11 +85,11 @@ export class TestUser {
     }
   }
 
-  get token(): string {
-    if (!this._token) {
+  get tokens(): Record<JwtRole, string> {
+    if (!this._tokens) {
       throw new Error('User not authenticated')
     }
-    return this._token
+    return this._tokens
   }
 
   getChain(chainId: string): TestUserChain {
@@ -120,7 +121,7 @@ export class TestUser {
    */
   async authenticate(): Promise<CreateTokenResponse> {
     const { body } = await createToken(await this.signRequestBody({}))
-    this._token = body.token
+    this._tokens = body.tokens
     return body
   }
 
@@ -128,7 +129,7 @@ export class TestUser {
    * Fetch whether or not the user is authenticated.
    */
   async fetchAuthenticated(): Promise<boolean> {
-    const token = this._token || (await this.authenticate()).token
+    const token = (this._tokens || (await this.authenticate()).tokens).verify
     const { response } = await fetchAuthenticated(token)
     return response.status === 204
   }
@@ -137,7 +138,7 @@ export class TestUser {
    * Fetch the authenticated user's profile.
    */
   async fetchMe(): Promise<FetchProfileResponse> {
-    const token = this._token || (await this.authenticate()).token
+    const token = (this._tokens || (await this.authenticate()).tokens).verify
     const { body } = await fetchMe(token)
     return body
   }
@@ -169,7 +170,7 @@ export class TestUser {
    * Fetch the tokens created during authentications.
    */
   async fetchTokens(): Promise<FetchTokensResponse['tokens']> {
-    const token = this._token || (await this.authenticate()).token
+    const token = (this._tokens || (await this.authenticate()).tokens).admin
     const {
       body: { tokens },
     } = await fetchTokens(token)
@@ -196,13 +197,13 @@ export class TestUser {
         tokens,
       })
     // Remove auth if using token authentication.
-    if (withToken && this._token) {
+    if (withToken && this._tokens) {
       delete request.data.auth
     }
 
     const { response, error } = await invalidateTokens(
       request,
-      withToken ? this._token : undefined
+      withToken ? this._tokens?.admin : undefined
     )
     if (response.status !== 204) {
       throw new Error(
@@ -255,13 +256,13 @@ export class TestUser {
         publicKeys,
       })
     // Remove auth if using token authentication.
-    if (withToken && this._token) {
+    if (withToken && this._tokens) {
       delete request.data.auth
     }
 
     const { response, error } = await registerPublicKey(
       request,
-      withToken ? this._token : undefined
+      withToken ? this._tokens?.admin : undefined
     )
     if (response.status !== 204) {
       throw new Error(
@@ -296,13 +297,13 @@ export class TestUser {
         publicKeys,
       })
     // Remove auth if using token authentication.
-    if (withToken && this._token) {
+    if (withToken && this._tokens) {
       delete request.data.auth
     }
 
     const { response, error } = await unregisterPublicKey(
       request,
-      withToken ? this._token : undefined
+      withToken ? this._tokens?.admin : undefined
     )
     if (response.status !== 204) {
       throw new Error(
@@ -331,13 +332,13 @@ export class TestUser {
         profile,
       })
     // Remove auth if using token authentication.
-    if (withToken && this._token) {
+    if (withToken && this._tokens) {
       delete request.data.auth
     }
 
     const { response, error } = await updateProfile(
       request,
-      withToken ? this._token : undefined
+      withToken ? this._tokens?.admin : undefined
     )
     if (response.status !== 204) {
       throw new Error(`Failed to update profile: ${response.status} ${error}`)

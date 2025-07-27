@@ -9,7 +9,7 @@ describe('GET /tokens', () => {
     await user.authenticate()
 
     // fetchTokens should return token via JWT token auth
-    const { response, body } = await fetchTokens(user.token)
+    const { response, body } = await fetchTokens(user.tokens.admin)
     expect(response.status).toBe(200)
     expect(body.tokens.length).toBe(1)
     expect(body.tokens).toEqual([
@@ -24,7 +24,9 @@ describe('GET /tokens', () => {
     await user.authenticate()
 
     // fetchTokens should return both tokens
-    const { response: response2, body: body2 } = await fetchTokens(user.token)
+    const { response: response2, body: body2 } = await fetchTokens(
+      user.tokens.admin
+    )
     expect(response2.status).toBe(200)
     expect(body2.tokens.length).toBe(2)
     expect(body2.tokens).toEqual([
@@ -39,6 +41,15 @@ describe('GET /tokens', () => {
         expiresAt: expect.any(Number),
       },
     ])
+  })
+
+  it('returns 401 for non-admin token', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.authenticate()
+
+    const { response, error } = await fetchTokens(user.tokens.verify)
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid token role.')
   })
 
   it('does not return expired tokens', async () => {

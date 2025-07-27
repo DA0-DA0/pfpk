@@ -176,8 +176,8 @@ export type ResolveProfileResponse = {
 
 export type CreateTokenResponse = {
   id: string
-  token: string
   expiresAt: number
+  tokens: Record<JwtRole, string>
 }
 
 export type Auth = {
@@ -302,11 +302,29 @@ export type DbRowProfileToken = {
   createdAt: number
 }
 
+/**
+ * Role a JWT token can have.
+ */
+export enum JwtRole {
+  /**
+   * Can do anything. This is intended to be used by the profile owner to manage
+   * their profile and tokens in this auth service.
+   */
+  Admin = 'admin',
+  /**
+   * Can only verify whether or not the token is valid. This is intended to be
+   * used by other services to so they can ensure the caller is the authorized
+   * UUID and thus it's safe to associate data with the provided UUID.
+   */
+  Verify = 'verify',
+}
+
 export type JwtPayload = {
   sub: string
   exp: number
   iat: number
   jti: string
+  role: JwtRole
 }
 
 /**

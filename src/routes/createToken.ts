@@ -13,9 +13,9 @@ export const createToken: RequestHandler<AuthorizedRequest> = async (
   // Create a new token for the profile.
   const {
     uuid: tokenUuid,
-    token,
     issuedAt,
     expiresAt,
+    tokens,
   } = await createJwt(env, {
     profileUuid: profile.uuid,
     expiresIn: 60 * 60 * 24 * 14, // 2 weeks
@@ -31,7 +31,7 @@ export const createToken: RequestHandler<AuthorizedRequest> = async (
 
   return {
     id: tokenUuid,
-    token,
     expiresAt,
+    tokens,
   }
 }

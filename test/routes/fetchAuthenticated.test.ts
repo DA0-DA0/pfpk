@@ -8,9 +8,13 @@ describe('GET /auth', () => {
     const user = await TestUser.create('neutron-1')
     await user.authenticate()
 
-    // token should be valid
-    const { response } = await fetchAuthenticated(user.token)
-    expect(response.status).toBe(204)
+    // both tokens should be valid
+    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
+      204
+    )
+    expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
+      204
+    )
   })
 
   it('returns 401 if no Authorization header', async () => {
@@ -26,8 +30,8 @@ describe('GET /auth', () => {
     const user = await TestUser.create('neutron-1')
     await user.authenticate()
 
-    const { response, error } = await fetchAuthenticated(user.token, {
-      Authorization: 'Basic ' + user.token,
+    const { response, error } = await fetchAuthenticated(user.tokens.verify, {
+      Authorization: 'Basic ' + user.tokens.verify,
     })
     expect(response.status).toBe(401)
     expect(error).toBe('Unauthorized: Invalid token type, expected `Bearer`.')
@@ -65,18 +69,29 @@ describe('GET /auth', () => {
     vi.useFakeTimers()
     vi.advanceTimersByTime(14 * 24 * 60 * 60 * 1000 - 1000)
 
-    // token should still be valid
-    expect((await fetchAuthenticated(user.token)).response.status).toBe(204)
+    // tokens should still be valid
+    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
+      204
+    )
+    expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
+      204
+    )
 
     // advance time by 2 seconds
     vi.advanceTimersByTime(2 * 1000)
 
-    // token should be expired
+    // verify token should be expired
     const { response: invalidResponse, error } = await fetchAuthenticated(
-      user.token
+      user.tokens.verify
     )
     expect(invalidResponse.status).toBe(401)
     expect(error).toBe('Unauthorized: Token expired.')
+
+    // admin token should be expired
+    const { response: invalidResponse2, error: error2 } =
+      await fetchAuthenticated(user.tokens.admin)
+    expect(invalidResponse2.status).toBe(401)
+    expect(error2).toBe('Unauthorized: Token expired.')
   })
 
   it('returns 404 if no profile found for valid token', async () => {
@@ -88,8 +103,14 @@ describe('GET /auth', () => {
       chainIds: 'neutron-1',
     })
 
-    const { response, error } = await fetchAuthenticated(user.token)
+    const { response, error } = await fetchAuthenticated(user.tokens.verify)
     expect(response.status).toBe(404)
     expect(error).toBe('Profile not found.')
+
+    const { response: response2, error: error2 } = await fetchAuthenticated(
+      user.tokens.admin
+    )
+    expect(response2.status).toBe(404)
+    expect(error2).toBe('Profile not found.')
   })
 })

@@ -2,14 +2,15 @@ import jwt from '@tsndr/cloudflare-worker-jwt'
 
 import { KnownError } from './error'
 import { objectMatchesStructure } from './objectMatchesStructure'
-import { JwtPayload } from '../types'
+import { JwtPayload, JwtRole } from '../types'
 
 /**
- * Create a JWT token.
+ * Create a JWT token pair (one read, one write).
  *
  * @param env - The environment.
  * @param options - The options to create the JWT token.
- * @returns The signed JWT token, token ID, issued at timestamp, and expiration timestamp.
+ * @returns The signed JWT tokens, token UUID, issued at timestamp, and
+ * expiration timestamp.
  */
 export const createJwt = async (
   env: Env,
@@ -28,28 +29,39 @@ export const createJwt = async (
   }
 ): Promise<{
   uuid: string
-  token: string
   issuedAt: number
   expiresAt: number
+  tokens: Record<JwtRole, string>
 }> => {
   const issuedAt = Math.floor(Date.now() / 1000)
   const uuid = await crypto.randomUUID()
   const expiresAt = issuedAt + expiresIn
-  const token = await jwt.sign(
-    {
-      sub: profileUuid,
-      exp: expiresAt,
-      iat: issuedAt,
-      jti: uuid,
-    },
-    env.JWT_SECRET
-  )
+
+  const tokens = Object.fromEntries(
+    await Promise.all(
+      Object.values(JwtRole).map(
+        async (scope): Promise<[JwtRole, string]> => [
+          scope,
+          await jwt.sign(
+            {
+              sub: profileUuid,
+              exp: expiresAt,
+              iat: issuedAt,
+              jti: uuid,
+              role: scope,
+            } satisfies JwtPayload,
+            env.JWT_SECRET
+          ),
+        ]
+      )
+    )
+  ) as Record<JwtRole, string>
 
   return {
     uuid,
-    token,
     issuedAt,
     expiresAt,
+    tokens,
   }
 }
 
@@ -58,11 +70,13 @@ export const createJwt = async (
  *
  * @param env - The environment.
  * @param token - The JWT token to verify.
+ * @param roles - The allowed roles for the token.
  * @returns The UUID of the profile.
  */
 export const verifyJwt = async (
   env: Env,
-  token: string
+  token: string,
+  roles: JwtRole[]
 ): Promise<JwtPayload> => {
   const verified = await jwt
     .verify<JwtPayload>(token, env.JWT_SECRET, {
@@ -87,9 +101,14 @@ export const verifyJwt = async (
       exp: {},
       iat: {},
       jti: {},
+      role: {},
     })
   ) {
     throw new KnownError(401, 'Unauthorized', 'Invalid token.')
+  }
+
+  if (!roles.includes(verified.payload.role)) {
+    throw new KnownError(401, 'Unauthorized', 'Invalid token role.')
   }
 
   return verified.payload

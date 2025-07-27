@@ -11,7 +11,7 @@ import { KnownError } from './error'
 import { verifyJwt } from './jwt'
 import { objectMatchesStructure } from './objectMatchesStructure'
 import { makePublicKey } from '../publicKeys'
-import { AuthorizedRequest, PublicKey, RequestBody } from '../types'
+import { AuthorizedRequest, JwtRole, PublicKey, RequestBody } from '../types'
 
 export const INITIAL_NONCE = 0
 
@@ -23,86 +23,85 @@ export const INITIAL_NONCE = 0
  *
  * @param request - The request to authenticate.
  */
-export const jwtAuthMiddleware: RequestHandler<AuthorizedRequest> = async (
-  request,
-  env: Env
-) => {
-  // If JWT token is provided, verify it.
-  const authHeader = request.headers.get('Authorization')
-  if (!authHeader) {
-    throw new KnownError(401, 'Unauthorized', 'No authorization header.')
-  }
+export const makeJwtAuthMiddleware =
+  (...roles: JwtRole[]): RequestHandler<AuthorizedRequest> =>
+  async (request, env: Env) => {
+    // If JWT token is provided, verify it.
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader) {
+      throw new KnownError(401, 'Unauthorized', 'No authorization header.')
+    }
 
-  const [type, token] = authHeader.split(' ')
+    const [type, token] = authHeader.split(' ')
 
-  if (type !== 'Bearer') {
-    throw new KnownError(
-      401,
-      'Unauthorized',
-      'Invalid token type, expected `Bearer`.'
-    )
-  }
-
-  if (!token) {
-    throw new KnownError(401, 'Unauthorized', 'No token provided.')
-  }
-
-  const { sub: uuid, jti: tokenId } = await verifyJwt(env, token)
-  const profile = await getProfileFromUuid(env, uuid)
-  if (!profile) {
-    throw new KnownError(404, 'Profile not found.')
-  }
-
-  // Validate token exists and is still valid for profile.
-  const dbToken = await getTokenForProfile(env, profile.id, tokenId)
-  // If token not found in DB, it must have been invalidated. Expiration was
-  // checked in verifyJwt above, so we should only get here if the token is
-  // valid but was manually invalidated.
-  if (!dbToken) {
-    throw new KnownError(401, 'Unauthorized', 'Token invalidated.')
-  }
-  // Should never happen since JWT verification above also checks expiration.
-  if (dbToken.expiresAt < Math.floor(Date.now() / 1000)) {
-    throw new KnownError(401, 'Unauthorized', 'Token expired.')
-  }
-
-  const body: RequestBody = request.body
-    ? await request.json<RequestBody>().catch(() => {
-        throw new KnownError(400, 'Invalid request body.')
-      })
-    : // If no body, use empty object for data and no signature.
-      {
-        data: {},
-      }
-
-  // If auth is provided, validate that it matches the profile. If it does not
-  // match, strip it since it is untrusted.
-  if (body.data.auth) {
-    const profileForPublicKey = await getProfileFromPublicKeyHex(
-      env,
-      body.data.auth.publicKeyHex
-    )
-
-    if (profileForPublicKey?.id === profile.id) {
-      // If auth matches the profile, validate public key and add to request.
-      request.publicKey = makePublicKey(
-        body.data.auth.publicKeyType,
-        body.data.auth.publicKeyHex
-      )
-    } else {
-      // If public key auth does not match the profile, error.
+    if (type !== 'Bearer') {
       throw new KnownError(
         401,
         'Unauthorized',
-        'Mismatched token and public key auth.'
+        'Invalid token type, expected `Bearer`.'
       )
     }
-  }
 
-  // If all is valid, add validated body and profile to request.
-  request.validatedBody = body
-  request.profile = profile
-}
+    if (!token) {
+      throw new KnownError(401, 'Unauthorized', 'No token provided.')
+    }
+
+    const { sub: uuid, jti: tokenId } = await verifyJwt(env, token, roles)
+    const profile = await getProfileFromUuid(env, uuid)
+    if (!profile) {
+      throw new KnownError(404, 'Profile not found.')
+    }
+
+    // Validate token exists and is still valid for profile.
+    const dbToken = await getTokenForProfile(env, profile.id, tokenId)
+    // If token not found in DB, it must have been invalidated. Expiration was
+    // checked in verifyJwt above, so we should only get here if the token is
+    // valid but was manually invalidated.
+    if (!dbToken) {
+      throw new KnownError(401, 'Unauthorized', 'Token invalidated.')
+    }
+    // Should never happen since JWT verification above also checks expiration.
+    if (dbToken.expiresAt < Math.floor(Date.now() / 1000)) {
+      throw new KnownError(401, 'Unauthorized', 'Token expired.')
+    }
+
+    const body: RequestBody = request.body
+      ? await request.json<RequestBody>().catch(() => {
+          throw new KnownError(400, 'Invalid request body.')
+        })
+      : // If no body, use empty object for data and no signature.
+        {
+          data: {},
+        }
+
+    // If auth is provided, validate that it matches the profile. If it does not
+    // match, strip it since it is untrusted.
+    if (body.data.auth) {
+      const profileForPublicKey = await getProfileFromPublicKeyHex(
+        env,
+        body.data.auth.publicKeyHex
+      )
+
+      if (profileForPublicKey?.id === profile.id) {
+        // If auth matches the profile, validate public key and add to request.
+        request.publicKey = makePublicKey(
+          body.data.auth.publicKeyType,
+          body.data.auth.publicKeyHex
+        )
+      } else {
+        // If public key auth does not match the profile, error.
+        throw new KnownError(
+          401,
+          'Unauthorized',
+          'Mismatched token and public key auth.'
+        )
+      }
+    }
+
+    // If all is valid, add validated body and profile to request.
+    request.validatedBody = body
+    request.profile = profile
+  }
 
 /**
  * Middleware to protect routes via wallet signature authorization. If it does
@@ -195,19 +194,23 @@ export const signatureAuthMiddleware: RequestHandler<
  *
  * @param request - The request to authenticate.
  */
-export const jwtOrSignatureAuthMiddleware: RequestHandler<
-  AuthorizedRequest
-> = async (...params) => {
-  // Attempt JWT auth first. On success, stop early.
-  try {
-    await jwtAuthMiddleware(...params)
-    return
-  } catch {
-    // Continue to signature auth.
-  }
+export const makeJwtOrSignatureAuthMiddleware = (
+  ...roles: JwtRole[]
+): RequestHandler<AuthorizedRequest> => {
+  const jwtAuthMiddleware = makeJwtAuthMiddleware(...roles)
 
-  // Attempt signature auth.
-  await signatureAuthMiddleware(...params)
+  return async (...params) => {
+    // Attempt JWT auth first. On success, stop early.
+    try {
+      await jwtAuthMiddleware(...params)
+      return
+    } catch {
+      // Continue to signature auth.
+    }
+
+    // Attempt signature auth.
+    await signatureAuthMiddleware(...params)
+  }
 }
 
 /**
