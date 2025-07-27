@@ -181,6 +181,10 @@ export type CreateTokenResponse = {
 }
 
 export type Auth = {
+  /**
+   * Timestamp must be within the last 5 minutes.
+   */
+  timestamp: number
   type: string
   nonce: number
   chainId: string
@@ -188,10 +192,6 @@ export type Auth = {
   chainBech32Prefix: string
   publicKeyType: string
   publicKeyHex: string
-  /**
-   * Timestamp must be within the last 5 minutes.
-   */
-  timestamp: number
 }
 
 export type RequestBody<

@@ -235,6 +235,7 @@ export const verifyRequestBodyAndGetPublicKey = async (
     !objectMatchesStructure(body, {
       data: {
         auth: {
+          timestamp: {},
           type: {},
           nonce: {},
           chainId: {},
@@ -242,7 +243,6 @@ export const verifyRequestBodyAndGetPublicKey = async (
           chainBech32Prefix: {},
           publicKeyType: {},
           publicKeyHex: {},
-          timestamp: {},
         },
       },
       signature: {},
