@@ -9,7 +9,7 @@ import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1Pu
 const chainIds = ['neutron-1', 'cosmoshub-4', 'phoenix-1']
 
 describe('GET /search/:chainId/:namePrefix', () => {
-  it('returns 200 with profiles for each chain', async () => {
+  it('returns 200 with profiles for each chain (case insensitive)', async () => {
     const makeUser = async (name: string) => {
       const user = await TestUser.create(...chainIds)
       await user.updateProfile({
@@ -18,34 +18,45 @@ describe('GET /search/:chainId/:namePrefix', () => {
       await user.registerPublicKeys({
         chainIds,
       })
-      return user
+      return {
+        name,
+        user,
+      }
     }
 
     const users = await Promise.all([
       makeUser('test1'),
       makeUser('test2'),
       makeUser('test3'),
+      // Case insensitive.
+      makeUser('TEst4'),
+      // Case insensitive.
+      makeUser('teST5'),
+      makeUser('test6'),
+      makeUser('test7'),
     ])
 
     for (const chainId of chainIds) {
       const { response, body } = await searchProfiles(chainId, 'test')
       expect(response.status).toBe(200)
       expect(body).toEqual({
-        profiles: users.map((user, index) => ({
+        // Only 5 profiles are returned.
+        profiles: users.slice(0, 5).map(({ name, user }) => ({
           uuid: expect.any(String),
           publicKey: {
             type: CosmosSecp256k1PublicKey.type,
             hex: user.getPublicKey(chainId),
           },
           address: user.getAddress(chainId),
-          name: `test${index + 1}`,
+          name,
           nft: null,
         })),
       })
 
       const { response: response2, body: body2 } = await searchProfiles(
         chainId,
-        'test2'
+        // Case insensitive.
+        users[1].name.toUpperCase()
       )
       expect(response2.status).toBe(200)
       expect(body2).toEqual({
@@ -54,10 +65,10 @@ describe('GET /search/:chainId/:namePrefix', () => {
             uuid: expect.any(String),
             publicKey: {
               type: CosmosSecp256k1PublicKey.type,
-              hex: users[1].getPublicKey(chainId),
+              hex: users[1].user.getPublicKey(chainId),
             },
-            address: users[1].getAddress(chainId),
-            name: 'test2',
+            address: users[1].user.getAddress(chainId),
+            name: users[1].name,
             nft: null,
           },
         ],

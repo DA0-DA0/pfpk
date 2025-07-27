@@ -1,37 +1,3 @@
-6. GET /search/:chainId/:namePrefix
-
-Current Coverage ✅
-
-- Empty results for non-existent names
-- Array response structure
-
-Additional Tests Needed:
-
-- Populated results: Multiple matching profiles
-- Pagination: Limit of 5 results (from README)
-- Case sensitivity: "Test" vs "test" vs "TEST"
-- Partial matching: Prefix behavior validation
-- Chain-specific results: Same name, different chains
-- Special characters: Names with periods, underscores
-- Performance: Large name databases
-- Invalid chains: Non-existent chainIds
-
-7. GET /resolve/:chainId/:name
-
-Current Coverage ✅
-
-- 404 for non-existent names
-- Proper error response structure
-
-Additional Tests Needed:
-
-- Successful resolution: Exact name matches
-- Case insensitivity: Per README specification
-- Chain preferences: Correct public key per chain
-- Profile completeness: All fields populated correctly
-- Invalid chains: Non-existent chainIds
-- Name validation: Edge cases, reserved names
-
 11. POST /register (jwtOrSignatureAuthMiddleware)
 
 Current Coverage ✅

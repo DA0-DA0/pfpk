@@ -252,7 +252,7 @@ describe('POST /me', () => {
     )
   })
 
-  it('returns 400 if name is already taken', async () => {
+  it('returns 400 if name is already taken (case insensitive)', async () => {
     const user1 = await TestUser.create('neutron-1')
     const user2 = await TestUser.create('neutron-1')
 
@@ -263,6 +263,13 @@ describe('POST /me', () => {
     )
     expect(response.status).toBe(400)
     expect(error).toBe('Name already taken.')
+
+    // Case insensitive.
+    const { response: response2, error: error2 } = await updateProfile(
+      await user2.signRequestBody({ profile: { name: 'TeSt' } })
+    )
+    expect(response2.status).toBe(400)
+    expect(error2).toBe('Name already taken.')
   })
 
   it('returns 405 if no public key for the NFT chain is provided', async () => {

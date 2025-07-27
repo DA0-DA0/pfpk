@@ -14,8 +14,10 @@ CREATE TABLE profiles (
   -- unique uuid among all profiles
   CONSTRAINT unique_uuid UNIQUE (uuid),
   -- unique name among all profiles
-  CONSTRAINT unique_name UNIQUE (name)
+  CONSTRAINT unique_name UNIQUE (name COLLATE NOCASE)
 );
+
+CREATE INDEX IF NOT EXISTS idx_profiles_name ON profiles(name COLLATE NOCASE);
 
 -- ProfilePublicKey
 DROP TABLE IF EXISTS profile_public_keys;

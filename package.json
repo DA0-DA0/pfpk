@@ -9,8 +9,9 @@
     "deploy": "wrangler deploy --minify",
     "log": "wrangler tail",
     "db:migrate": "wrangler d1 migrations apply pfpk",
+    "db:migrate:local": "npm run db:migrate -- --local",
     "db:seed": "wrangler d1 execute pfpk --file=./schema.sql",
-    "db:seed:local": "wrangler d1 execute pfpk --file=./schema.sql --local",
+    "db:seed:local": "npm run db:seed -- --local",
     "lint": "eslint .",
     "format": "eslint . --fix",
     "generate:types": "wrangler types"

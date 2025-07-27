@@ -9,7 +9,7 @@ import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1Pu
 const chainIds = ['neutron-1', 'cosmoshub-4', 'phoenix-1']
 
 describe('GET /resolve/:chainId/:name', () => {
-  it('returns 200 with resolved profile for each chain', async () => {
+  it('returns 200 with resolved profile for each chain (case insensitive)', async () => {
     const user = await TestUser.create(...chainIds)
     await user.updateProfile({
       name: 'test',
@@ -34,6 +34,14 @@ describe('GET /resolve/:chainId/:name', () => {
           nft: null,
         },
       })
+
+      // Case insensitive.
+      const { response: response2, body: body2 } = await resolveProfile(
+        chainId,
+        'TeSt'
+      )
+      expect(response2.status).toBe(200)
+      expect(body2).toEqual(body)
     }
   })
 

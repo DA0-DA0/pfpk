@@ -29,7 +29,7 @@ export const getProfileFromUuid = async (
     .first<DbRowProfile>()
 
 /**
- * Get the profile for a given name.
+ * Get the profile for a given name (case insensitive).
  */
 export const getProfileFromName = async (
   env: Env,
@@ -39,7 +39,7 @@ export const getProfileFromName = async (
     `
     SELECT *
     FROM profiles
-    WHERE name = ?1
+    WHERE name = ?1 COLLATE NOCASE
     `
   )
     .bind(name)
@@ -116,8 +116,8 @@ export const getPublicKeyHexForAddressHex = async (
 }
 
 /**
- * Get top 5 profiles by name prefix and each profiles' public key for a given
- * chain.
+ * Get top 5 profiles by name prefix (case insensitive) and each profiles'
+ * public key for a given chain.
  */
 export const getProfilesWithNamePrefix = async (
   env: Env,
@@ -144,9 +144,9 @@ export const getProfilesWithNamePrefix = async (
       ON profiles.id = profile_public_key_chain_preferences.profileId
       INNER JOIN profile_public_keys
       ON profile_public_key_chain_preferences.profilePublicKeyId = profile_public_keys.id
-      WHERE profiles.name LIKE ?1
+      WHERE profiles.name LIKE ?1 COLLATE NOCASE
       AND profile_public_key_chain_preferences.chainId = ?2
-      ORDER BY name ASC
+      ORDER BY profiles.name COLLATE NOCASE ASC
       LIMIT 5
       `
     )
