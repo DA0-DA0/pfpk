@@ -257,6 +257,11 @@ export type AuthorizedRequest<
    * public key is generated after `data.auth` is validated.
    */
   publicKey?: PublicKey
+  /**
+   * The DB row ID of the profile public key. This will be set if `publicKey` is
+   * set.
+   */
+  profilePublicKeyRowId?: number
 }
 
 /**

@@ -23,8 +23,7 @@ export const registerPublicKeys: RequestHandler<
   // Get all public keys in the profile.
   const profilePublicKeys = await getProfilePublicKeys(env, profile.id)
 
-  // Validate all public keys being registered that are not the same as the
-  // those that belong to the profile.
+  // Only validate public keys that do not already exist in the profile.
   try {
     await Promise.all(
       toRegister

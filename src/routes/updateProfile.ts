@@ -13,6 +13,7 @@ import {
   getProfileFromName,
   objectMatchesStructure,
   saveProfile,
+  setProfileChainPreferences,
 } from '../utils'
 
 const ALLOWED_NAME_CHARS = /^[a-zA-Z0-9._]+$/
@@ -20,7 +21,12 @@ const ALLOWED_NAME_CHARS = /^[a-zA-Z0-9._]+$/
 export const updateProfile: RequestHandler<
   AuthorizedRequest<UpdateProfileRequest>
 > = async (
-  { validatedBody: { data: body }, publicKey, profile: existingProfile },
+  {
+    validatedBody: { data: body },
+    profile: existingProfile,
+    publicKey,
+    profilePublicKeyRowId,
+  },
   env: Env
 ) => {
   try {
@@ -151,13 +157,29 @@ export const updateProfile: RequestHandler<
     }),
   }
 
+  // If chains passed to set preferences, validate public key auth exists and
+  // then set preferences.
+  if (body.chainIds?.length) {
+    // If no public key auth, throw error, since we need a public key to set
+    // chain preferences for.
+    if (profilePublicKeyRowId === undefined) {
+      throw new KnownError(
+        400,
+        'Public key authorization required when setting chain preferences.'
+      )
+    }
+
+    await setProfileChainPreferences(env, {
+      profileId: existingProfile.id,
+      profilePublicKeyId: profilePublicKeyRowId,
+      chainIds: body.chainIds,
+    })
+  }
+
   // Save.
   try {
     await saveProfile(env, profileUpdate, {
       uuid: existingProfile.uuid,
-      // If no chains passed, use the current chain used to sign, if any.
-      chainIds:
-        body.chainIds || (body.auth?.chainId ? [body.auth.chainId] : undefined),
     })
   } catch (err) {
     if (err instanceof KnownError) {

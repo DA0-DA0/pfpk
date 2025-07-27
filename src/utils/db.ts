@@ -51,10 +51,10 @@ export const getProfileFromName = async (
 export const getProfileFromPublicKeyHex = async (
   env: Env,
   publicKeyHex: string
-): Promise<(DbRowProfile & { publicKeyId: number }) | null> =>
+): Promise<(DbRowProfile & { profilePublicKeyId: number }) | null> =>
   await env.DB.prepare(
     `
-    SELECT profiles.*, profile_public_keys.id AS publicKeyId
+    SELECT profiles.*, profile_public_keys.id AS profilePublicKeyId
     FROM profiles
     INNER JOIN profile_public_keys
     ON profiles.id = profile_public_keys.profileId
@@ -62,7 +62,7 @@ export const getProfileFromPublicKeyHex = async (
     `
   )
     .bind(publicKeyHex)
-    .first<DbRowProfile & { publicKeyId: number }>()
+    .first<DbRowProfile & { profilePublicKeyId: number }>()
 
 /**
  * Get the profile for a given address hex.
@@ -246,15 +246,7 @@ export const getProfilePublicKeyPerChain = async (
 export const saveProfile = async (
   env: Env,
   profileUpdate: ProfileUpdate,
-  {
-    chainIds,
-    ...options
-  }: {
-    /**
-     * Optionally set chain preferences for this public key.
-     */
-    chainIds?: string[]
-  } & (
+  options:
     | {
         /**
          * Public key to locate the profile or add to the new profile if it
@@ -264,16 +256,31 @@ export const saveProfile = async (
          * to access it.
          */
         publicKey: PublicKey
+        /**
+         * Optionally set chain preferences for this public key.
+         */
+        chainIds?: string[]
       }
     | {
         /**
          * Existing profile UUID to update.
          */
         uuid: string
+
+        chainIds?: never
       }
-  )
-): Promise<DbRowProfile> => {
-  const existingProfile: (DbRowProfile & { publicKeyId?: number }) | null =
+): Promise<
+  DbRowProfile & {
+    /**
+     * The DB row ID of the profile public key. This will be set if `publicKey`
+     * is set, regardless of whether the profile was created or updated.
+     */
+    profilePublicKeyId?: number
+  }
+> => {
+  const existingProfile:
+    | (DbRowProfile & { profilePublicKeyId?: number })
+    | null =
     'uuid' in options
       ? await getProfileFromUuid(env, options.uuid)
       : 'publicKey' in options
@@ -286,7 +293,7 @@ export const saveProfile = async (
   }
 
   let updatedProfileRow: DbRowProfile | null
-  let profilePublicKeyId = existingProfile?.publicKeyId
+  let profilePublicKeyId = existingProfile?.profilePublicKeyId
 
   const fieldsToUpdate: [string, string | number | undefined | null][] = [
     ['nonce', profileUpdate.nonce] as [string, number],
@@ -374,16 +381,22 @@ export const saveProfile = async (
   }
 
   // Set chain preferences for this public key if specified.
-  if (chainIds && profilePublicKeyId !== undefined) {
-    await setProfileChainPreferences(
-      env,
-      updatedProfileRow.id,
+  if (
+    'chainIds' in options &&
+    options.chainIds &&
+    profilePublicKeyId !== undefined
+  ) {
+    await setProfileChainPreferences(env, {
+      profileId: updatedProfileRow.id,
       profilePublicKeyId,
-      chainIds
-    )
+      chainIds: options.chainIds,
+    })
   }
 
-  return updatedProfileRow
+  return {
+    ...updatedProfileRow,
+    profilePublicKeyId,
+  }
 }
 
 /**
@@ -434,23 +447,28 @@ export const addProfilePublicKey = async (
 
   // Set chain preferences for this public key if specified.
   if (chainIds) {
-    await setProfileChainPreferences(
-      env,
+    await setProfileChainPreferences(env, {
       profileId,
-      profilePublicKeyRow.id,
-      chainIds
-    )
+      profilePublicKeyId: profilePublicKeyRow.id,
+      chainIds,
+    })
   }
 }
 
 /**
  * Set chain preferences for a given public key.
  */
-const setProfileChainPreferences = async (
+export const setProfileChainPreferences = async (
   env: Env,
-  profileId: number,
-  publicKeyRowId: number,
-  chainIds: string[]
+  {
+    profileId,
+    profilePublicKeyId,
+    chainIds,
+  }: {
+    profileId: number
+    profilePublicKeyId: number
+    chainIds: string[]
+  }
 ): Promise<void> => {
   // Insert or update chain preferences.
   await env.DB.batch(
@@ -462,7 +480,7 @@ const setProfileChainPreferences = async (
         ON CONFLICT (profileId, chainId)
         DO UPDATE SET profilePublicKeyId = ?3, updatedAt = CURRENT_TIMESTAMP
         `
-      ).bind(profileId, chainId, publicKeyRowId)
+      ).bind(profileId, chainId, profilePublicKeyId)
     )
   )
 }

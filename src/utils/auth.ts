@@ -88,6 +88,7 @@ export const makeJwtAuthMiddleware =
           body.data.auth.publicKeyType,
           body.data.auth.publicKeyHex
         )
+        request.profilePublicKeyRowId = profileForPublicKey.profilePublicKeyId
       } else {
         // If public key auth does not match the profile, error.
         throw new KnownError(
@@ -144,7 +145,7 @@ export const signatureAuthMiddleware: RequestHandler<
       throw new KnownError(401, `Invalid nonce. Expected: ${INITIAL_NONCE}`)
     }
 
-    request.profile = await saveProfile(
+    const { profilePublicKeyId, ...profile } = await saveProfile(
       env,
       {
         // Increment nonce to prevent replay attacks.
@@ -152,10 +153,12 @@ export const signatureAuthMiddleware: RequestHandler<
       },
       {
         publicKey: request.publicKey,
-        // Create with the current chain preference.
+        // Create chain preference with the current chain used to sign.
         chainIds: [body.data.auth.chainId],
       }
     )
+    request.profile = profile
+    request.profilePublicKeyRowId = profilePublicKeyId
   }
   // If profile found, validate nonce and save.
   else {
@@ -167,7 +170,7 @@ export const signatureAuthMiddleware: RequestHandler<
       )
     }
 
-    request.profile = await saveProfile(
+    const { profilePublicKeyId, ...profile } = await saveProfile(
       env,
       {
         // Increment nonce to prevent replay attacks.
@@ -177,6 +180,13 @@ export const signatureAuthMiddleware: RequestHandler<
         publicKey: request.publicKey,
       }
     )
+    request.profile = profile
+    request.profilePublicKeyRowId = profilePublicKeyId
+  }
+
+  // Ensure profile public key exists. This should never happen.
+  if (!request.profilePublicKeyRowId) {
+    throw new KnownError(500, 'Failed to retrieve profile public key from DB.')
   }
 
   // Decrement nonce to match for the request handler.
