@@ -111,8 +111,8 @@ export type UpdateProfileRequest = {
   chainIds?: string[]
 }
 
-// Body of register public key request.
-export type RegisterPublicKeyRequest = {
+// Body of register public keys request.
+export type RegisterPublicKeysRequest = {
   /**
    * List of public key authorizations to register.
    */
@@ -132,8 +132,8 @@ export type RegisterPublicKeyRequest = {
   >[]
 }
 
-// Body of unregister public key request.
-export type UnregisterPublicKeyRequest = {
+// Body of unregister public keys request.
+export type UnregisterPublicKeysRequest = {
   publicKeys: PublicKeyJson[]
 }
 

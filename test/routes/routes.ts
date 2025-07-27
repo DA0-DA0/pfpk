@@ -6,12 +6,12 @@ import {
   FetchTokensResponse,
   InvalidateTokensRequest,
   NonceResponse,
-  RegisterPublicKeyRequest,
+  RegisterPublicKeysRequest,
   RequestBody,
   ResolveProfileResponse,
   SearchProfilesResponse,
   StatsResponse,
-  UnregisterPublicKeyRequest,
+  UnregisterPublicKeysRequest,
   UpdateProfileRequest,
 } from '../../src/types'
 
@@ -173,8 +173,8 @@ export const invalidateTokens = async (
   }
 }
 
-export const registerPublicKey = async (
-  data: RequestBody<RegisterPublicKeyRequest>,
+export const registerPublicKeys = async (
+  data: RequestBody<RegisterPublicKeysRequest>,
   token?: string
 ) => {
   const request = new Request(url('/register'), {
@@ -219,8 +219,8 @@ export const searchProfiles = async (chainId: string, namePrefix: string) => {
   }
 }
 
-export const unregisterPublicKey = async (
-  data: RequestBody<UnregisterPublicKeyRequest>,
+export const unregisterPublicKeys = async (
+  data: RequestBody<UnregisterPublicKeysRequest>,
   token?: string
 ) => {
   const request = new Request(url('/unregister'), {

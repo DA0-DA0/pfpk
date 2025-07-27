@@ -1,16 +1,12 @@
 import { RequestHandler } from 'itty-router'
 
 import { makePublicKey } from '../publicKeys'
-import {
-  AuthorizedRequest,
-  RegisterPublicKeyRequest,
-  RequestBody,
-} from '../types'
+import { AuthorizedRequest, RegisterPublicKeysRequest } from '../types'
 import { KnownError, addProfilePublicKey, getProfilePublicKeys } from '../utils'
 import { verifyRequestBodyAndGetPublicKey } from '../utils/auth'
 
 export const registerPublicKeys: RequestHandler<
-  AuthorizedRequest<RegisterPublicKeyRequest>
+  AuthorizedRequest<RegisterPublicKeysRequest>
 > = async (
   {
     validatedBody: {
@@ -24,30 +20,29 @@ export const registerPublicKeys: RequestHandler<
   const profilePublicKeys = await getProfilePublicKeys(env, profile.id)
 
   // Only validate public keys that do not already exist in the profile.
+  const toValidate = toRegister.filter(
+    (newKey) =>
+      !profilePublicKeys.some(
+        ({ publicKey }) =>
+          newKey.data.auth && publicKey.hex === newKey.data.auth.publicKeyHex
+      )
+  )
+
   try {
     await Promise.all(
-      toRegister
-        .filter(
-          (newKey) =>
-            !profilePublicKeys.some(
-              ({ publicKey }) => publicKey.hex === newKey.data.auth.publicKeyHex
-            )
-        )
-        .map((key) =>
-          verifyRequestBodyAndGetPublicKey(key as unknown as RequestBody)
-        )
+      toValidate.map((key) => verifyRequestBodyAndGetPublicKey(key))
     )
   } catch (err) {
     if (err instanceof KnownError) {
       throw err
     }
 
-    throw new KnownError(400, 'Failed to validate public keys', err)
+    throw new KnownError(500, 'Failed to validate public keys', err)
   }
 
   // Validate that all public keys being registered allow this profile to
   // register them.
-  if (toRegister.some((newKey) => newKey.data.allow !== profile.uuid)) {
+  if (toValidate.some((newKey) => newKey.data.allow !== profile.uuid)) {
     throw new KnownError(
       401,
       'Unauthorized',
@@ -56,7 +51,7 @@ export const registerPublicKeys: RequestHandler<
   }
 
   // Validate all nonces match the profile to prevent replay attacks.
-  if (toRegister.some((newKey) => newKey.data.auth.nonce !== profile.nonce)) {
+  if (toValidate.some((newKey) => newKey.data.auth.nonce !== profile.nonce)) {
     throw new KnownError(
       401,
       'Unauthorized',

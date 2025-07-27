@@ -14,8 +14,8 @@ import {
   fetchProfileViaPublicKey,
   fetchTokens,
   invalidateTokens,
-  registerPublicKey,
-  unregisterPublicKey,
+  registerPublicKeys,
+  unregisterPublicKeys,
   updateProfile,
 } from './routes'
 import {
@@ -25,9 +25,9 @@ import {
   InvalidateTokensRequest,
   JwtRole,
   ProfileUpdate,
-  RegisterPublicKeyRequest,
+  RegisterPublicKeysRequest,
   RequestBody,
-  UnregisterPublicKeyRequest,
+  UnregisterPublicKeysRequest,
   UpdateProfileRequest,
 } from '../../src/types'
 import { Chain, mustGetChain } from '../../src/utils'
@@ -118,9 +118,18 @@ export class TestUser {
 
   /**
    * Create a new JWT token for the user via wallet signature auth.
+   *
+   * @param chainId - Chain ID to authenticate for. Defaults to first chain.
    */
-  async authenticate(): Promise<CreateTokenResponse> {
-    const { body } = await createToken(await this.signRequestBody({}))
+  async authenticate(chainId?: string): Promise<CreateTokenResponse> {
+    const { body } = await createToken(
+      await this.signRequestBody(
+        {},
+        {
+          chainId,
+        }
+      )
+    )
     this._tokens = body.tokens
     return body
   }
@@ -235,7 +244,7 @@ export class TestUser {
       throw new Error('Profile not found.')
     }
 
-    const publicKeys: RegisterPublicKeyRequest['publicKeys'] =
+    const publicKeys: RegisterPublicKeysRequest['publicKeys'] =
       await Promise.all(
         chainIds.map((chainId) =>
           this.signRequestBody(
@@ -251,7 +260,7 @@ export class TestUser {
         )
       )
 
-    const request: RequestBody<RegisterPublicKeyRequest> =
+    const request: RequestBody<RegisterPublicKeysRequest> =
       await this.signRequestBody({
         publicKeys,
       })
@@ -260,7 +269,7 @@ export class TestUser {
       delete request.data.auth
     }
 
-    const { response, error } = await registerPublicKey(
+    const { response, error } = await registerPublicKeys(
       request,
       withToken ? this._tokens?.admin : undefined
     )
@@ -288,11 +297,11 @@ export class TestUser {
     withToken?: boolean
   }) {
     const profile = await this.fetchProfile()
-    const publicKeys: UnregisterPublicKeyRequest['publicKeys'] = [chainIds]
+    const publicKeys: UnregisterPublicKeysRequest['publicKeys'] = [chainIds]
       .flat()
       .flatMap((chainId) => profile.chains[chainId]?.publicKey ?? [])
 
-    const request: RequestBody<UnregisterPublicKeyRequest> =
+    const request: RequestBody<UnregisterPublicKeysRequest> =
       await this.signRequestBody({
         publicKeys,
       })
@@ -301,7 +310,7 @@ export class TestUser {
       delete request.data.auth
     }
 
-    const { response, error } = await unregisterPublicKey(
+    const { response, error } = await unregisterPublicKeys(
       request,
       withToken ? this._tokens?.admin : undefined
     )

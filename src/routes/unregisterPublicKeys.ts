@@ -1,7 +1,7 @@
 import { RequestHandler } from 'itty-router'
 
 import { PublicKeyBase, makePublicKeyFromJson } from '../publicKeys'
-import { AuthorizedRequest, UnregisterPublicKeyRequest } from '../types'
+import { AuthorizedRequest, UnregisterPublicKeysRequest } from '../types'
 import {
   KnownError,
   getProfilePublicKeys,
@@ -9,7 +9,7 @@ import {
 } from '../utils'
 
 export const unregisterPublicKeys: RequestHandler<
-  AuthorizedRequest<UnregisterPublicKeyRequest>
+  AuthorizedRequest<UnregisterPublicKeysRequest>
 > = async (
   {
     validatedBody: {
@@ -41,10 +41,6 @@ export const unregisterPublicKeys: RequestHandler<
   try {
     await removeProfilePublicKeys(env, profile.id, publicKeys)
   } catch (err) {
-    if (err instanceof KnownError) {
-      throw err
-    }
-
     console.error('Profile public key unregistration', profile.uuid, err)
     throw new KnownError(500, 'Failed to unregister profile public keys', err)
   }

@@ -523,6 +523,7 @@ export const removeProfilePublicKeys = async (
         PublicKeyBase.publicKeysEqual(publicKey, key)
       ) || []
   )
+
   await env.DB.batch(
     publicKeyRowsToDelete.map(({ row: { id } }) =>
       // Delete cascades to chain preferences.
