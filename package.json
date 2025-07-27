@@ -17,7 +17,7 @@
     "generate:types": "wrangler types"
   },
   "devDependencies": {
-    "@chain-registry/types": "^0.50.1",
+    "@chain-registry/types": "^0.50.181",
     "@cloudflare/vitest-pool-workers": "^0.8.57",
     "@types/crypto-js": "^4.1.1",
     "@types/secp256k1": "^4.0.6",
@@ -40,7 +40,7 @@
     "@cosmjs/crypto": "^0.34.0",
     "@cosmjs/encoding": "^0.34.0",
     "@tsndr/cloudflare-worker-jwt": "^3.2.0",
-    "chain-registry": "^1.69.4",
+    "chain-registry": "^1.69.289",
     "crypto-js": "^4.1.1",
     "graphql": "^16.8.1",
     "itty-router": "^5.0.18",

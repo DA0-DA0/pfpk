@@ -21,6 +21,10 @@ export const getFetchedProfileJsonForProfile = async (
     chains: {},
   }
 
+  // TODO: figure out what to do with chains that aren't in the registry. this
+  // causes registered chains not to be returned in the profile and then the
+  // frontend won't let the user edit their profile.
+
   // Get chains.
   const accountPerChain = (
     await getProfilePublicKeyPerChain(env, profileRow.id)

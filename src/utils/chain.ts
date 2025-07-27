@@ -34,6 +34,30 @@ const chains: Chain[] = [
     ...validChains.find((c) => c.chain_id === 'omniflixhub-1')!,
     chain_id: 'flixnet-4',
   },
+  {
+    chain_id: 'thorchain-stagenet-2',
+    bech32_prefix: 'sthor',
+    slip44: 931,
+    fee_denom: 'rune',
+  },
+  {
+    chain_id: 'luwak-1',
+    bech32_prefix: 'kopi',
+    slip44: 118,
+    fee_denom: 'ukopi',
+  },
+  {
+    chain_id: 'bbn-test-5',
+    bech32_prefix: 'bbn',
+    slip44: 118,
+    fee_denom: 'ubbn',
+  },
+  {
+    chain_id: 'ithaca-1',
+    bech32_prefix: 'odiseo',
+    slip44: 118,
+    fee_denom: 'uodis',
+  },
 ]
 
 /**
