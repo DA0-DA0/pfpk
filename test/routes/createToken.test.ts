@@ -70,7 +70,7 @@ describe('POST /token', () => {
     const user = await TestUser.create('neutron-1')
     const authBody = await user.signRequestBody({})
 
-    authBody.data.auth.publicKeyType = 'unsupported'
+    authBody.data.auth.publicKey.type = 'unsupported'
 
     const { response, error } = await createToken(authBody)
     expect(response.status).toBe(400)

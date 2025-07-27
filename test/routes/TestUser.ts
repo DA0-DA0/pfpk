@@ -249,7 +249,7 @@ export class TestUser {
         chainIds.map((chainId) =>
           this.signRequestBody(
             {
-              allow: profile.uuid,
+              allow: { uuid: profile.uuid },
               chainIds: [chainId],
             },
             {
@@ -387,8 +387,10 @@ export class TestUser {
         chainId,
         chainFeeDenom: chain.fee_denom || '',
         chainBech32Prefix: chain.bech32_prefix,
-        publicKeyType: '/cosmos.crypto.secp256k1.PubKey',
-        publicKeyHex: publicKey,
+        publicKey: {
+          type: '/cosmos.crypto.secp256k1.PubKey',
+          hex: publicKey,
+        },
         timestamp: Date.now(),
       },
     }

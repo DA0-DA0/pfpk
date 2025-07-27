@@ -119,9 +119,15 @@ export type RegisterPublicKeysRequest = {
   publicKeys: RequestBody<
     {
       /**
-       * Profile UUID that is allowed to register this public key.
+       * Profile UUID or public key that is allowed to register this public key.
        */
-      allow: string
+      allow:
+        | {
+            uuid: string
+          }
+        | {
+            publicKey: PublicKeyJson
+          }
       /**
        * Optionally use this public key as the preference for certain chains. If
        * undefined, no preferences set.
@@ -190,8 +196,7 @@ export type Auth = {
   chainId: string
   chainFeeDenom: string
   chainBech32Prefix: string
-  publicKeyType: string
-  publicKeyHex: string
+  publicKey: PublicKeyJson
 }
 
 export type RequestBody<

@@ -501,7 +501,7 @@ export const removeProfilePublicKeys = async (
   // keys will have access to it anymore and thus we need to free up the name.
   if (
     publicKeyRows.every(({ publicKey }) =>
-      publicKeys.some((key) => PublicKeyBase.publicKeysEqual(publicKey, key))
+      publicKeys.some((key) => PublicKeyBase.equal(publicKey, key))
     )
   ) {
     // Delete cascades to public keys and chain preferences.
@@ -520,7 +520,7 @@ export const removeProfilePublicKeys = async (
   const publicKeyRowsToDelete = publicKeys.flatMap(
     (key) =>
       publicKeyRows.find(({ publicKey }) =>
-        PublicKeyBase.publicKeysEqual(publicKey, key)
+        PublicKeyBase.equal(publicKey, key)
       ) || []
   )
 

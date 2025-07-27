@@ -1,6 +1,6 @@
 import { RequestHandler } from 'itty-router'
 
-import { makePublicKey } from '../publicKeys'
+import { PublicKeyBase, makePublicKey } from '../publicKeys'
 import { AuthorizedRequest, RegisterPublicKeysRequest } from '../types'
 import { KnownError, addProfilePublicKey, getProfilePublicKeys } from '../utils'
 import { verifyRequestBodyAndGetPublicKey } from '../utils/auth'
@@ -24,7 +24,8 @@ export const registerPublicKeys: RequestHandler<
     (newKey) =>
       !profilePublicKeys.some(
         ({ publicKey }) =>
-          newKey.data.auth && publicKey.hex === newKey.data.auth.publicKeyHex
+          newKey.data.auth &&
+          PublicKeyBase.equal(publicKey, newKey.data.auth.publicKey)
       )
   )
 
@@ -42,11 +43,21 @@ export const registerPublicKeys: RequestHandler<
 
   // Validate that all public keys being registered allow this profile to
   // register them.
-  if (toValidate.some((newKey) => newKey.data.allow !== profile.uuid)) {
+  if (
+    !toValidate.every((newKey) =>
+      'uuid' in newKey.data.allow
+        ? newKey.data.allow.uuid === profile.uuid
+        : profilePublicKeys.some(
+            ({ publicKey }) =>
+              'publicKey' in newKey.data.allow &&
+              PublicKeyBase.equal(publicKey, newKey.data.allow.publicKey)
+          )
+    )
+  ) {
     throw new KnownError(
       401,
       'Unauthorized',
-      `Invalid allowed profile UUID, expected: ${profile.uuid}.`
+      `Invalid allowed profile, expected UUID: ${profile.uuid}.`
     )
   }
 
@@ -63,7 +74,7 @@ export const registerPublicKeys: RequestHandler<
   const publicKeysToAdd = Object.entries(
     toRegister.reduce(
       (acc, { data }) => {
-        const key = `${data.auth.publicKeyType}:${data.auth.publicKeyHex}`
+        const key = `${data.auth.publicKey.type}:${data.auth.publicKey.hex}`
         const existing = acc[key] || new Set<string>()
 
         // If no chains passed, default to the chain used to sign.

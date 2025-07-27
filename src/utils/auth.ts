@@ -10,7 +10,7 @@ import {
 import { KnownError } from './error'
 import { verifyJwt } from './jwt'
 import { objectMatchesStructure } from './objectMatchesStructure'
-import { makePublicKey } from '../publicKeys'
+import { makePublicKeyFromJson } from '../publicKeys'
 import { AuthorizedRequest, JwtRole, PublicKey, RequestBody } from '../types'
 
 export const INITIAL_NONCE = 0
@@ -79,15 +79,12 @@ export const makeJwtAuthMiddleware =
     if (body.data.auth) {
       const profileForPublicKey = await getProfileFromPublicKeyHex(
         env,
-        body.data.auth.publicKeyHex
+        body.data.auth.publicKey.hex
       )
 
       if (profileForPublicKey?.id === profile.id) {
         // If auth matches the profile, validate public key and add to request.
-        request.publicKey = makePublicKey(
-          body.data.auth.publicKeyType,
-          body.data.auth.publicKeyHex
-        )
+        request.publicKey = makePublicKeyFromJson(body.data.auth.publicKey)
         request.profilePublicKeyRowId = profileForPublicKey.profilePublicKeyId
       } else {
         // If public key auth does not match the profile, error.
@@ -241,8 +238,10 @@ export const verifyRequestBodyAndGetPublicKey = async (
           chainId: {},
           chainFeeDenom: {},
           chainBech32Prefix: {},
-          publicKeyType: {},
-          publicKeyHex: {},
+          publicKey: {
+            type: {},
+            hex: {},
+          },
         },
       },
       signature: {},
@@ -262,10 +261,7 @@ export const verifyRequestBodyAndGetPublicKey = async (
   }
 
   // Validate public key.
-  const publicKey = makePublicKey(
-    body.data.auth.publicKeyType,
-    body.data.auth.publicKeyHex
-  )
+  const publicKey = makePublicKeyFromJson(body.data.auth.publicKey)
 
   // Validate signature.
   if (!(await verifySignature(publicKey, body))) {

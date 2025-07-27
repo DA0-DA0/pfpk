@@ -27,7 +27,7 @@ export const unregisterPublicKeys: RequestHandler<
     publicKeys.some(
       (key) =>
         !profilePublicKeys.some(({ publicKey }) =>
-          PublicKeyBase.publicKeysEqual(publicKey, key)
+          PublicKeyBase.equal(publicKey, key)
         )
     )
   ) {

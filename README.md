@@ -90,34 +90,34 @@ The returned type is:
 
 ```ts
 type FetchProfileResponse = {
-  uuid: string;
-  nonce: number;
-  name: string | null;
+  uuid: string
+  nonce: number
+  name: string | null
   nft: {
-    chainId: string;
-    collectionAddress: string;
-    tokenId: string;
-    imageUrl: string;
-  } | null;
+    chainId: string
+    collectionAddress: string
+    tokenId: string
+    imageUrl: string
+  } | null
   chains: Record<
     string,
     {
       publicKey: {
-        type: string;
-        hex: string;
+        type: string
+        hex: string
       }
-      address: string;
+      address: string
     }
-  >;
-};
+  >
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type FetchProfileResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route checks that the given public key is attached to a profile, verifies
@@ -161,27 +161,29 @@ The expected request body type is:
 type UpdateProfileRequest = {
   data: {
     profile: {
-      nonce: number;
-      name?: string | null;
+      nonce: number
+      name?: string | null
       nft?: {
-        chainId: string;
-        collectionAddress: string;
-        tokenId: string;
-      } | null;
-    };
-    chainIds?: string[];
+        chainId: string
+        collectionAddress: string
+        tokenId: string
+      } | null
+    }
+    chainIds?: string[]
     auth: {
-      type: string;
-      nonce: number;
-      chainId: string;
-      chainFeeDenom: string;
-      chainBech32Prefix: string;
-      publicKeyType: string;
-      publicKeyHex: string;
-    };
-  };
-  signature: string;
-};
+      type: string
+      nonce: number
+      chainId: string
+      chainFeeDenom: string
+      chainBech32Prefix: string
+      publicKey: {
+        type: string
+        hex: string
+      }
+    }
+  }
+  signature: string
+}
 ```
 
 The successful response is a 204 status code.
@@ -191,8 +193,8 @@ contains an error message:
 
 ```ts
 type UpdateProfileResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets the user perform partial updates to their existing profile, or
@@ -226,32 +228,45 @@ type RegisterPublicKeyRequest = {
   data: {
     publicKeys: {
       data: {
-        allow: string;
-        chainIds?: string[];
+        allow:
+          | {
+              uuid: string
+            }
+          | {
+              publicKey: {
+                type: string
+                hex: string
+              }
+            }
+        chainIds?: string[]
         auth: {
-          type: string;
-          nonce: number;
-          chainId: string;
-          chainFeeDenom: string;
-          chainBech32Prefix: string;
-          publicKeyType: string;
-          publicKeyHex: string;
-        };
-      };
-      signature: string;
-    }[];
+          type: string
+          nonce: number
+          chainId: string
+          chainFeeDenom: string
+          chainBech32Prefix: string
+          publicKey: {
+            type: string
+            hex: string
+          }
+        }
+      }
+      signature: string
+    }[]
     auth: {
-      type: string;
-      nonce: number;
-      chainId: string;
-      chainFeeDenom: string;
-      chainBech32Prefix: string;
-      publicKeyType: string;
-      publicKeyHex: string;
-    };
-  };
-  signature: string;
-};
+      type: string
+      nonce: number
+      chainId: string
+      chainFeeDenom: string
+      chainBech32Prefix: string
+      publicKey: {
+        type: string
+        hex: string
+      }
+    }
+  }
+  signature: string
+}
 ```
 
 The successful response is a 204 status code.
@@ -261,8 +276,8 @@ contains an error message:
 
 ```ts
 type RegisterPublicKeyResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets the user register public keys for their profile and/or set chain
@@ -321,17 +336,19 @@ type UnregisterPublicKeyRequest = {
       hex: string
     }[]
     auth: {
-      type: string;
-      nonce: number;
-      chainId: string;
-      chainFeeDenom: string;
-      chainBech32Prefix: string;
-      publicKeyType: string;
-      publicKeyHex: string;
-    };
-  };
-  signature: string;
-};
+      type: string
+      nonce: number
+      chainId: string
+      chainFeeDenom: string
+      chainBech32Prefix: string
+      publicKey: {
+        type: string
+        hex: string
+      }
+    }
+  }
+  signature: string
+}
 ```
 
 The successful response is a 204 status code.
@@ -341,8 +358,8 @@ contains an error message:
 
 ```ts
 type UnregisterPublicKeyResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets the user unregister public keys from their profile.
@@ -368,29 +385,29 @@ The returned type is:
 ```ts
 type SearchProfilesResponse = {
   profiles: Array<{
-    uuid: string | null;
+    uuid: string | null
     publicKey: {
-      type: string;
-      hex: string;
-    };
-    address: string;
-    name: string | null;
+      type: string
+      hex: string
+    }
+    address: string
+    name: string | null
     nft: {
-      chainId: string;
-      collectionAddress: string;
-      tokenId: string;
-      imageUrl: string;
-    } | null;
-  }>;
-};
+      chainId: string
+      collectionAddress: string
+      tokenId: string
+      imageUrl: string
+    } | null
+  }>
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type SearchProfilesResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets you search for profiles with names that have a given prefix. It
@@ -408,29 +425,29 @@ The returned type is:
 ```ts
 type ResolveProfileResponse = {
   resolved: {
-    uuid: string;
+    uuid: string
     publicKey: {
-      type: string;
-      hex: string;
-    };
-    address: string;
-    name: string | null;
+      type: string
+      hex: string
+    }
+    address: string
+    name: string | null
     nft: {
-      chainId: string;
-      collectionAddress: string;
-      tokenId: string;
-      imageUrl: string;
-    } | null;
-  } | null;
-};
+      chainId: string
+      collectionAddress: string
+      tokenId: string
+      imageUrl: string
+    } | null
+  } | null
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type ResolveProfileResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets you resolve a profile from its name.
@@ -443,14 +460,14 @@ The returned type is:
 
 ```ts
 type StatsResponse = {
-  total: number;
-};
+  total: number
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type StatsResponse = {
-  error: string;
-};
+  error: string
+}
 ```

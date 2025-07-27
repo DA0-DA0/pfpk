@@ -26,7 +26,7 @@ export abstract class PublicKeyBase implements PublicKey {
     return toBech32(bech32Prefix, fromHex(this.addressHex))
   }
 
-  static publicKeysEqual(a: PublicKeyJson, b: PublicKeyJson): boolean {
+  static equal(a: PublicKeyJson, b: PublicKeyJson): boolean {
     return a.type === b.type && a.hex === b.hex
   }
 }

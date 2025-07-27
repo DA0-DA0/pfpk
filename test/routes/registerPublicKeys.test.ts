@@ -10,9 +10,9 @@ import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1Pu
 const chainIds = ['neutron-1', 'cosmoshub-4', 'phoenix-1']
 
 describe('POST /register', () => {
-  it('returns 204 and registers public keys', async () => {
+  it('returns 204 and registers public keys via UUID allow', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate()
+    await user.authenticate(chainIds[0])
     const { uuid, nonce } = await user.fetchProfile()
 
     const { response } = await registerPublicKeys(
@@ -21,7 +21,7 @@ describe('POST /register', () => {
           publicKeys: [
             await user.signRequestBody(
               {
-                allow: uuid,
+                allow: { uuid },
                 chainIds: [chainIds[1]],
               },
               {
@@ -31,7 +31,72 @@ describe('POST /register', () => {
             ),
             await user.signRequestBody(
               {
-                allow: uuid,
+                allow: { uuid },
+                chainIds: [chainIds[2]],
+              },
+              {
+                chainId: chainIds[2],
+                nonce,
+              }
+            ),
+          ],
+        },
+        {
+          chainId: chainIds[0],
+          nonce,
+        }
+      )
+    )
+    expect(response.status).toBe(204)
+
+    const profile = await user.fetchProfile()
+    expect(profile.chains).toEqual(
+      Object.fromEntries(
+        chainIds.map((chainId) => [
+          chainId,
+          {
+            publicKey: {
+              type: CosmosSecp256k1PublicKey.type,
+              hex: user.getPublicKey(chainId),
+            },
+            address: user.getAddress(chainId),
+          },
+        ])
+      )
+    )
+  })
+
+  it('returns 204 and registers public keys via public key allow', async () => {
+    const user = await TestUser.create(...chainIds)
+    const { nonce } = await user.fetchProfile()
+
+    const { response } = await registerPublicKeys(
+      await user.signRequestBody(
+        {
+          publicKeys: [
+            await user.signRequestBody(
+              {
+                allow: {
+                  publicKey: {
+                    type: CosmosSecp256k1PublicKey.type,
+                    hex: user.getPublicKey(chainIds[0]),
+                  },
+                },
+                chainIds: [chainIds[1]],
+              },
+              {
+                chainId: chainIds[1],
+                nonce,
+              }
+            ),
+            await user.signRequestBody(
+              {
+                allow: {
+                  publicKey: {
+                    type: CosmosSecp256k1PublicKey.type,
+                    hex: user.getPublicKey(chainIds[0]),
+                  },
+                },
                 chainIds: [chainIds[2]],
               },
               {
@@ -93,7 +158,7 @@ describe('POST /register', () => {
             await user.signRequestBody(
               {
                 // Allow neutron-1 profile to register this public key.
-                allow: neutronUuid,
+                allow: { uuid: neutronUuid },
                 chainIds: ['phoenix-1'],
               },
               {
@@ -164,7 +229,7 @@ describe('POST /register', () => {
     // registered.
     const cosmosHubBodyNoSignature = await user.signRequestBody(
       {
-        allow: uuid,
+        allow: { uuid },
         chainIds: ['cosmoshub-4'],
       },
       {
@@ -213,7 +278,7 @@ describe('POST /register', () => {
             {
               ...(await user.signRequestBody(
                 {
-                  allow: uuid,
+                  allow: { uuid },
                   chainIds: ['phoenix-1'],
                 },
                 {
@@ -235,7 +300,7 @@ describe('POST /register', () => {
     expect(error).toBe('Unauthorized: Invalid signature.')
   })
 
-  it('returns 401 if allow is invalid', async () => {
+  it('returns 401 if allow UUID is invalid', async () => {
     const user = await TestUser.create(...chainIds)
     await user.authenticate('neutron-1')
     const { uuid, nonce } = await user.fetchProfile()
@@ -246,7 +311,7 @@ describe('POST /register', () => {
           publicKeys: [
             await user.signRequestBody(
               {
-                allow: 'invalid',
+                allow: { uuid: 'invalid' },
                 chainIds: ['phoenix-1'],
               },
               {
@@ -264,8 +329,47 @@ describe('POST /register', () => {
     )
     expect(response.status).toBe(401)
     expect(error).toBe(
-      `Unauthorized: Invalid allowed profile UUID, expected: ${uuid}.`
+      `Unauthorized: Invalid allowed profile, expected UUID: ${uuid}.`
     )
+  })
+
+  it('returns 401 if allow public key is invalid', async () => {
+    const user = await TestUser.create(...chainIds)
+    const { nonce } = await user.fetchProfile()
+
+    const { response, error } = await registerPublicKeys(
+      await user.signRequestBody(
+        {
+          publicKeys: [
+            await user.signRequestBody(
+              {
+                allow: {
+                  publicKey: {
+                    type: CosmosSecp256k1PublicKey.type,
+                    hex: 'invalid',
+                  },
+                },
+                chainIds: ['phoenix-1'],
+              },
+              {
+                chainId: 'phoenix-1',
+                nonce,
+              }
+            ),
+          ],
+        },
+        {
+          chainId: 'neutron-1',
+          nonce,
+        }
+      )
+    )
+    expect(response.status).toBe(401)
+    expect(
+      error?.startsWith(
+        'Unauthorized: Invalid allowed profile, expected UUID: '
+      )
+    ).toBe(true)
   })
 
   it('returns 401 if nonce is invalid', async () => {
@@ -279,7 +383,7 @@ describe('POST /register', () => {
           publicKeys: [
             await user.signRequestBody(
               {
-                allow: uuid,
+                allow: { uuid },
                 chainIds: ['phoenix-1'],
               },
               {
