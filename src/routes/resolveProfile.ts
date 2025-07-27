@@ -23,7 +23,7 @@ export const resolveProfile: RequestHandler = async (
     throw new KnownError(400, 'Missing name.')
   }
 
-  const chain = await getChain(chainId)
+  const chain = getChain(chainId)
   if (!chain) {
     throw new KnownError(400, 'Unknown chainId.')
   }

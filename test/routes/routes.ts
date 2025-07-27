@@ -206,7 +206,7 @@ export const resolveProfile = async (chainId: string, name: string) => {
   }
 }
 
-export const searchProfile = async (chainId: string, namePrefix: string) => {
+export const searchProfiles = async (chainId: string, namePrefix: string) => {
   const request = new Request(url(`/search/${chainId}/${namePrefix}`), {
     method: 'GET',
   })
