@@ -9,8 +9,8 @@ describe('DELETE /tokens', () => {
     const user = await TestUser.create('neutron-1')
 
     // create 2 tokens
-    const tokenToDelete = await user.authenticate()
-    await user.authenticate()
+    const [tokenToDelete] = await user.createTokens()
+    await user.createTokens()
 
     // should have 2 tokens
     let tokens = await user.fetchTokens()
@@ -48,9 +48,7 @@ describe('DELETE /tokens', () => {
     const user = await TestUser.create('neutron-1')
 
     // create 3 tokens
-    await user.authenticate()
-    await user.authenticate()
-    await user.authenticate()
+    await user.createTokens({ tokens: [{}, {}, {}] })
 
     // should have 3 tokens
     let tokens = await user.fetchTokens()
@@ -81,8 +79,8 @@ describe('DELETE /tokens', () => {
     const user1 = await TestUser.create('neutron-1')
     const user2 = await TestUser.create('neutron-1')
 
-    await user1.authenticate()
-    const { id: user2TokenId } = await user2.authenticate()
+    await user1.createTokens()
+    const [{ id: user2TokenId }] = await user2.createTokens()
 
     // both tokens work
     expect(await user1.fetchAuthenticated()).toBe(true)
@@ -103,7 +101,7 @@ describe('DELETE /tokens', () => {
 
   it('returns 401 for non-admin token', async () => {
     const user = await TestUser.create('neutron-1')
-    const { id } = await user.authenticate()
+    const [{ id }] = await user.createTokens()
 
     const { response, error } = await invalidateTokens(
       {

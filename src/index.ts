@@ -1,6 +1,6 @@
 import { Router, cors, json, text } from 'itty-router'
 
-import { createToken } from './routes/createToken'
+import { createTokens } from './routes/createTokens'
 import { fetchAuthenticated } from './routes/fetchAuthenticated'
 import { fetchMe } from './routes/fetchMe'
 import { fetchNonce } from './routes/fetchNonce'
@@ -69,8 +69,8 @@ router
 
 // Token stuff
 router
-  // Create JWT token via wallet auth.
-  .post('/token', signatureAuthMiddleware, createToken)
+  // Create JWT token(s) via wallet auth.
+  .post('/tokens', signatureAuthMiddleware, createTokens)
   // Fetch tokens for profile (only JWT auth since GET cannot have a body).
   .get('/tokens', makeJwtAuthMiddleware(JwtRole.Admin), fetchTokens)
   // Invalidate tokens.

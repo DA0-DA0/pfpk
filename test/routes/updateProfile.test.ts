@@ -62,7 +62,7 @@ describe('POST /me', () => {
 
   it('returns 204 and updates profile via JWT auth admin token', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     const initialProfile = await user.fetchProfile()
     expect(initialProfile).toEqual({
@@ -151,7 +151,7 @@ describe('POST /me', () => {
 
   it('returns 204 and sets chain preferences for existing profile', async () => {
     const user = await TestUser.create('neutron-1', 'cosmoshub-4')
-    await user.authenticate({ chainId: 'neutron-1' })
+    await user.createTokens({ chainId: 'neutron-1' })
 
     const { response } = await updateProfile(
       await user.signRequestBody(
@@ -188,7 +188,7 @@ describe('POST /me', () => {
 
   it('returns 400 if chains are provided but no public key auth is provided', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     const { response, error } = await updateProfile(
       {
@@ -327,7 +327,7 @@ describe('POST /me', () => {
 
   it('returns 405 if no public key for the NFT chain is provided', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     // use auth token, providing no public key in auth data
     const { response, error } = await updateProfile(
@@ -412,7 +412,7 @@ describe('POST /me', () => {
 
   it('returns 401 for non-admin token', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     const { response, error } = await updateProfile(
       {
@@ -430,7 +430,7 @@ describe('POST /me', () => {
 
   it('returns 400 for invalid body even if token is valid', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     const { response, error } = await updateProfile(
       null as any,
@@ -446,7 +446,7 @@ describe('POST /me', () => {
   it('returns 401 for mismatched token and public key auth', async () => {
     const user = await TestUser.create('neutron-1')
     const user2 = await TestUser.create('phoenix-1')
-    await user.authenticate({ chainId: 'neutron-1' })
+    await user.createTokens({ chainId: 'neutron-1' })
 
     // Sign with user2 but use user1's token.
     const { response, error } = await updateProfile(

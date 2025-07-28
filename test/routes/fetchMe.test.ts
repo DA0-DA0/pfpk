@@ -8,7 +8,7 @@ import { TestUser } from '../TestUser'
 describe('GET /me', () => {
   it('returns 200 for valid public key', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     // verify token should work
     const { response, body } = await fetchMe(user.tokens.verify)

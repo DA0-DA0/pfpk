@@ -13,7 +13,7 @@ const chainIds = ['neutron-1', 'cosmoshub-4', 'phoenix-1']
 describe('POST /unregister', () => {
   it('returns 204 and unregisters public keys', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({ chainId: 'neutron-1' })
+    await user.createTokens({ chainId: 'neutron-1' })
     await user.registerPublicKeys({ chainIds })
     const { uuid } = await user.fetchProfile()
 
@@ -73,7 +73,7 @@ describe('POST /unregister', () => {
 
   it('returns 204 and unregisters public keys with JWT auth admin token', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({ chainId: 'neutron-1' })
+    await user.createTokens({ chainId: 'neutron-1' })
     await user.registerPublicKeys({ chainIds })
     const { uuid } = await user.fetchProfile()
 
@@ -136,7 +136,7 @@ describe('POST /unregister', () => {
 
   it('returns 401 if public keys are not attached to the profile', async () => {
     const user = await TestUser.create('neutron-1', 'phoenix-1')
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
 
@@ -158,7 +158,7 @@ describe('POST /unregister', () => {
 
   it('deletes profile if all public keys are unregistered', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate()
+    await user.createTokens()
     await user.registerPublicKeys({ chainIds })
 
     // Unregister all public keys.
@@ -204,7 +204,7 @@ describe('POST /unregister', () => {
 
   it('returns 401 for non-admin token', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({ chainId: 'neutron-1' })
+    await user.createTokens({ chainId: 'neutron-1' })
     await user.registerPublicKeys({ chainIds })
 
     // Unregister public key for cosmoshub-4, which is the same as neutron-1.

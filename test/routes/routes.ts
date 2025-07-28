@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
 
 import {
-  CreateTokenRequest,
-  CreateTokenResponse,
+  CreateTokensRequest,
+  CreateTokensResponse,
   FetchProfileResponse,
   FetchTokensResponse,
   InvalidateTokensRequest,
@@ -23,10 +23,10 @@ const url = (
 ) =>
   BASE_URL + path + (query ? `?${new URLSearchParams(query).toString()}` : '')
 
-export const createToken = async (
-  data?: RequestBody<CreateTokenRequest, true>
+export const createTokens = async (
+  data?: RequestBody<CreateTokensRequest, true>
 ) => {
-  const request = new Request(url('/token'), {
+  const request = new Request(url('/tokens'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ export const createToken = async (
   const body = await response.json<any>()
   return {
     response,
-    body: body as CreateTokenResponse,
+    body: body as CreateTokensResponse,
     error: body.error as string | undefined,
   }
 }

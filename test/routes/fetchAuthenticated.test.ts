@@ -6,7 +6,7 @@ import { TestUser } from '../TestUser'
 describe('GET /auth', () => {
   it('returns 204 if authenticated', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     // both tokens should be valid
     expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
@@ -19,8 +19,12 @@ describe('GET /auth', () => {
 
   it('returns 204 if token has audiences but none are required', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate({
-      audience: ['pfpk.test', 'daodao.zone'],
+    await user.createTokens({
+      tokens: [
+        {
+          audience: ['pfpk.test', 'daodao.zone'],
+        },
+      ],
     })
 
     // both tokens should be valid
@@ -34,8 +38,12 @@ describe('GET /auth', () => {
 
   it('returns 204 with matching audience', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate({
-      audience: ['pfpk.test', 'daodao.zone'],
+    await user.createTokens({
+      tokens: [
+        {
+          audience: ['pfpk.test', 'daodao.zone'],
+        },
+      ],
     })
 
     expect(
@@ -83,8 +91,12 @@ describe('GET /auth', () => {
 
   it('returns 401 with mismatched audience', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate({
-      audience: ['pfpk.test', 'daodao.zone'],
+    await user.createTokens({
+      tokens: [
+        {
+          audience: ['pfpk.test', 'daodao.zone'],
+        },
+      ],
     })
 
     const { response, error } = await fetchAuthenticated(user.tokens.verify, {
@@ -98,7 +110,7 @@ describe('GET /auth', () => {
 
   it('returns 401 with no audience', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     const { response, error } = await fetchAuthenticated(user.tokens.verify, {
       query: {
@@ -117,7 +129,7 @@ describe('GET /auth', () => {
 
   it('returns 401 if not Bearer type', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     const { response, error } = await fetchAuthenticated(undefined, {
       headers: {
@@ -148,7 +160,7 @@ describe('GET /auth', () => {
 
   it('returns 401 if token expired after 14 days', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     // advance time by 1 second less than 14 days
     vi.useFakeTimers()
@@ -181,7 +193,7 @@ describe('GET /auth', () => {
 
   it('returns 404 if no profile found for valid token', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.createTokens()
 
     // remove a profile by removing its only public key
     await user.unregisterPublicKeys({

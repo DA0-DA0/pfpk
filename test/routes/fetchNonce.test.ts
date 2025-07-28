@@ -26,7 +26,7 @@ describe('GET /nonce/:publicKey', () => {
     expect(nonce2).toBe(nonce + 1)
 
     // create token with signature auth, incrementing nonce
-    await user.authenticate()
+    await user.createTokens()
 
     // nonce should be incremented again
     const nonce3 = await user.fetchNonce()

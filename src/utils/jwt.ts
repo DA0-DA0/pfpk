@@ -5,19 +5,20 @@ import { objectMatchesStructure } from './objectMatchesStructure'
 import { JwtPayload, JwtRole } from '../types'
 
 /**
- * Create a JWT token pair (one read, one write).
+ * Create a JWT token set for each role.
  *
  * @param env - The environment.
  * @param options - The options to create the JWT token.
  * @returns The signed JWT tokens, token UUID, issued at timestamp, and
  * expiration timestamp.
  */
-export const createJwt = async (
+export const createJwtSet = async (
   env: Env,
   {
     profileUuid,
     audience,
-    expiresIn,
+    expiresInSeconds,
+    issuedAt: issuedAtDate = new Date(),
   }: {
     /**
      * UUID of the profile.
@@ -30,7 +31,11 @@ export const createJwt = async (
     /**
      * Expires in seconds.
      */
-    expiresIn: number
+    expiresInSeconds: number
+    /**
+     * Optionally set issuedAt timestamp. Defaults to now.
+     */
+    issuedAt?: Date
   }
 ): Promise<{
   uuid: string
@@ -38,9 +43,9 @@ export const createJwt = async (
   expiresAt: number
   tokens: Record<JwtRole, string>
 }> => {
-  const issuedAt = Math.floor(Date.now() / 1000)
+  const issuedAt = Math.floor(issuedAtDate.getTime() / 1000)
   const uuid = await crypto.randomUUID()
-  const expiresAt = issuedAt + expiresIn
+  const expiresAt = issuedAt + expiresInSeconds
 
   const tokens = Object.fromEntries(
     await Promise.all(

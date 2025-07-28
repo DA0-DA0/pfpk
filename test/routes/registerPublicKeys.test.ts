@@ -12,7 +12,7 @@ const chainIds = ['neutron-1', 'cosmoshub-4', 'phoenix-1']
 describe('POST /register', () => {
   it('returns 204 and registers public keys via UUID allow', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({
+    await user.createTokens({
       chainId: chainIds[0],
     })
     const { uuid, nonce } = await user.fetchProfile()
@@ -135,7 +135,7 @@ describe('POST /register', () => {
 
   it('returns 204 with JWT auth admin token', async () => {
     const user = await TestUser.create('neutron-1', 'phoenix-1')
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
     const { uuid, nonce } = await user.fetchProfile()
@@ -186,10 +186,10 @@ describe('POST /register', () => {
 
     // Create tokens with different public keys to create two different
     // profiles, without merging them.
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'phoenix-1',
     })
 
@@ -264,7 +264,7 @@ describe('POST /register', () => {
 
   it('does not need internal signature if registering already-registered public keys', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
     const { uuid, nonce, chains } = await user.fetchProfile()
@@ -324,7 +324,7 @@ describe('POST /register', () => {
 
   it('returns 401 for non-admin token', async () => {
     const user = await TestUser.create('neutron-1', 'phoenix-1')
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
     const { uuid, nonce } = await user.fetchProfile()
@@ -354,7 +354,7 @@ describe('POST /register', () => {
 
   it('returns 401 if new public key nested auth is invalid', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
     const { uuid, nonce } = await user.fetchProfile()
@@ -390,7 +390,7 @@ describe('POST /register', () => {
 
   it('returns 401 if allow UUID is invalid', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
     const { uuid, nonce } = await user.fetchProfile()
@@ -464,7 +464,7 @@ describe('POST /register', () => {
 
   it('returns 401 if nonce is invalid', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate({
+    await user.createTokens({
       chainId: 'neutron-1',
     })
     const { uuid, nonce } = await user.fetchProfile()

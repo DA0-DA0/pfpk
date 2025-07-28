@@ -7,7 +7,7 @@ import { stringToPath as stringToHdPath } from '@cosmjs/crypto'
 import { fromBech32, toHex } from '@cosmjs/encoding'
 
 import {
-  createToken,
+  createTokens,
   fetchAuthenticated,
   fetchMe,
   fetchNonce,
@@ -20,8 +20,8 @@ import {
 } from './routes/routes'
 import { CosmosSecp256k1PublicKey } from '../src/publicKeys/CosmosSecp256k1PublicKey'
 import {
-  CreateTokenRequest,
-  CreateTokenResponse,
+  CreateTokensRequest,
+  CreateTokensResponse,
   FetchProfileResponse,
   FetchTokensResponse,
   InvalidateTokensRequest,
@@ -119,31 +119,30 @@ export class TestUser {
   }
 
   /**
-   * Create a new JWT token for the user via wallet signature auth.
+   * Create a new JWT token or tokens for the user via wallet signature auth. By
+   * default creates a single token.
    *
    * @param chainId - Chain ID to authenticate for. Defaults to first chain.
    */
-  async authenticate({
+  async createTokens({
     chainId,
     ...request
-  }: CreateTokenRequest & {
+  }: CreateTokensRequest & {
     chainId?: string
-  } = {}): Promise<CreateTokenResponse> {
-    const { body } = await createToken(
-      await this.signRequestBody(request, {
-        chainId,
-      })
+  } = {}): Promise<CreateTokensResponse['tokens']> {
+    const { body } = await createTokens(
+      await this.signRequestBody(request, { chainId })
     )
-    this._tokens = body.tokens
-    return body
+    this._tokens = body.tokens[0].tokens
+    return body.tokens
   }
 
   /**
    * Fetch whether or not the user is authenticated.
    */
   async fetchAuthenticated(): Promise<boolean> {
-    const token = (this._tokens || (await this.authenticate()).tokens).verify
-    const { response } = await fetchAuthenticated(token)
+    this._tokens ??= (await this.createTokens())[0].tokens
+    const { response } = await fetchAuthenticated(this.tokens.verify)
     return response.status === 204
   }
 
@@ -151,8 +150,8 @@ export class TestUser {
    * Fetch the authenticated user's profile.
    */
   async fetchMe(): Promise<FetchProfileResponse> {
-    const token = (this._tokens || (await this.authenticate()).tokens).verify
-    const { body } = await fetchMe(token)
+    this._tokens ??= (await this.createTokens())[0].tokens
+    const { body } = await fetchMe(this.tokens.verify)
     return body
   }
 
@@ -183,10 +182,10 @@ export class TestUser {
    * Fetch the tokens created during authentications.
    */
   async fetchTokens(): Promise<FetchTokensResponse['tokens']> {
-    const token = (this._tokens || (await this.authenticate()).tokens).admin
+    this._tokens ??= (await this.createTokens())[0].tokens
     const {
       body: { tokens },
-    } = await fetchTokens(token)
+    } = await fetchTokens(this.tokens.admin)
     return tokens
   }
 

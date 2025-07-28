@@ -558,41 +558,37 @@ export const getTokenForProfile = async (
 }
 
 /**
- * Save token ID to a profile.
+ * Save tokens to a profile.
  */
-export const saveTokenIdToProfile = async (
+export const saveTokensToProfile = async (
   env: Env,
-  {
-    profileId,
-    tokenUuid,
-    name,
-    audience,
-    expiresAt,
-    issuedAt,
-  }: {
+  tokens: {
     profileId: number
     tokenUuid: string
     name?: string | null
     audience?: string[] | null
     expiresAt: number
     issuedAt: number
-  }
+  }[]
 ) => {
-  await env.DB.prepare(
-    `
-    INSERT INTO profile_tokens (profileId, uuid, name, audience, expiresAt, createdAt, updatedAt)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
-    `
-  )
-    .bind(
-      profileId,
-      tokenUuid,
-      name || null,
-      audience?.length ? JSON.stringify(audience) : null,
-      expiresAt,
-      issuedAt
+  await env.DB.batch(
+    tokens.map(
+      ({ profileId, tokenUuid, name, audience, expiresAt, issuedAt }) =>
+        env.DB.prepare(
+          `
+          INSERT INTO profile_tokens (profileId, uuid, name, audience, expiresAt, createdAt, updatedAt)
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
+          `
+        ).bind(
+          profileId,
+          tokenUuid,
+          name || null,
+          audience?.length ? JSON.stringify(audience) : null,
+          expiresAt,
+          issuedAt
+        )
     )
-    .run()
+  )
 }
 
 /**

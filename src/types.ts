@@ -184,15 +184,22 @@ export type ResolveProfileResponse = {
   resolved: ResolvedProfile
 }
 
-export type CreateTokenRequest = {
-  name?: string
-  audience?: string[]
+export type CreateTokensRequest = {
+  /**
+   * If not provided, or if an empty array, a single token will be created.
+   */
+  tokens?: {
+    name?: string
+    audience?: string[]
+  }[]
 }
 
-export type CreateTokenResponse = {
-  id: string
-  expiresAt: number
-  tokens: Record<JwtRole, string>
+export type CreateTokensResponse = {
+  tokens: {
+    id: string
+    expiresAt: number
+    tokens: Record<JwtRole, string>
+  }[]
 }
 
 export type Auth = {
