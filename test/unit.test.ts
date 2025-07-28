@@ -62,11 +62,11 @@ describe('pfpk worker unit', () => {
         })
 
         expect(response.status).toBe(400)
-        const data = await response.json<ErrorResponse>()
-        expect(data.error).toBe('Invalid request body.')
+        const { error } = await response.json<ErrorResponse>()
+        expect(error).toBe('Invalid request body: Unexpected end of JSON input')
       })
 
-      it('returns 400 for invalid auth data structure', async () => {
+      it('returns 401 for invalid auth data structure', async () => {
         const response = await fetch('/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -76,9 +76,9 @@ describe('pfpk worker unit', () => {
           }),
         })
 
-        expect(response.status).toBe(400)
-        const data = await response.json<ErrorResponse>()
-        expect(data.error).toBe('Invalid auth data.')
+        expect(response.status).toBe(401)
+        const { error } = await response.json<ErrorResponse>()
+        expect(error).toBe('Unauthorized: Invalid auth data.')
       })
     })
 
@@ -87,8 +87,8 @@ describe('pfpk worker unit', () => {
         const response = await fetch('/me')
 
         expect(response.status).toBe(401)
-        const data = await response.json<ErrorResponse>()
-        expect(data.error).toBe('Unauthorized: No authorization header.')
+        const { error } = await response.json<ErrorResponse>()
+        expect(error).toBe('Unauthorized: No authorization header.')
       })
 
       it('returns 401 for invalid token type', async () => {
@@ -99,8 +99,8 @@ describe('pfpk worker unit', () => {
         })
 
         expect(response.status).toBe(401)
-        const data = await response.json<ErrorResponse>()
-        expect(data.error).toBe(
+        const { error } = await response.json<ErrorResponse>()
+        expect(error).toBe(
           'Unauthorized: Invalid token type, expected `Bearer`.'
         )
       })
@@ -113,8 +113,8 @@ describe('pfpk worker unit', () => {
         })
 
         expect(response.status).toBe(401)
-        const data = await response.json<ErrorResponse>()
-        expect(data.error).toBe('Unauthorized: No token provided.')
+        const { error } = await response.json<ErrorResponse>()
+        expect(error).toBe('Unauthorized: No token provided.')
       })
     })
 
@@ -128,9 +128,9 @@ describe('pfpk worker unit', () => {
           }),
         })
 
-        expect(response.status).toBe(400)
-        const data = await response.json<ErrorResponse>()
-        expect(data.error).toBe('Invalid auth data.')
+        expect(response.status).toBe(401)
+        const { error } = await response.json<ErrorResponse>()
+        expect(error).toBe('Unauthorized: Invalid auth data.')
       })
     })
   })
@@ -143,9 +143,9 @@ describe('pfpk worker unit', () => {
         body: JSON.stringify({ invalid: 'data' }),
       })
 
-      expect(response.status).toBe(400)
-      const data = await response.json<ErrorResponse>()
-      expect(data.error).toBe('Invalid auth data.')
+      expect(response.status).toBe(401)
+      const { error } = await response.json<ErrorResponse>()
+      expect(error).toBe('Unauthorized: Invalid auth data.')
     })
   })
 })

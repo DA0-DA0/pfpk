@@ -4,7 +4,13 @@ export class KnownError extends Error {
   constructor(
     public statusCode: number,
     public label: string,
-    error?: unknown
+    error?: unknown,
+    /**
+     * Whether or not this is fatal and should instantly fail the request. This
+     * is used when supporting both JWT and signature auth. Some JWT errors
+     * should be fatal, but some should fallback to signature auth.
+     */
+    public fatal = false
   ) {
     super(label)
     this.name = 'KnownError'

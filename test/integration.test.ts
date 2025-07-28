@@ -60,9 +60,9 @@ describe('pfpk worker integration', () => {
         body: JSON.stringify({ invalid: 'request' }),
       })
 
-      expect(response.status).toBe(400)
+      expect(response.status).toBe(401)
       const data = await response.json<ErrorResponse>()
-      expect(data.error).toBe('Invalid auth data.')
+      expect(data.error).toBe('Unauthorized: Invalid auth data.')
     })
 
     it('handles malformed JSON gracefully', async () => {
@@ -71,12 +71,14 @@ describe('pfpk worker integration', () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: 'invalid json{',
+        body: 'invalid',
       })
 
       expect(response.status).toBe(400)
       const data = await response.json<ErrorResponse>()
-      expect(data.error).toBe('Invalid request body.')
+      expect(data.error).toBe(
+        'Invalid request body: Unexpected token \'i\', "invalid" is not valid JSON'
+      )
     })
   })
 })

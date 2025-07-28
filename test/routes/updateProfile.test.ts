@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { updateProfile } from './routes'
-import { TestUser } from './TestUser'
 import * as chains from '../../src/chains'
 import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
 import { INITIAL_NONCE, NotOwnerError } from '../../src/utils'
+import { TestUser } from '../TestUser'
 
 const mockGetOwnedNftImageUrl = vi.fn()
 
@@ -410,7 +410,7 @@ describe('POST /me', () => {
     expect(error).toBe('Unexpected ownership verification error: test')
   })
 
-  it('returns 400 for non-admin token', async () => {
+  it('returns 401 for non-admin token', async () => {
     const user = await TestUser.create('neutron-1')
     await user.authenticate()
 
@@ -424,7 +424,46 @@ describe('POST /me', () => {
       },
       user.tokens.verify
     )
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid auth data.')
+  })
+
+  it('returns 400 for invalid body even if token is valid', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.authenticate()
+
+    const { response, error } = await updateProfile(
+      null as any,
+      user.tokens.admin,
+      'invalid' as any
+    )
     expect(response.status).toBe(400)
-    expect(error).toBe('Invalid auth data.')
+    expect(error).toBe(
+      'Invalid request body: Unexpected token \'i\', "invalid" is not valid JSON'
+    )
+  })
+
+  it('returns 401 for mismatched token and public key auth', async () => {
+    const user = await TestUser.create('neutron-1')
+    const user2 = await TestUser.create('phoenix-1')
+    await user.authenticate({ chainId: 'neutron-1' })
+
+    // Sign with user2 but use user1's token.
+    const { response, error } = await updateProfile(
+      await user2.signRequestBody(
+        {
+          profile: {
+            name: 'test',
+          },
+        },
+        {
+          chainId: 'phoenix-1',
+        }
+      ),
+      user.tokens.admin
+    )
+
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Mismatched token and public key auth.')
   })
 })

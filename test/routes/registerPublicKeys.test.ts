@@ -2,8 +2,8 @@ import { env } from 'cloudflare:test'
 import { describe, expect, it } from 'vitest'
 
 import { registerPublicKeys } from './routes'
-import { TestUser } from './TestUser'
 import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
+import { TestUser } from '../TestUser'
 
 // neutron-1 and cosmoshub-4 have the same coin type and public key, phoenix-1
 // has a different coin type and public key.
@@ -322,7 +322,7 @@ describe('POST /register', () => {
     })
   })
 
-  it('returns 400 for non-admin token', async () => {
+  it('returns 401 for non-admin token', async () => {
     const user = await TestUser.create('neutron-1', 'phoenix-1')
     await user.authenticate({
       chainId: 'neutron-1',
@@ -348,8 +348,8 @@ describe('POST /register', () => {
       },
       user.tokens.verify
     )
-    expect(response.status).toBe(400)
-    expect(error).toBe('Invalid auth data.')
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid auth data.')
   })
 
   it('returns 401 if new public key nested auth is invalid', async () => {

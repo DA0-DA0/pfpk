@@ -17,7 +17,8 @@ import {
   registerPublicKeys,
   unregisterPublicKeys,
   updateProfile,
-} from './routes'
+} from './routes/routes'
+import { CosmosSecp256k1PublicKey } from '../src/publicKeys/CosmosSecp256k1PublicKey'
 import {
   CreateTokenRequest,
   CreateTokenResponse,
@@ -30,8 +31,8 @@ import {
   RequestBody,
   UnregisterPublicKeysRequest,
   UpdateProfileRequest,
-} from '../../src/types'
-import { Chain, mustGetChain } from '../../src/utils'
+} from '../src/types'
+import { Chain, mustGetChain } from '../src/utils'
 
 export type TestUserChain = {
   chain: Chain
@@ -243,20 +244,24 @@ export class TestUser {
     // Use first chain ID already prepared.
     const chainId = Object.keys(this.signers)[0]
     const profile = await this.fetchProfile(chainId)
-    if (!profile.uuid) {
-      throw new Error('Profile not found.')
-    }
 
     const publicKeys: RegisterPublicKeysRequest['publicKeys'] =
       await Promise.all(
-        chainIds.map((chainId) =>
+        chainIds.map((registeringChainId) =>
           this.signRequestBody(
             {
-              allow: { uuid: profile.uuid },
-              chainIds: [chainId],
+              allow: profile.uuid
+                ? { uuid: profile.uuid }
+                : {
+                    publicKey: {
+                      type: CosmosSecp256k1PublicKey.type,
+                      hex: this.getPublicKey(chainId),
+                    },
+                  },
+              chainIds: [registeringChainId],
             },
             {
-              chainId,
+              chainId: registeringChainId,
               nonce: profile.nonce,
             }
           )

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { fetchTokens } from './routes'
-import { TestUser } from './TestUser'
+import { TestUser } from '../TestUser'
 
 describe('GET /tokens', () => {
   it('returns 200 with tokens', async () => {

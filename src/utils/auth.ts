@@ -67,8 +67,10 @@ export const makeJwtAuthMiddleware =
     }
 
     const body: RequestBody = request.body
-      ? await request.json<RequestBody>().catch(() => {
-          throw new KnownError(400, 'Invalid request body.')
+      ? await request.json<RequestBody>().catch((err) => {
+          // Cannot parse body twice, and signature auth needs a valid body, so
+          // if JSON parsing fails, return a fatal error and stop early.
+          throw new KnownError(400, 'Invalid request body', err, true)
         })
       : // If no body, use empty object for data and no signature.
         {
@@ -93,7 +95,8 @@ export const makeJwtAuthMiddleware =
         throw new KnownError(
           401,
           'Unauthorized',
-          'Mismatched token and public key auth.'
+          'Mismatched token and public key auth.',
+          true
         )
       }
     }
@@ -119,10 +122,15 @@ export const makeJwtAuthMiddleware =
 export const signatureAuthMiddleware: RequestHandler<
   AuthorizedRequest
 > = async (request, env: Env) => {
-  const body = await request.json<RequestBody>?.().catch(() => {
-    throw new KnownError(400, 'Invalid request body.')
-  })
-  request.validatedBody = body
+  // JWT auth may have failed after the body was parsed—don't parse it again.
+  if (!request.validatedBody) {
+    const body = await request.json<RequestBody>?.().catch((err) => {
+      throw new KnownError(400, 'Invalid request body', err)
+    })
+    request.validatedBody = body
+  }
+
+  const body = request.validatedBody
 
   // Verify body and add generated public key to request.
   request.publicKey = await verifyRequestBodyAndGetPublicKey(body)
@@ -214,8 +222,12 @@ export const makeJwtOrSignatureAuthMiddleware = (
     try {
       await jwtAuthMiddleware(...params)
       return
-    } catch {
-      // Continue to signature auth.
+    } catch (err) {
+      // Propagate only fatal JWT auth errors that should not fallback to
+      // signature auth.
+      if (err instanceof KnownError && err.fatal) {
+        throw err
+      }
     }
 
     // Attempt signature auth.
@@ -251,7 +263,7 @@ export const verifyRequestBodyAndGetPublicKey = async (
     }) ||
     !body.data.auth
   ) {
-    throw new KnownError(400, 'Invalid auth data.')
+    throw new KnownError(401, 'Unauthorized', 'Invalid auth data.')
   }
 
   // Validate timestamp is within the last 5 minutes.
@@ -283,14 +295,13 @@ export const verifySignature = async (
   publicKey: PublicKey,
   { data, signature }: RequestBody
 ): Promise<boolean> => {
-  // Signature is required if not using JWT.
   if (!signature) {
-    throw new KnownError(401, 'Unauthorized. No signature or token provided.')
+    throw new KnownError(401, 'Unauthorized', 'No signature provided.')
   }
 
   // Validate auth data is present.
   if (!data.auth) {
-    throw new KnownError(401, 'Unauthorized. Invalid auth data.')
+    throw new KnownError(401, 'Unauthorized', 'Invalid auth data.')
   }
 
   try {

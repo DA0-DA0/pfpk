@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createToken, fetchAuthenticated, fetchTokens } from './routes'
-import { TestUser } from './TestUser'
 import { INITIAL_NONCE } from '../../src/utils'
+import { TestUser } from '../TestUser'
 
 describe('POST /token', () => {
   it('returns 200 with a valid token', async () => {
@@ -43,10 +43,10 @@ describe('POST /token', () => {
   it('returns 400 when missing body', async () => {
     const { response, error } = await createToken()
     expect(response.status).toBe(400)
-    expect(error).toBe('Invalid request body.')
+    expect(error).toBe('Invalid request body: Unexpected end of JSON input')
   })
 
-  it('returns 400 with invalid auth data', async () => {
+  it('returns 401 with invalid auth data', async () => {
     const user = await TestUser.create('neutron-1')
     const body = await user.signRequestBody({})
 
@@ -61,8 +61,8 @@ describe('POST /token', () => {
           auth,
         },
       })
-      expect(response.status).toBe(400)
-      expect(error).toBe('Invalid auth data.')
+      expect(response.status).toBe(401)
+      expect(error).toBe('Unauthorized: Invalid auth data.')
     }
   })
 
@@ -99,19 +99,31 @@ describe('POST /token', () => {
 
     const authBody = await user.signRequestBody({})
     const authBody2 = await user2.signRequestBody({})
+
+    // set empty signature
+    authBody.signature = ''
+
+    // should fail with empty signature
+    const { response: emptyResponse, error } = await createToken(authBody)
+    expect(emptyResponse.status).toBe(401)
+    expect(error).toBe('Unauthorized: No signature provided.')
+
     // replace signature with incorrect signature from another public key
     authBody.signature = authBody2.signature
 
     // should fail with invalid signature
-    const { response: invalidResponse, error } = await createToken(authBody)
+    const { response: invalidResponse, error: invalidError } =
+      await createToken(authBody)
     expect(invalidResponse.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid signature.')
+    expect(invalidError).toBe('Unauthorized: Invalid signature.')
   })
 
   it('prevents replay attacks by verifying and auto-incrementing nonce', async () => {
     const user = await TestUser.create('neutron-1')
-    const authBody = await user.signRequestBody({})
-    expect(authBody.data.auth.nonce).toBe(INITIAL_NONCE)
+    const nonce = await user.fetchNonce()
+    const authBody = await user.signRequestBody({}, { nonce })
+
+    expect(nonce).toBe(INITIAL_NONCE)
 
     const { response } = await createToken(authBody)
     expect(response.status).toBe(200)
@@ -132,5 +144,15 @@ describe('POST /token', () => {
 
     // nonce should be incremented again
     expect(await user.fetchNonce()).toBe(INITIAL_NONCE + 2)
+  })
+
+  it('verifies nonce for first request (automatic profile DB row creation)', async () => {
+    const user = await TestUser.create('neutron-1')
+
+    const { response, error } = await createToken(
+      await user.signRequestBody({}, { nonce: INITIAL_NONCE + 1 })
+    )
+    expect(response.status).toBe(401)
+    expect(error).toBe(`Invalid nonce. Expected: ${INITIAL_NONCE}`)
   })
 })

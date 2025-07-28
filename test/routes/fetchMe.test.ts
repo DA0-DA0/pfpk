@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { fetchMe } from './routes'
-import { TestUser } from './TestUser'
 import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
 import { INITIAL_NONCE } from '../../src/utils'
+import { TestUser } from '../TestUser'
 
 describe('GET /me', () => {
   it('returns 200 for valid public key', async () => {

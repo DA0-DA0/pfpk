@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { fetchAuthenticated } from './routes'
-import { TestUser } from './TestUser'
+import { TestUser } from '../TestUser'
 
 describe('GET /auth', () => {
   it('returns 204 if authenticated', async () => {

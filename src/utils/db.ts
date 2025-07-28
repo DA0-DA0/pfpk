@@ -96,26 +96,6 @@ export const getNonce = async (
 }
 
 /**
- * Get the public key hex for a given address hex.
- */
-export const getPublicKeyHexForAddressHex = async (
-  env: Env,
-  addressHex: string
-): Promise<string | undefined> => {
-  const publicKeyRow = await env.DB.prepare(
-    `
-    SELECT publicKey
-    FROM profile_public_keys
-    WHERE addressHex = ?1
-    `
-  )
-    .bind(addressHex)
-    .first<DbRowProfilePublicKey>()
-
-  return publicKeyRow?.publicKeyHex
-}
-
-/**
  * Get top 5 profiles by name prefix (case insensitive) and each profiles'
  * public key for a given chain.
  */

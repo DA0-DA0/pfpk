@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { fetchStats } from './routes'
-import { TestUser } from './TestUser'
+import { TestUser } from '../TestUser'
 
 describe('GET /stats', () => {
   it('returns 200', async () => {

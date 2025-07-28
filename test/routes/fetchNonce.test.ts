@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { fetchNonce } from './routes'
-import { TestUser } from './TestUser'
 import { INITIAL_NONCE } from '../../src/utils/auth'
+import { TestUser } from '../TestUser'
 
 describe('GET /nonce/:publicKey', () => {
   it('returns 200 for valid public key', async () => {

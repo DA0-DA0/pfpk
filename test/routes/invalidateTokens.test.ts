@@ -2,7 +2,7 @@ import { env } from 'cloudflare:test'
 import { describe, expect, it, vi } from 'vitest'
 
 import { fetchAuthenticated, invalidateTokens } from './routes'
-import { TestUser } from './TestUser'
+import { TestUser } from '../TestUser'
 
 describe('DELETE /tokens', () => {
   it('returns 204 and deletes provided tokens', async () => {
@@ -101,7 +101,7 @@ describe('DELETE /tokens', () => {
     expect(await user2.fetchAuthenticated()).toBe(true)
   })
 
-  it('returns 400 for non-admin token', async () => {
+  it('returns 401 for non-admin token', async () => {
     const user = await TestUser.create('neutron-1')
     const { id } = await user.authenticate()
 
@@ -113,7 +113,7 @@ describe('DELETE /tokens', () => {
       },
       user.tokens.verify
     )
-    expect(response.status).toBe(400)
-    expect(error).toBe('Invalid auth data.')
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid auth data.')
   })
 })

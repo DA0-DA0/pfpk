@@ -1,13 +1,34 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   fetchProfileViaAddress,
   fetchProfileViaAddressHex,
   fetchProfileViaPublicKey,
 } from './routes'
-import { TestUser } from './TestUser'
+import * as chains from '../../src/chains'
 import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
-import { INITIAL_NONCE } from '../../src/utils'
+import { INITIAL_NONCE, NotOwnerError } from '../../src/utils'
+import * as chainUtils from '../../src/utils/chain'
+import { TestUser } from '../TestUser'
+
+const mockGetOwnedNftImageUrl = vi.fn()
+
+const mockMustGetChain = vi.fn()
+const originalMustGetChain = chainUtils.mustGetChain
+
+beforeEach(() => {
+  // Reset and set up default mock implementation
+  vi.spyOn(chains, 'getOwnedNftImageUrl').mockImplementation(
+    mockGetOwnedNftImageUrl
+  )
+  mockGetOwnedNftImageUrl.mockReset()
+  mockGetOwnedNftImageUrl.mockResolvedValue('https://daodao.zone/daodao.png')
+
+  vi.spyOn(chainUtils, 'mustGetChain').mockImplementation(mockMustGetChain)
+  mockMustGetChain.mockReset()
+  // Default to the original implementation.
+  mockMustGetChain.mockImplementation(originalMustGetChain)
+})
 
 // neutron-1 and cosmoshub-4 have the same coin type and public key, phoenix-1
 // has a different coin type and public key.
@@ -34,6 +55,11 @@ describe('GET /:publicKey', () => {
     const user = await TestUser.create(...chainIds)
     await user.updateProfile({
       name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
     })
     await user.registerPublicKeys({
       chainIds,
@@ -49,7 +75,12 @@ describe('GET /:publicKey', () => {
         uuid,
         nonce: nonce,
         name: 'test',
-        nft: null,
+        nft: {
+          chainId: 'neutron-1',
+          collectionAddress: 'neutron123',
+          tokenId: '123',
+          imageUrl: 'https://daodao.zone/daodao.png',
+        },
         chains: Object.fromEntries(
           chainIds.map((chainId) => [
             chainId,
@@ -64,6 +95,93 @@ describe('GET /:publicKey', () => {
         ),
       })
     }
+  })
+
+  it("returns 200 with profile, ignoring NFT if image doesn't load", async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.updateProfile({
+      name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
+    })
+    const profile = await user.fetchProfile()
+
+    mockGetOwnedNftImageUrl.mockResolvedValueOnce(null)
+
+    const { response, body } = await fetchProfileViaPublicKey(
+      user.getPublicKey('neutron-1')
+    )
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid: profile.uuid,
+      nonce: profile.nonce,
+      name: 'test',
+      nft: null,
+      chains: {
+        'neutron-1': {
+          publicKey: {
+            hex: user.getPublicKey('neutron-1'),
+            type: CosmosSecp256k1PublicKey.type,
+          },
+          address: user.getAddress('neutron-1'),
+        },
+      },
+    })
+
+    mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
+
+    const { response: response2, body: body2 } = await fetchProfileViaPublicKey(
+      user.getPublicKey('neutron-1')
+    )
+    expect(response2.status).toBe(200)
+    expect(body2).toEqual(body)
+  })
+
+  it('returns 200 with profile, ignoring chains that are unknown', async () => {
+    const user = await TestUser.create(...chainIds)
+    await user.registerPublicKeys({
+      chainIds,
+    })
+    const profile = await user.fetchProfile()
+
+    // Pretend cosmoshub-4 is unknown after registration. It's needed during
+    // test user creation to prepare the user public keys, but in practice,
+    // someone can register any public key from any chain, but if we don't have
+    // the chain's info, we can't generate their address when fetched.
+    mockMustGetChain.mockImplementation((chainId: string) => {
+      if (chainId === 'cosmoshub-4') {
+        throw new Error(`Unknown chain: ${chainId}.`)
+      }
+      return originalMustGetChain(chainId)
+    })
+
+    const { response, body } = await fetchProfileViaPublicKey(
+      user.getPublicKey('neutron-1')
+    )
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid: profile.uuid,
+      nonce: profile.nonce,
+      name: null,
+      nft: null,
+      chains: Object.fromEntries(
+        chainIds
+          .filter((chainId) => chainId !== 'cosmoshub-4')
+          .map((chainId) => [
+            chainId,
+            {
+              publicKey: {
+                hex: user.getPublicKey(chainId),
+                type: CosmosSecp256k1PublicKey.type,
+              },
+              address: user.getAddress(chainId),
+            },
+          ])
+      ),
+    })
   })
 })
 
@@ -88,6 +206,11 @@ describe('GET /address/:bech32Address', () => {
     const user = await TestUser.create(...chainIds)
     await user.updateProfile({
       name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
     })
     await user.registerPublicKeys({
       chainIds,
@@ -103,7 +226,12 @@ describe('GET /address/:bech32Address', () => {
         uuid,
         nonce: nonce,
         name: 'test',
-        nft: null,
+        nft: {
+          chainId: 'neutron-1',
+          collectionAddress: 'neutron123',
+          tokenId: '123',
+          imageUrl: 'https://daodao.zone/daodao.png',
+        },
         chains: Object.fromEntries(
           chainIds.map((chainId) => [
             chainId,
@@ -118,6 +246,49 @@ describe('GET /address/:bech32Address', () => {
         ),
       })
     }
+  })
+
+  it("returns 200 with profile, ignoring NFT if image doesn't load", async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.updateProfile({
+      name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
+    })
+    const profile = await user.fetchProfile()
+
+    mockGetOwnedNftImageUrl.mockResolvedValueOnce(null)
+
+    const { response, body } = await fetchProfileViaAddress(
+      user.getAddress('neutron-1')
+    )
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid: profile.uuid,
+      nonce: profile.nonce,
+      name: 'test',
+      nft: null,
+      chains: {
+        'neutron-1': {
+          publicKey: {
+            hex: user.getPublicKey('neutron-1'),
+            type: CosmosSecp256k1PublicKey.type,
+          },
+          address: user.getAddress('neutron-1'),
+        },
+      },
+    })
+
+    mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
+
+    const { response: response2, body: body2 } = await fetchProfileViaAddress(
+      user.getAddress('neutron-1')
+    )
+    expect(response2.status).toBe(200)
+    expect(body2).toEqual(body)
   })
 
   it('returns 400 for invalid bech32 address', async () => {
@@ -147,6 +318,11 @@ describe('GET /hex/:addressHex', () => {
     const user = await TestUser.create(...chainIds)
     await user.updateProfile({
       name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
     })
     await user.registerPublicKeys({
       chainIds,
@@ -162,7 +338,12 @@ describe('GET /hex/:addressHex', () => {
         uuid,
         nonce: nonce,
         name: 'test',
-        nft: null,
+        nft: {
+          chainId: 'neutron-1',
+          collectionAddress: 'neutron123',
+          tokenId: '123',
+          imageUrl: 'https://daodao.zone/daodao.png',
+        },
         chains: Object.fromEntries(
           chainIds.map((chainId) => [
             chainId,
@@ -177,5 +358,47 @@ describe('GET /hex/:addressHex', () => {
         ),
       })
     }
+  })
+
+  it("returns 200 with profile, ignoring NFT if image doesn't load", async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.updateProfile({
+      name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
+    })
+    const profile = await user.fetchProfile()
+
+    mockGetOwnedNftImageUrl.mockResolvedValueOnce(null)
+
+    const { response, body } = await fetchProfileViaAddressHex(
+      user.getAddressHex('neutron-1')
+    )
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid: profile.uuid,
+      nonce: profile.nonce,
+      name: 'test',
+      nft: null,
+      chains: {
+        'neutron-1': {
+          publicKey: {
+            hex: user.getPublicKey('neutron-1'),
+            type: CosmosSecp256k1PublicKey.type,
+          },
+          address: user.getAddress('neutron-1'),
+        },
+      },
+    })
+
+    mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
+
+    const { response: response2, body: body2 } =
+      await fetchProfileViaAddressHex(user.getAddressHex('neutron-1'))
+    expect(response2.status).toBe(200)
+    expect(body2).toEqual(body)
   })
 })

@@ -113,12 +113,3 @@ export const verifyJwt = async (
 
   return verified.payload
 }
-
-/**
- * Decode a JWT token, without verifying it, and return the payload.
- *
- * @param token - The JWT token to decode.
- * @returns The decoded payload.
- */
-export const decodeJwt = (token: string): JwtPayload =>
-  jwt.decode<JwtPayload>(token).payload

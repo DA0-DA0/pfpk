@@ -254,7 +254,8 @@ export const unregisterPublicKeys = async (
 
 export const updateProfile = async (
   data: RequestBody<UpdateProfileRequest>,
-  token?: string
+  token?: string,
+  _body?: BodyInit
 ) => {
   const request = new Request(url('/me'), {
     method: 'POST',
@@ -262,7 +263,7 @@ export const updateProfile = async (
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(data),
+    body: _body ?? JSON.stringify(data),
   })
   const response = await SELF.fetch(request)
   const body = response.body ? await response.json<any>() : undefined
