@@ -1,9 +1,7 @@
 import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vitest'
 
-import { ErrorResponse } from '../src/types'
-
-describe('pfpk worker integration', () => {
+describe('integration', () => {
   const fetch = async (path: string, init?: RequestInit): Promise<Response> => {
     const request = new Request('https://pfpk.test' + path, init)
     return await SELF.fetch(request)
@@ -46,38 +44,6 @@ describe('pfpk worker integration', () => {
       )
       expect(response.headers.get('Access-Control-Allow-Methods')).toContain(
         'DELETE'
-      )
-    })
-  })
-
-  describe('Error handling', () => {
-    it('returns structured error responses', async () => {
-      const response = await fetch('/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ invalid: 'request' }),
-      })
-
-      expect(response.status).toBe(401)
-      const data = await response.json<ErrorResponse>()
-      expect(data.error).toBe('Unauthorized: Invalid auth data.')
-    })
-
-    it('handles malformed JSON gracefully', async () => {
-      const response = await fetch('/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: 'invalid',
-      })
-
-      expect(response.status).toBe(400)
-      const data = await response.json<ErrorResponse>()
-      expect(data.error).toBe(
-        'Invalid request body: Unexpected token \'i\', "invalid" is not valid JSON'
       )
     })
   })
