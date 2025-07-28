@@ -19,6 +19,7 @@ import {
   updateProfile,
 } from './routes'
 import {
+  CreateTokenRequest,
   CreateTokenResponse,
   FetchProfileResponse,
   FetchTokensResponse,
@@ -121,14 +122,16 @@ export class TestUser {
    *
    * @param chainId - Chain ID to authenticate for. Defaults to first chain.
    */
-  async authenticate(chainId?: string): Promise<CreateTokenResponse> {
+  async authenticate({
+    chainId,
+    ...request
+  }: CreateTokenRequest & {
+    chainId?: string
+  } = {}): Promise<CreateTokenResponse> {
     const { body } = await createToken(
-      await this.signRequestBody(
-        {},
-        {
-          chainId,
-        }
-      )
+      await this.signRequestBody(request, {
+        chainId,
+      })
     )
     this._tokens = body.tokens
     return body
@@ -362,6 +365,7 @@ export class TestUser {
     {
       chainId,
       nonce,
+      noSign = false,
     }: {
       /**
        * Chain ID to sign the request for. Defaults to first chain.
@@ -371,6 +375,11 @@ export class TestUser {
        * Nonce to use for the request. Defaults to the latest nonce.
        */
       nonce?: number
+      /**
+       * Don't sign the request body, just return the data. This is useful for
+       * generating the expected request body but using JWT token auth.
+       */
+      noSign?: boolean
     } = {}
   ): Promise<RequestBody<Data, true>> {
     chainId ??= Object.keys(this.signers)[0]
@@ -421,8 +430,9 @@ export class TestUser {
       0
     )
 
-    const { signature } = (await signer.signAmino(address, signDocAmino))
-      .signature
+    const signature = noSign
+      ? undefined
+      : (await signer.signAmino(address, signDocAmino)).signature.signature
 
     return {
       data: dataWithAuth,

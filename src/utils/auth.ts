@@ -46,23 +46,24 @@ export const makeJwtAuthMiddleware =
       throw new KnownError(401, 'Unauthorized', 'No token provided.')
     }
 
-    const { sub: uuid, jti: tokenId } = await verifyJwt(env, token, roles)
-    const profile = await getProfileFromUuid(env, uuid)
+    const jwtPayload = await verifyJwt(env, token)
+    if (!roles.includes(jwtPayload.role)) {
+      throw new KnownError(401, 'Unauthorized', 'Invalid token role.')
+    }
+    request.jwtPayload = jwtPayload
+
+    const profile = await getProfileFromUuid(env, request.jwtPayload.sub)
     if (!profile) {
       throw new KnownError(404, 'Profile not found.')
     }
+    request.profile = profile
 
-    // Validate token exists and is still valid for profile.
-    const dbToken = await getTokenForProfile(env, profile.id, tokenId)
-    // If token not found in DB, it must have been invalidated. Expiration was
-    // checked in verifyJwt above, so we should only get here if the token is
-    // valid but was manually invalidated.
+    // Verify token exists in DB. If not, it must have been invalidated.
+    // Expiration was checked in verifyJwt above, so we should only get here if
+    // the token is valid but was manually invalidated.
+    const dbToken = await getTokenForProfile(env, profile.id, jwtPayload.jti)
     if (!dbToken) {
       throw new KnownError(401, 'Unauthorized', 'Token invalidated.')
-    }
-    // Should never happen since JWT verification above also checks expiration.
-    if (dbToken.expiresAt < Math.floor(Date.now() / 1000)) {
-      throw new KnownError(401, 'Unauthorized', 'Token expired.')
     }
 
     const body: RequestBody = request.body
@@ -73,9 +74,10 @@ export const makeJwtAuthMiddleware =
         {
           data: {},
         }
+    request.validatedBody = body
 
-    // If auth is provided, validate that it matches the profile. If it does not
-    // match, strip it since it is untrusted.
+    // If auth is provided, validate that it matches the profile. If it doesn't
+    // match, strip it since it's untrusted.
     if (body.data.auth) {
       const profileForPublicKey = await getProfileFromPublicKeyHex(
         env,
@@ -95,10 +97,6 @@ export const makeJwtAuthMiddleware =
         )
       }
     }
-
-    // If all is valid, add validated body and profile to request.
-    request.validatedBody = body
-    request.profile = profile
   }
 
 /**
@@ -107,7 +105,14 @@ export const makeJwtAuthMiddleware =
  * `validatedBody` field will be set on the request object, accessible by
  * successive middleware and route handlers.
  *
- * Creates a new profile for the public key if one does not exist.
+ * Notes:
+ * - Creates a new profile for the public key if one does not exist.
+ * - Increments nonce to prevent replay attacks.
+ * - Decrements nonce for profile stored in the request object so that the
+ *   handlers have access to the nonce when the request was initiated. This is
+ *   important when route handlers validate nested auth data inside the request
+ *   body, like `registerPublicKeys`. The profile nonce should be the same
+ *   regardless of JWT or signature auth.
  *
  * @param request - The request to authenticate.
  */
@@ -117,6 +122,7 @@ export const signatureAuthMiddleware: RequestHandler<
   const body = await request.json<RequestBody>?.().catch(() => {
     throw new KnownError(400, 'Invalid request body.')
   })
+  request.validatedBody = body
 
   // Verify body and add generated public key to request.
   request.publicKey = await verifyRequestBodyAndGetPublicKey(body)
@@ -186,11 +192,8 @@ export const signatureAuthMiddleware: RequestHandler<
     throw new KnownError(500, 'Failed to retrieve profile public key from DB.')
   }
 
-  // Decrement nonce to match for the request handler.
+  // Decrement nonce since the request handler increments it.
   request.profile.nonce--
-
-  // If all is valid, add validated body to request.
-  request.validatedBody = body
 }
 
 /**

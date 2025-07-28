@@ -16,12 +16,17 @@ export const createJwt = async (
   env: Env,
   {
     profileUuid,
+    audience,
     expiresIn,
   }: {
     /**
      * UUID of the profile.
      */
     profileUuid: string
+    /**
+     * Optional audience.
+     */
+    audience?: string[]
     /**
      * Expires in seconds.
      */
@@ -40,15 +45,16 @@ export const createJwt = async (
   const tokens = Object.fromEntries(
     await Promise.all(
       Object.values(JwtRole).map(
-        async (scope): Promise<[JwtRole, string]> => [
-          scope,
+        async (role): Promise<[JwtRole, string]> => [
+          role,
           await jwt.sign(
             {
               sub: profileUuid,
+              ...(audience?.length && { aud: audience }),
               exp: expiresAt,
               iat: issuedAt,
               jti: uuid,
-              role: scope,
+              role,
             } satisfies JwtPayload,
             env.JWT_SECRET
           ),
@@ -70,13 +76,11 @@ export const createJwt = async (
  *
  * @param env - The environment.
  * @param token - The JWT token to verify.
- * @param roles - The allowed roles for the token.
  * @returns The UUID of the profile.
  */
 export const verifyJwt = async (
   env: Env,
-  token: string,
-  roles: JwtRole[]
+  token: string
 ): Promise<JwtPayload> => {
   const verified = await jwt
     .verify<JwtPayload>(token, env.JWT_SECRET, {
@@ -105,10 +109,6 @@ export const verifyJwt = async (
     })
   ) {
     throw new KnownError(401, 'Unauthorized', 'Invalid token.')
-  }
-
-  if (!roles.includes(verified.payload.role)) {
-    throw new KnownError(401, 'Unauthorized', 'Invalid token role.')
   }
 
   return verified.payload

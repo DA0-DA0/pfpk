@@ -12,7 +12,9 @@ const chainIds = ['neutron-1', 'cosmoshub-4', 'phoenix-1']
 describe('POST /register', () => {
   it('returns 204 and registers public keys via UUID allow', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate(chainIds[0])
+    await user.authenticate({
+      chainId: chainIds[0],
+    })
     const { uuid, nonce } = await user.fetchProfile()
 
     const { response } = await registerPublicKeys(
@@ -131,13 +133,65 @@ describe('POST /register', () => {
     )
   })
 
+  it('returns 204 with JWT auth admin token', async () => {
+    const user = await TestUser.create('neutron-1', 'phoenix-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
+    const { uuid, nonce } = await user.fetchProfile()
+
+    const { response } = await registerPublicKeys(
+      {
+        data: {
+          publicKeys: [
+            await user.signRequestBody(
+              {
+                allow: { uuid },
+                chainIds: ['phoenix-1'],
+              },
+              {
+                chainId: 'phoenix-1',
+                nonce,
+              }
+            ),
+          ],
+        },
+      },
+      user.tokens.admin
+    )
+    expect(response.status).toBe(204)
+
+    // profile should have both chains
+    const profile = await user.fetchProfile('phoenix-1')
+    expect(profile.chains).toEqual({
+      'neutron-1': {
+        publicKey: {
+          type: CosmosSecp256k1PublicKey.type,
+          hex: user.getPublicKey('neutron-1'),
+        },
+        address: user.getAddress('neutron-1'),
+      },
+      'phoenix-1': {
+        publicKey: {
+          type: CosmosSecp256k1PublicKey.type,
+          hex: user.getPublicKey('phoenix-1'),
+        },
+        address: user.getAddress('phoenix-1'),
+      },
+    })
+  })
+
   it('removes public keys from other profiles', async () => {
     const user = await TestUser.create(...chainIds)
 
     // Create tokens with different public keys to create two different
     // profiles, without merging them.
-    await user.authenticate('neutron-1')
-    await user.authenticate('phoenix-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
+    await user.authenticate({
+      chainId: 'phoenix-1',
+    })
 
     const { uuid: neutronUuid, nonce } = await user.fetchProfile('neutron-1')
     const { uuid: phoenixUuid } = await user.fetchProfile('phoenix-1')
@@ -210,7 +264,9 @@ describe('POST /register', () => {
 
   it('does not need internal signature if registering already-registered public keys', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate('neutron-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
     const { uuid, nonce, chains } = await user.fetchProfile()
 
     expect(chains).toEqual({
@@ -223,26 +279,26 @@ describe('POST /register', () => {
       },
     })
 
-    // Create auth body for cosmoshub-4 and remove signature since its public
-    // key is already registered via neutron-1 and thus no need to sign it. This
-    // is just a chain preference setting since the public key is already
-    // registered.
-    const cosmosHubBodyNoSignature = await user.signRequestBody(
-      {
-        allow: { uuid },
-        chainIds: ['cosmoshub-4'],
-      },
-      {
-        chainId: 'cosmoshub-4',
-        nonce,
-      }
-    )
-    delete cosmosHubBodyNoSignature.signature
-
     const { response } = await registerPublicKeys(
       await user.signRequestBody(
         {
-          publicKeys: [cosmosHubBodyNoSignature],
+          publicKeys: [
+            await user.signRequestBody(
+              {
+                allow: { uuid },
+                chainIds: ['cosmoshub-4'],
+              },
+              {
+                chainId: 'cosmoshub-4',
+                nonce,
+                // Create auth body for cosmoshub-4 without signature since its
+                // public key is already registered via neutron-1 and thus no
+                // need to sign it. This is just a chain preference setting
+                // since the public key is already registered.
+                noSign: true,
+              }
+            ),
+          ],
         },
         {
           chainId: 'neutron-1',
@@ -266,9 +322,41 @@ describe('POST /register', () => {
     })
   })
 
+  it('returns 400 for non-admin token', async () => {
+    const user = await TestUser.create('neutron-1', 'phoenix-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
+    const { uuid, nonce } = await user.fetchProfile()
+
+    const { response, error } = await registerPublicKeys(
+      {
+        data: {
+          publicKeys: [
+            await user.signRequestBody(
+              {
+                allow: { uuid },
+                chainIds: ['phoenix-1'],
+              },
+              {
+                chainId: 'phoenix-1',
+                nonce,
+              }
+            ),
+          ],
+        },
+      },
+      user.tokens.verify
+    )
+    expect(response.status).toBe(400)
+    expect(error).toBe('Invalid auth data.')
+  })
+
   it('returns 401 if new public key nested auth is invalid', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate('neutron-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
     const { uuid, nonce } = await user.fetchProfile()
 
     const { response, error } = await registerPublicKeys(
@@ -302,7 +390,9 @@ describe('POST /register', () => {
 
   it('returns 401 if allow UUID is invalid', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate('neutron-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
     const { uuid, nonce } = await user.fetchProfile()
 
     const { response, error } = await registerPublicKeys(
@@ -374,7 +464,9 @@ describe('POST /register', () => {
 
   it('returns 401 if nonce is invalid', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate('neutron-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
     const { uuid, nonce } = await user.fetchProfile()
 
     const { response, error } = await registerPublicKeys(

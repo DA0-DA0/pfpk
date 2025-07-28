@@ -22,8 +22,8 @@ describe('POST /me', () => {
     const user = await TestUser.create('neutron-1')
 
     // starts with empty profile
-    const defaultProfile = await user.fetchProfile()
-    expect(defaultProfile).toEqual({
+    const initialProfile = await user.fetchProfile()
+    expect(initialProfile).toEqual({
       uuid: '',
       nonce: INITIAL_NONCE,
       name: null,
@@ -41,11 +41,64 @@ describe('POST /me', () => {
     expect(response.status).toBe(204)
 
     // profile should be updated with name and chain (automatically attached)
-    const profile2 = await user.fetchProfile()
-    expect(profile2.uuid.length).toBeGreaterThan(0)
-    expect(profile2).toEqual({
+    const profile = await user.fetchProfile()
+    expect(profile.uuid.length).toBeGreaterThan(0)
+    expect(profile).toEqual({
       uuid: expect.any(String),
-      nonce: defaultProfile.nonce + 1,
+      nonce: initialProfile.nonce + 1,
+      name: 'test',
+      nft: null,
+      chains: {
+        'neutron-1': {
+          publicKey: {
+            type: CosmosSecp256k1PublicKey.type,
+            hex: user.getPublicKey('neutron-1'),
+          },
+          address: user.getAddress('neutron-1'),
+        },
+      },
+    })
+  })
+
+  it('returns 204 and updates profile via JWT auth admin token', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.authenticate()
+
+    const initialProfile = await user.fetchProfile()
+    expect(initialProfile).toEqual({
+      uuid: expect.any(String),
+      nonce: INITIAL_NONCE + 1,
+      name: null,
+      nft: null,
+      chains: {
+        'neutron-1': {
+          publicKey: {
+            type: CosmosSecp256k1PublicKey.type,
+            hex: user.getPublicKey('neutron-1'),
+          },
+          address: user.getAddress('neutron-1'),
+        },
+      },
+    })
+
+    const { response } = await updateProfile(
+      {
+        data: {
+          profile: {
+            name: 'test',
+          },
+        },
+      },
+      user.tokens.admin
+    )
+    expect(response.status).toBe(204)
+
+    // profile should be updated with name and chain (automatically attached)
+    const profile = await user.fetchProfile()
+    expect(profile.uuid.length).toBeGreaterThan(0)
+    expect(profile).toEqual({
+      uuid: expect.any(String),
+      nonce: initialProfile.nonce,
       name: 'test',
       nft: null,
       chains: {
@@ -98,7 +151,7 @@ describe('POST /me', () => {
 
   it('returns 204 and sets chain preferences for existing profile', async () => {
     const user = await TestUser.create('neutron-1', 'cosmoshub-4')
-    await user.authenticate()
+    await user.authenticate({ chainId: 'neutron-1' })
 
     const { response } = await updateProfile(
       await user.signRequestBody(
@@ -355,5 +408,23 @@ describe('POST /me', () => {
     )
     expect(response.status).toBe(500)
     expect(error).toBe('Unexpected ownership verification error: test')
+  })
+
+  it('returns 400 for non-admin token', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.authenticate()
+
+    const { response, error } = await updateProfile(
+      {
+        data: {
+          profile: {
+            name: 'test',
+          },
+        },
+      },
+      user.tokens.verify
+    )
+    expect(response.status).toBe(400)
+    expect(error).toBe('Invalid auth data.')
   })
 })

@@ -62,6 +62,9 @@ CREATE TABLE profile_tokens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   profileId INTEGER NOT NULL,
   uuid TEXT NOT NULL,
+  name TEXT,
+  -- json array of strings
+  audience TEXT,
   expiresAt DATETIME NOT NULL,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

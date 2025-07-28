@@ -1,6 +1,7 @@
 import { SELF } from 'cloudflare:test'
 
 import {
+  CreateTokenRequest,
   CreateTokenResponse,
   FetchProfileResponse,
   FetchTokensResponse,
@@ -16,9 +17,15 @@ import {
 } from '../../src/types'
 
 const BASE_URL = 'https://pfpk.test'
-const url = (path: string) => BASE_URL + path
+const url = (
+  path: string,
+  query?: [string, string][] | Record<string, string>
+) =>
+  BASE_URL + path + (query ? `?${new URLSearchParams(query).toString()}` : '')
 
-export const createToken = async (data?: RequestBody<{}, true>) => {
+export const createToken = async (
+  data?: RequestBody<CreateTokenRequest, true>
+) => {
   const request = new Request(url('/token'), {
     method: 'POST',
     headers: {
@@ -37,9 +44,15 @@ export const createToken = async (data?: RequestBody<{}, true>) => {
 
 export const fetchAuthenticated = async (
   token?: string,
-  headers?: HeadersInit
+  {
+    headers,
+    query,
+  }: {
+    headers?: HeadersInit
+    query?: Parameters<typeof url>[1]
+  } = {}
 ) => {
-  const request = new Request(url('/auth'), {
+  const request = new Request(url('/auth', query), {
     method: 'GET',
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

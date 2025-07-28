@@ -151,12 +151,16 @@ export type InvalidateTokensRequest = {
   tokens?: string[]
 }
 
+export type TokenJson = {
+  id: string
+  name: string | null
+  audience: string[] | null
+  issuedAt: number
+  expiresAt: number
+}
+
 export type FetchTokensResponse = {
-  tokens: {
-    id: string
-    issuedAt: number
-    expiresAt: number
-  }[]
+  tokens: TokenJson[]
 }
 
 export type ErrorResponse = {
@@ -178,6 +182,11 @@ export type SearchProfilesResponse = {
 
 export type ResolveProfileResponse = {
   resolved: ResolvedProfile
+}
+
+export type CreateTokenRequest = {
+  name?: string
+  audience?: string[]
 }
 
 export type CreateTokenResponse = {
@@ -267,6 +276,10 @@ export type AuthorizedRequest<
    * set.
    */
   profilePublicKeyRowId?: number
+  /**
+   * The decoded JWT payload if the request is authenticated via JWT token auth.
+   */
+  jwtPayload?: JwtPayload
 }
 
 /**
@@ -308,6 +321,11 @@ export type DbRowProfileToken = {
   id: number
   profileId: number
   uuid: string
+  name: string | null
+  /**
+   * JSON array of strings.
+   */
+  audience: string | null
   expiresAt: number
   createdAt: number
 }
@@ -331,6 +349,7 @@ export enum JwtRole {
 
 export type JwtPayload = {
   sub: string
+  aud?: string[]
   exp: number
   iat: number
   jti: string

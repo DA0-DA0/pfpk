@@ -6,7 +6,10 @@ import { TestUser } from './TestUser'
 describe('GET /tokens', () => {
   it('returns 200 with tokens', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.authenticate()
+    await user.authenticate({
+      name: 'test token 1',
+      audience: ['https://pfpk.org'],
+    })
 
     // fetchTokens should return token via JWT token auth
     const { response, body } = await fetchTokens(user.tokens.admin)
@@ -15,13 +18,17 @@ describe('GET /tokens', () => {
     expect(body.tokens).toEqual([
       {
         id: expect.any(String),
+        name: 'test token 1',
+        audience: ['https://pfpk.org'],
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
       },
     ])
 
     // create another token
-    await user.authenticate()
+    await user.authenticate({
+      name: 'test token 2',
+    })
 
     // fetchTokens should return both tokens
     const { response: response2, body: body2 } = await fetchTokens(
@@ -32,11 +39,15 @@ describe('GET /tokens', () => {
     expect(body2.tokens).toEqual([
       {
         id: expect.any(String),
+        name: 'test token 1',
+        audience: ['https://pfpk.org'],
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
       },
       {
         id: expect.any(String),
+        name: 'test token 2',
+        audience: null,
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
       },

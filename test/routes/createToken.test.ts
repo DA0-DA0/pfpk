@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createToken, fetchAuthenticated } from './routes'
+import { createToken, fetchAuthenticated, fetchTokens } from './routes'
 import { TestUser } from './TestUser'
 import { INITIAL_NONCE } from '../../src/utils'
 
@@ -9,19 +9,35 @@ describe('POST /token', () => {
     const user = await TestUser.create('neutron-1')
     const {
       response: { status },
-      body: { tokens },
-    } = await createToken(await user.signRequestBody({}))
+      body,
+    } = await createToken(
+      await user.signRequestBody({
+        name: 'test token',
+        audience: ['https://pfpk.org'],
+      })
+    )
 
     expect(status).toBe(200)
-    expect(tokens.admin).toBeTruthy()
-    expect(tokens.verify).toBeTruthy()
+    expect(body.tokens.admin).toBeTruthy()
+    expect(body.tokens.verify).toBeTruthy()
 
     // both tokens should be valid
-    const { response } = await fetchAuthenticated(tokens.admin)
+    const { response } = await fetchAuthenticated(body.tokens.admin)
     expect(response.status).toBe(204)
 
-    const { response: verifyResponse } = await fetchAuthenticated(tokens.verify)
+    const { response: verifyResponse } = await fetchAuthenticated(
+      body.tokens.verify
+    )
     expect(verifyResponse.status).toBe(204)
+
+    // check that token shows up in list with correct data
+    const {
+      body: { tokens },
+    } = await fetchTokens(body.tokens.admin)
+    expect(tokens.length).toBe(1)
+    expect(tokens[0].id).toBe(body.id)
+    expect(tokens[0].name).toBe('test token')
+    expect(tokens[0].audience).toEqual(['https://pfpk.org'])
   })
 
   it('returns 400 when missing body', async () => {

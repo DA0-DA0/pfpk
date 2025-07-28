@@ -100,4 +100,20 @@ describe('DELETE /tokens', () => {
     expect(await user1.fetchAuthenticated()).toBe(true)
     expect(await user2.fetchAuthenticated()).toBe(true)
   })
+
+  it('returns 400 for non-admin token', async () => {
+    const user = await TestUser.create('neutron-1')
+    const { id } = await user.authenticate()
+
+    const { response, error } = await invalidateTokens(
+      {
+        data: {
+          tokens: [id],
+        },
+      },
+      user.tokens.verify
+    )
+    expect(response.status).toBe(400)
+    expect(error).toBe('Invalid auth data.')
+  })
 })

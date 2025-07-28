@@ -13,7 +13,7 @@ const chainIds = ['neutron-1', 'cosmoshub-4', 'phoenix-1']
 describe('POST /unregister', () => {
   it('returns 204 and unregisters public keys', async () => {
     const user = await TestUser.create(...chainIds)
-    await user.authenticate()
+    await user.authenticate({ chainId: 'neutron-1' })
     await user.registerPublicKeys({ chainIds })
     const { uuid } = await user.fetchProfile()
 
@@ -50,9 +50,81 @@ describe('POST /unregister', () => {
       },
     })
 
-    // neutron-1 should be an empty profile.
+    // neutron-1 and cosmoshub-4 should be an empty profile.
     expect(
       (await fetchProfileViaPublicKey(user.getPublicKey('neutron-1'))).body
+    ).toEqual({
+      uuid: '',
+      nonce: INITIAL_NONCE,
+      name: null,
+      nft: null,
+      chains: {},
+    })
+    expect(
+      (await fetchProfileViaPublicKey(user.getPublicKey('cosmoshub-4'))).body
+    ).toEqual({
+      uuid: '',
+      nonce: INITIAL_NONCE,
+      name: null,
+      nft: null,
+      chains: {},
+    })
+  })
+
+  it('returns 204 and unregisters public keys with JWT auth admin token', async () => {
+    const user = await TestUser.create(...chainIds)
+    await user.authenticate({ chainId: 'neutron-1' })
+    await user.registerPublicKeys({ chainIds })
+    const { uuid } = await user.fetchProfile()
+
+    // Unregister public key for cosmoshub-4, which is the same as neutron-1.
+    // Only phoenix-1 should remain.
+    const { response } = await unregisterPublicKeys(
+      {
+        data: {
+          publicKeys: [
+            {
+              type: CosmosSecp256k1PublicKey.type,
+              hex: user.getPublicKey('cosmoshub-4'),
+            },
+          ],
+        },
+      },
+      user.tokens.admin
+    )
+    expect(response.status).toBe(204)
+
+    // phoenix-1 public key should still resolve.
+    expect(
+      (await fetchProfileViaPublicKey(user.getPublicKey('phoenix-1'))).body
+    ).toEqual({
+      uuid,
+      nonce: INITIAL_NONCE + 1,
+      name: null,
+      nft: null,
+      chains: {
+        'phoenix-1': {
+          publicKey: {
+            type: CosmosSecp256k1PublicKey.type,
+            hex: user.getPublicKey('phoenix-1'),
+          },
+          address: user.getAddress('phoenix-1'),
+        },
+      },
+    })
+
+    // neutron-1 and cosmoshub-4 should be an empty profile.
+    expect(
+      (await fetchProfileViaPublicKey(user.getPublicKey('neutron-1'))).body
+    ).toEqual({
+      uuid: '',
+      nonce: INITIAL_NONCE,
+      name: null,
+      nft: null,
+      chains: {},
+    })
+    expect(
+      (await fetchProfileViaPublicKey(user.getPublicKey('cosmoshub-4'))).body
     ).toEqual({
       uuid: '',
       nonce: INITIAL_NONCE,
@@ -64,7 +136,9 @@ describe('POST /unregister', () => {
 
   it('returns 401 if public keys are not attached to the profile', async () => {
     const user = await TestUser.create('neutron-1', 'phoenix-1')
-    await user.authenticate('neutron-1')
+    await user.authenticate({
+      chainId: 'neutron-1',
+    })
 
     // Unregister public key for phoenix-1, which is not attached to the
     // neutron-1 profile, since the public keys are different.
@@ -126,5 +200,29 @@ describe('POST /unregister', () => {
         chains: {},
       })
     }
+  })
+
+  it('returns 400 for non-admin token', async () => {
+    const user = await TestUser.create(...chainIds)
+    await user.authenticate({ chainId: 'neutron-1' })
+    await user.registerPublicKeys({ chainIds })
+
+    // Unregister public key for cosmoshub-4, which is the same as neutron-1.
+    // Only phoenix-1 should remain.
+    const { response, error } = await unregisterPublicKeys(
+      {
+        data: {
+          publicKeys: [
+            {
+              type: CosmosSecp256k1PublicKey.type,
+              hex: user.getPublicKey('cosmoshub-4'),
+            },
+          ],
+        },
+      },
+      user.tokens.verify
+    )
+    expect(response.status).toBe(400)
+    expect(error).toBe('Invalid auth data.')
   })
 })

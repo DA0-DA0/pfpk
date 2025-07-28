@@ -32,7 +32,7 @@ describe('GET /nonce/:publicKey', () => {
     const nonce3 = await user.fetchNonce()
     expect(nonce3).toBe(nonce2 + 1)
 
-    // update profile with token auth, nonce should not be incremented
+    // update profile with token auth, nonce should NOT be incremented
     await user.updateProfile({ name: 'test' }, { withToken: true })
     const nonce4 = await user.fetchNonce()
     expect(nonce4).toBe(nonce3)

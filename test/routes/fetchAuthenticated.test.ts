@@ -9,18 +9,107 @@ describe('GET /auth', () => {
     await user.authenticate()
 
     // both tokens should be valid
-    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
+    expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
       204
     )
-    expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
+    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
       204
     )
   })
 
-  it('returns 401 if no Authorization header', async () => {
+  it('returns 204 if token has audiences but none are required', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.authenticate({
+      audience: ['pfpk.test', 'daodao.zone'],
+    })
+
+    // both tokens should be valid
+    expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
+      204
+    )
+    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
+      204
+    )
+  })
+
+  it('returns 204 with matching audience', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.authenticate({
+      audience: ['pfpk.test', 'daodao.zone'],
+    })
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.admin, {
+          query: {
+            audience: 'pfpk.test',
+          },
+        })
+      ).response.status
+    ).toBe(204)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.verify, {
+          query: {
+            audience: 'daodao.zone',
+          },
+        })
+      ).response.status
+    ).toBe(204)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.verify, {
+          query: [
+            ['audience', 'pfpk.test'],
+            ['audience', 'daodao.zone'],
+          ],
+        })
+      ).response.status
+    ).toBe(204)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.verify, {
+          query: [
+            ['audience', 'invalid.audience'],
+            ['audience', 'pfpk.test'],
+          ],
+        })
+      ).response.status
+    ).toBe(204)
+  })
+
+  it('returns 401 with mismatched audience', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.authenticate({
+      audience: ['pfpk.test', 'daodao.zone'],
+    })
+
+    const { response, error } = await fetchAuthenticated(user.tokens.verify, {
+      query: {
+        audience: 'pf.pk',
+      },
+    })
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid audience.')
+  })
+
+  it('returns 401 with no audience', async () => {
     const user = await TestUser.create('neutron-1')
     await user.authenticate()
 
+    const { response, error } = await fetchAuthenticated(user.tokens.verify, {
+      query: {
+        audience: 'pf.pk',
+      },
+    })
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid audience.')
+  })
+
+  it('returns 401 if no Authorization header', async () => {
     const { response, error } = await fetchAuthenticated()
     expect(response.status).toBe(401)
     expect(error).toBe('Unauthorized: No authorization header.')
@@ -30,31 +119,27 @@ describe('GET /auth', () => {
     const user = await TestUser.create('neutron-1')
     await user.authenticate()
 
-    const { response, error } = await fetchAuthenticated(user.tokens.verify, {
-      Authorization: 'Basic ' + user.tokens.verify,
+    const { response, error } = await fetchAuthenticated(undefined, {
+      headers: {
+        Authorization: 'Basic ' + user.tokens.verify,
+      },
     })
     expect(response.status).toBe(401)
     expect(error).toBe('Unauthorized: Invalid token type, expected `Bearer`.')
   })
 
   it('returns 401 if no token', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.authenticate()
-
     const { response, error } = await fetchAuthenticated(undefined, {
-      Authorization: 'Bearer',
+      headers: {
+        Authorization: 'Bearer ',
+      },
     })
     expect(response.status).toBe(401)
     expect(error).toBe('Unauthorized: No token provided.')
   })
 
   it('returns 401 if invalid token', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.authenticate()
-
-    const { response, error } = await fetchAuthenticated(undefined, {
-      Authorization: 'Bearer invalid',
-    })
+    const { response, error } = await fetchAuthenticated('invalid')
     expect(response.status).toBe(401)
     expect(error).toBe(
       'Unauthorized: Invalid token. Error: token must consist of 2 or more parts'
