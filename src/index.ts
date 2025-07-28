@@ -13,7 +13,6 @@ import { resolveProfile } from './routes/resolveProfile'
 import { searchProfiles } from './routes/searchProfiles'
 import { unregisterPublicKeys } from './routes/unregisterPublicKeys'
 import { updateProfile } from './routes/updateProfile'
-import { JwtRole } from './types'
 import {
   KnownError,
   makeJwtAuthMiddleware,
@@ -42,18 +41,24 @@ router
 
 // Profile stuff
 router
+  // Get the profile via JWT token.
+  .get('/me', makeJwtAuthMiddleware({ audience: ['pfpk'] }), fetchMe)
   // Update profile.
-  .post('/me', makeJwtOrSignatureAuthMiddleware(JwtRole.Admin), updateProfile)
+  .post(
+    '/me',
+    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    updateProfile
+  )
   // Register more public keys.
   .post(
     '/register',
-    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
     registerPublicKeys
   )
   // Unregister existing public keys.
   .post(
     '/unregister',
-    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
     unregisterPublicKeys
   )
   // Resolve profile.
@@ -72,21 +77,21 @@ router
   // Create JWT token(s) via wallet auth.
   .post('/tokens', signatureAuthMiddleware, createTokens)
   // Fetch tokens for profile (only JWT auth since GET cannot have a body).
-  .get('/tokens', makeJwtAuthMiddleware(JwtRole.Admin), fetchTokens)
+  .get(
+    '/tokens',
+    makeJwtAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    fetchTokens
+  )
   // Invalidate tokens.
   .delete(
     '/tokens',
-    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
     invalidateTokens
   )
-  // Return successfully if authenticated via JWT token.
-  .get(
-    '/auth',
-    makeJwtAuthMiddleware(JwtRole.Verify, JwtRole.Admin),
-    fetchAuthenticated
-  )
-  // Get the token-authenticated profile, validating the JWT token.
-  .get('/me', makeJwtAuthMiddleware(JwtRole.Verify, JwtRole.Admin), fetchMe)
+  // Return successfully if authenticated via JWT token. JWT auth middleware is
+  // used manually in the route handler, since audience and role requirements
+  // may be provided in the query.
+  .get('/auth', fetchAuthenticated)
 
 //! MUST BE LAST SINCE IT MATCHES ALL ROUTES
 // Fetch profile with public key hex.

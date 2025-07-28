@@ -10,8 +10,8 @@ describe('GET /me', () => {
     const user = await TestUser.create('neutron-1')
     await user.createTokens()
 
-    // verify token should work
-    const { response, body } = await fetchMe(user.tokens.verify)
+    // admin token should work
+    const { response, body } = await fetchMe(user.tokens.admin)
     expect(response.status).toBe(200)
     expect(body.uuid.length).toBeGreaterThan(0)
     expect(body.nonce).toBe(INITIAL_NONCE + 1)
@@ -27,9 +27,9 @@ describe('GET /me', () => {
       },
     })
 
-    // admin token should work too
+    // not admin token should work too
     const { response: response2, body: body2 } = await fetchMe(
-      user.tokens.admin
+      user.tokens.notAdmin
     )
     expect(response2.status).toBe(200)
     expect(body2).toEqual(body)

@@ -10,7 +10,8 @@ describe('GET /tokens', () => {
       tokens: [
         {
           name: 'test token 1',
-          audience: ['pfpk.test'],
+          audience: ['pfpk'],
+          role: 'admin',
         },
       ],
     })
@@ -23,7 +24,8 @@ describe('GET /tokens', () => {
       {
         id: expect.any(String),
         name: 'test token 1',
-        audience: ['pfpk.test'],
+        audience: ['pfpk'],
+        role: 'admin',
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
       },
@@ -48,7 +50,8 @@ describe('GET /tokens', () => {
       {
         id: expect.any(String),
         name: 'test token 1',
-        audience: ['pfpk.test'],
+        audience: ['pfpk'],
+        role: 'admin',
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
       },
@@ -56,6 +59,7 @@ describe('GET /tokens', () => {
         id: expect.any(String),
         name: 'test token 2',
         audience: null,
+        role: null,
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
       },
@@ -66,7 +70,7 @@ describe('GET /tokens', () => {
     const user = await TestUser.create('neutron-1')
     await user.createTokens()
 
-    const { response, error } = await fetchTokens(user.tokens.verify)
+    const { response, error } = await fetchTokens(user.tokens.notAdmin)
     expect(response.status).toBe(401)
     expect(error).toBe('Unauthorized: Invalid token role.')
   })
@@ -75,14 +79,16 @@ describe('GET /tokens', () => {
     const user = await TestUser.create('neutron-1')
 
     // create 3 tokens
-    await user.createTokens({ tokens: [{}, {}, {}] })
+    await user.createTokens({
+      tokens: [{}, {}, {}],
+    })
 
     // advance time by 14 days minus 1 second
     vi.useFakeTimers()
     vi.advanceTimersByTime(14 * 24 * 60 * 60 * 1000 - 1000)
 
-    // create 1 more token
-    await user.createTokens()
+    // create 1 more token, admin so we can fetch tokens
+    await user.createTokens({ tokens: [{ audience: ['pfpk'], role: 'admin' }] })
 
     // should have 4 tokens
     let tokens = await user.fetchTokens()

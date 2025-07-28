@@ -9,8 +9,9 @@ describe('DELETE /tokens', () => {
     const user = await TestUser.create('neutron-1')
 
     // create 2 tokens
-    const [tokenToDelete] = await user.createTokens()
-    await user.createTokens()
+    const [tokenToDelete, adminToken] = await user.createTokens({
+      tokens: [{}, { audience: ['pfpk'], role: 'admin' }],
+    })
 
     // should have 2 tokens
     let tokens = await user.fetchTokens()
@@ -30,7 +31,7 @@ describe('DELETE /tokens', () => {
 
     // deleted token should no longer be valid
     const { response: invalidResponse, error: invalidError } =
-      await fetchAuthenticated(tokenToDelete.tokens.verify)
+      await fetchAuthenticated(tokenToDelete.token)
     expect(invalidResponse.status).toBe(401)
     expect(invalidError).toBe('Unauthorized: Token invalidated.')
 
@@ -39,7 +40,7 @@ describe('DELETE /tokens', () => {
       await user.signRequestBody({
         tokens: [tokens[0].id],
       }),
-      user.tokens.admin
+      adminToken.token
     )
     expect(response2.status).toBe(204)
   })
@@ -47,8 +48,10 @@ describe('DELETE /tokens', () => {
   it('returns 204 and deletes expired tokens', async () => {
     const user = await TestUser.create('neutron-1')
 
-    // create 3 tokens
-    await user.createTokens({ tokens: [{}, {}, {}] })
+    // create 3 tokens, one as admin so we can fetch tokens
+    await user.createTokens({
+      tokens: [{ audience: ['pfpk'], role: 'admin' }, {}, {}],
+    })
 
     // should have 3 tokens
     let tokens = await user.fetchTokens()
@@ -79,8 +82,8 @@ describe('DELETE /tokens', () => {
     const user1 = await TestUser.create('neutron-1')
     const user2 = await TestUser.create('neutron-1')
 
-    await user1.createTokens()
-    const [{ id: user2TokenId }] = await user2.createTokens()
+    await user1.createTokens({ tokens: [{}] })
+    const [{ id: user2TokenId }] = await user2.createTokens({ tokens: [{}] })
 
     // both tokens work
     expect(await user1.fetchAuthenticated()).toBe(true)
@@ -109,7 +112,7 @@ describe('DELETE /tokens', () => {
           tokens: [id],
         },
       },
-      user.tokens.verify
+      user.tokens.notAdmin
     )
     expect(response.status).toBe(401)
     expect(error).toBe('Unauthorized: Invalid auth data.')

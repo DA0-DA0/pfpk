@@ -2,7 +2,7 @@ import jwt from '@tsndr/cloudflare-worker-jwt'
 
 import { KnownError } from './error'
 import { objectMatchesStructure } from './objectMatchesStructure'
-import { JwtPayload, JwtRole } from '../types'
+import { JwtPayload } from '../types'
 
 /**
  * Create a JWT token set for each role.
@@ -17,6 +17,7 @@ export const createJwtSet = async (
   {
     profileUuid,
     audience,
+    role,
     expiresInSeconds,
     issuedAt: issuedAtDate = new Date(),
   }: {
@@ -28,6 +29,10 @@ export const createJwtSet = async (
      * Optional audience.
      */
     audience?: string[]
+    /**
+     * Optional role.
+     */
+    role?: string
     /**
      * Expires in seconds.
      */
@@ -41,38 +46,29 @@ export const createJwtSet = async (
   uuid: string
   issuedAt: number
   expiresAt: number
-  tokens: Record<JwtRole, string>
+  token: string
 }> => {
   const issuedAt = Math.floor(issuedAtDate.getTime() / 1000)
   const uuid = await crypto.randomUUID()
   const expiresAt = issuedAt + expiresInSeconds
 
-  const tokens = Object.fromEntries(
-    await Promise.all(
-      Object.values(JwtRole).map(
-        async (role): Promise<[JwtRole, string]> => [
-          role,
-          await jwt.sign(
-            {
-              sub: profileUuid,
-              ...(audience?.length && { aud: audience }),
-              exp: expiresAt,
-              iat: issuedAt,
-              jti: uuid,
-              role,
-            } satisfies JwtPayload,
-            env.JWT_SECRET
-          ),
-        ]
-      )
-    )
-  ) as Record<JwtRole, string>
+  const token = await jwt.sign(
+    {
+      sub: profileUuid,
+      ...(audience?.length && { aud: audience }),
+      exp: expiresAt,
+      iat: issuedAt,
+      jti: uuid,
+      role,
+    } satisfies JwtPayload,
+    env.JWT_SECRET
+  )
 
   return {
     uuid,
     issuedAt,
     expiresAt,
-    tokens,
+    token,
   }
 }
 
@@ -92,7 +88,7 @@ export const verifyJwt = async (
       throwError: true,
     })
     .catch((err) => {
-      const message = err instanceof Error ? err.message : 'Invalid token.'
+      const message = err instanceof Error ? err.message : `${err}`
       throw new KnownError(
         401,
         'Unauthorized',
@@ -110,7 +106,6 @@ export const verifyJwt = async (
       exp: {},
       iat: {},
       jti: {},
-      role: {},
     })
   ) {
     throw new KnownError(401, 'Unauthorized', 'Invalid token.')

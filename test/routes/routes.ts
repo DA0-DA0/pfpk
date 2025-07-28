@@ -45,20 +45,31 @@ export const createTokens = async (
 export const fetchAuthenticated = async (
   token?: string,
   {
+    audience,
+    role,
     headers,
-    query,
   }: {
+    audience?: string[]
+    role?: string[]
     headers?: HeadersInit
-    query?: Parameters<typeof url>[1]
   } = {}
 ) => {
-  const request = new Request(url('/auth', query), {
-    method: 'GET',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-  })
+  const request = new Request(
+    url('/auth', [
+      ...(audience?.map((audience): [string, string] => [
+        'audience',
+        audience,
+      ]) ?? []),
+      ...(role?.map((role): [string, string] => ['role', role]) ?? []),
+    ]),
+    {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+    }
+  )
   const response = await SELF.fetch(request)
   const body = response.body ? await response.json<any>() : undefined
   return {

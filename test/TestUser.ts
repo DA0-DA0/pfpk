@@ -25,7 +25,6 @@ import {
   FetchProfileResponse,
   FetchTokensResponse,
   InvalidateTokensRequest,
-  JwtRole,
   ProfileUpdate,
   RegisterPublicKeysRequest,
   RequestBody,
@@ -51,7 +50,26 @@ export class TestUser {
   /**
    * JWT tokens for the user if authenticated.
    */
-  private _tokens: Record<JwtRole, string> | undefined = undefined
+  private _tokens:
+    | {
+        /**
+         * All tokens created.
+         */
+        _all: CreateTokensResponse['tokens']
+        /**
+         * First token created.
+         */
+        first: string
+        /**
+         * Token for admin role.
+         */
+        admin: string
+        /**
+         * Token for non-admin role.
+         */
+        notAdmin: string
+      }
+    | undefined = undefined
 
   constructor(private readonly mnemonic: string) {}
 
@@ -87,7 +105,7 @@ export class TestUser {
     }
   }
 
-  get tokens(): Record<JwtRole, string> {
+  get tokens() {
     if (!this._tokens) {
       throw new Error('User not authenticated')
     }
@@ -126,14 +144,38 @@ export class TestUser {
    */
   async createTokens({
     chainId,
-    ...request
+    tokens = [
+      {
+        audience: ['pfpk'],
+        role: 'admin',
+      },
+      {
+        audience: ['pfpk'],
+        role: 'notAdmin',
+      },
+    ],
   }: CreateTokensRequest & {
     chainId?: string
   } = {}): Promise<CreateTokensResponse['tokens']> {
-    const { body } = await createTokens(
-      await this.signRequestBody(request, { chainId })
+    const { response, body, error } = await createTokens(
+      await this.signRequestBody({ tokens }, { chainId })
     )
-    this._tokens = body.tokens[0].tokens
+    if (response.status !== 200) {
+      throw new Error(`Failed to create tokens: ${response.status} ${error}`)
+    }
+
+    this._tokens = {
+      _all: body.tokens,
+      first: body.tokens[0].token,
+      admin:
+        body.tokens.find((token) => token.role === 'admin')?.token ||
+        this._tokens?.admin ||
+        '',
+      notAdmin:
+        body.tokens.find((token) => token.role === 'notAdmin')?.token ||
+        this._tokens?.notAdmin ||
+        '',
+    }
     return body.tokens
   }
 
@@ -141,17 +183,20 @@ export class TestUser {
    * Fetch whether or not the user is authenticated.
    */
   async fetchAuthenticated(): Promise<boolean> {
-    this._tokens ??= (await this.createTokens())[0].tokens
-    const { response } = await fetchAuthenticated(this.tokens.verify)
-    return response.status === 204
+    this._tokens ?? (await this.createTokens())
+    const { response } = await fetchAuthenticated(this.tokens.first)
+    return response.status === 200
   }
 
   /**
    * Fetch the authenticated user's profile.
    */
   async fetchMe(): Promise<FetchProfileResponse> {
-    this._tokens ??= (await this.createTokens())[0].tokens
-    const { body } = await fetchMe(this.tokens.verify)
+    this._tokens ?? (await this.createTokens())
+    const { response, body, error } = await fetchMe(this.tokens.first)
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch me: ${response.status} ${error}`)
+    }
     return body
   }
 
@@ -163,8 +208,13 @@ export class TestUser {
     chainId = Object.keys(this.signers)[0]
   ): Promise<number> {
     const {
+      response,
       body: { nonce },
+      error,
     } = await fetchNonce(this.getPublicKey(chainId))
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch nonce: ${response.status} ${error}`)
+    }
     return nonce
   }
 
@@ -174,7 +224,12 @@ export class TestUser {
   async fetchProfile(
     chainId = Object.keys(this.signers)[0]
   ): Promise<FetchProfileResponse> {
-    const { body } = await fetchProfileViaPublicKey(this.getPublicKey(chainId))
+    const { response, body, error } = await fetchProfileViaPublicKey(
+      this.getPublicKey(chainId)
+    )
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch profile: ${response.status} ${error}`)
+    }
     return body
   }
 
@@ -182,10 +237,15 @@ export class TestUser {
    * Fetch the tokens created during authentications.
    */
   async fetchTokens(): Promise<FetchTokensResponse['tokens']> {
-    this._tokens ??= (await this.createTokens())[0].tokens
+    this._tokens ?? (await this.createTokens())
     const {
+      response,
       body: { tokens },
+      error,
     } = await fetchTokens(this.tokens.admin)
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch tokens: ${response.status} ${error}`)
+    }
     return tokens
   }
 

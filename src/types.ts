@@ -155,6 +155,7 @@ export type TokenJson = {
   id: string
   name: string | null
   audience: string[] | null
+  role: string | null
   issuedAt: number
   expiresAt: number
 }
@@ -191,15 +192,35 @@ export type CreateTokensRequest = {
   tokens?: {
     name?: string
     audience?: string[]
+    role?: string
   }[]
 }
 
 export type CreateTokensResponse = {
   tokens: {
     id: string
+    token: string
+    name: string | null
+    audience: string[] | null
+    role: string | null
+    issuedAt: number
     expiresAt: number
-    tokens: Record<JwtRole, string>
   }[]
+}
+
+export type FetchAuthenticatedResponse = {
+  uuid: string
+}
+
+export type JwtTokenRequirements = {
+  /**
+   * Optionally verify the token contains at least one of the audiences.
+   */
+  audience?: string[]
+  /**
+   * Optionally verify the token contains at least one of the roles.
+   */
+  role?: string[]
 }
 
 export type Auth = {
@@ -333,25 +354,9 @@ export type DbRowProfileToken = {
    * JSON array of strings.
    */
   audience: string | null
+  role: string | null
   expiresAt: number
   createdAt: number
-}
-
-/**
- * Role a JWT token can have.
- */
-export enum JwtRole {
-  /**
-   * Can do anything. This is intended to be used by the profile owner to manage
-   * their profile and tokens in this auth service.
-   */
-  Admin = 'admin',
-  /**
-   * Can only verify whether or not the token is valid. This is intended to be
-   * used by other services to so they can ensure the caller is the authorized
-   * UUID and thus it's safe to associate data with the provided UUID.
-   */
-  Verify = 'verify',
 }
 
 export type JwtPayload = {
@@ -360,7 +365,7 @@ export type JwtPayload = {
   exp: number
   iat: number
   jti: string
-  role: JwtRole
+  role?: string
 }
 
 /**

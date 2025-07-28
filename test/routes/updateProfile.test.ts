@@ -422,7 +422,7 @@ describe('POST /me', () => {
           },
         },
       },
-      user.tokens.verify
+      user.tokens.notAdmin
     )
     expect(response.status).toBe(401)
     expect(error).toBe('Unauthorized: Invalid auth data.')

@@ -6,44 +6,83 @@ import { INITIAL_NONCE } from '../../src/utils'
 import { TestUser } from '../TestUser'
 
 describe('POST /tokens', () => {
-  it('returns 200 with a valid token set', async () => {
+  it('returns 200 with created tokens', async () => {
     const user = await TestUser.create('neutron-1')
     const {
       response: { status },
-      body,
+      body: { tokens },
     } = await createTokens(
       await user.signRequestBody({
         tokens: [
           {
             name: 'test token',
-            audience: ['pfpk.test'],
+            audience: ['pfpk'],
+            role: 'admin',
+          },
+          {
+            name: 'test token 2',
           },
         ],
       })
     )
 
     expect(status).toBe(200)
-    expect(body.tokens.length).toBe(1)
-    expect(body.tokens[0].tokens.admin).toBeTruthy()
-    expect(body.tokens[0].tokens.verify).toBeTruthy()
-
-    // both tokens should be valid
-    const { response } = await fetchAuthenticated(body.tokens[0].tokens.admin)
-    expect(response.status).toBe(204)
-
-    const { response: verifyResponse } = await fetchAuthenticated(
-      body.tokens[0].tokens.verify
-    )
-    expect(verifyResponse.status).toBe(204)
-
-    // check that token shows up in list with correct data
-    const {
-      body: { tokens },
-    } = await fetchTokens(body.tokens[0].tokens.admin)
-    expect(tokens.length).toBe(1)
-    expect(tokens[0].id).toBe(body.tokens[0].id)
+    expect(tokens.length).toBe(2)
+    expect(tokens[0].token).toBeTruthy()
     expect(tokens[0].name).toBe('test token')
-    expect(tokens[0].audience).toEqual(['pfpk.test'])
+    expect(tokens[0].audience).toEqual(['pfpk'])
+    expect(tokens[0].role).toBe('admin')
+    expect(tokens[1].token).toBeTruthy()
+    expect(tokens[1].name).toBe('test token 2')
+    expect(tokens[1].audience).toBeNull()
+    expect(tokens[1].role).toBeNull()
+
+    // admin token should be valid
+    expect((await fetchAuthenticated(tokens[0].token)).response.status).toBe(
+      200
+    )
+    expect(
+      (
+        await fetchAuthenticated(tokens[0].token, {
+          audience: ['pfpk'],
+          role: ['admin'],
+        })
+      ).response.status
+    ).toBe(200)
+
+    // second token should be valid
+    expect((await fetchAuthenticated(tokens[1].token)).response.status).toBe(
+      200
+    )
+    // but not if an audience or role is provided
+    expect(
+      (
+        await fetchAuthenticated(tokens[1].token, {
+          audience: ['pfpk'],
+        })
+      ).response.status
+    ).toBe(401)
+    expect(
+      (
+        await fetchAuthenticated(tokens[1].token, {
+          role: ['admin'],
+        })
+      ).response.status
+    ).toBe(401)
+
+    // check that tokens show up in list with correct data
+    const {
+      body: { tokens: fetchedTokens },
+    } = await fetchTokens(tokens[0].token)
+    expect(fetchedTokens.length).toBe(2)
+    expect(fetchedTokens[0].id).toBe(tokens[0].id)
+    expect(fetchedTokens[0].name).toBe('test token')
+    expect(fetchedTokens[0].audience).toEqual(['pfpk'])
+    expect(fetchedTokens[0].role).toBe('admin')
+    expect(fetchedTokens[1].id).toBe(tokens[1].id)
+    expect(fetchedTokens[1].name).toBe('test token 2')
+    expect(fetchedTokens[1].audience).toBeNull()
+    expect(fetchedTokens[1].role).toBeNull()
   })
 
   it('returns 200 with multiple tokens', async () => {
@@ -56,6 +95,8 @@ describe('POST /tokens', () => {
         tokens: [
           {
             name: 'first',
+            audience: ['pfpk'],
+            role: 'admin',
           },
           {},
           {
@@ -71,20 +112,20 @@ describe('POST /tokens', () => {
     expect(body.tokens[0].id).not.toBe(body.tokens[1].id)
     expect(body.tokens[0].id).not.toBe(body.tokens[2].id)
     expect(body.tokens[1].id).not.toBe(body.tokens[2].id)
-    // Same expiresAt
+    // Same issuedAt/expiresAt
+    expect(body.tokens[0].issuedAt).toBe(body.tokens[1].issuedAt)
+    expect(body.tokens[0].issuedAt).toBe(body.tokens[2].issuedAt)
     expect(body.tokens[0].expiresAt).toBe(body.tokens[1].expiresAt)
     expect(body.tokens[0].expiresAt).toBe(body.tokens[2].expiresAt)
     // Different tokens
-    expect(body.tokens[0].tokens.admin).not.toBe(body.tokens[1].tokens.admin)
-    expect(body.tokens[0].tokens.verify).not.toBe(body.tokens[1].tokens.verify)
-    expect(body.tokens[0].tokens.verify).not.toBe(body.tokens[2].tokens.verify)
-    expect(body.tokens[1].tokens.admin).not.toBe(body.tokens[2].tokens.admin)
-    expect(body.tokens[1].tokens.verify).not.toBe(body.tokens[2].tokens.verify)
+    expect(body.tokens[0].token).not.toBe(body.tokens[1].token)
+    expect(body.tokens[0].token).not.toBe(body.tokens[2].token)
+    expect(body.tokens[1].token).not.toBe(body.tokens[2].token)
 
     // List tokens
     const {
       body: { tokens },
-    } = await fetchTokens(body.tokens[0].tokens.admin)
+    } = await fetchTokens(body.tokens[0].token)
     expect(tokens.length).toBe(3)
     expect(tokens[0].id).toBe(body.tokens[0].id)
     expect(tokens[1].id).toBe(body.tokens[1].id)
@@ -92,9 +133,12 @@ describe('POST /tokens', () => {
     expect(tokens[0].name).toBe('first')
     expect(tokens[1].name).toBeNull()
     expect(tokens[2].name).toBeNull()
-    expect(tokens[0].audience).toBeNull()
+    expect(tokens[0].audience).toEqual(['pfpk'])
     expect(tokens[1].audience).toBeNull()
     expect(tokens[2].audience).toEqual(['some.domain'])
+    expect(tokens[0].role).toBe('admin')
+    expect(tokens[1].role).toBeNull()
+    expect(tokens[2].role).toBeNull()
   })
 
   it('returns 400 when missing body', async () => {

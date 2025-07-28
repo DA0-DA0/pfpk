@@ -11,7 +11,12 @@ import { KnownError } from './error'
 import { verifyJwt } from './jwt'
 import { objectMatchesStructure } from './objectMatchesStructure'
 import { makePublicKeyFromJson } from '../publicKeys'
-import { AuthorizedRequest, JwtRole, PublicKey, RequestBody } from '../types'
+import {
+  AuthorizedRequest,
+  JwtTokenRequirements,
+  PublicKey,
+  RequestBody,
+} from '../types'
 
 export const INITIAL_NONCE = 0
 
@@ -24,7 +29,10 @@ export const INITIAL_NONCE = 0
  * @param request - The request to authenticate.
  */
 export const makeJwtAuthMiddleware =
-  (...roles: JwtRole[]): RequestHandler<AuthorizedRequest> =>
+  ({
+    audience,
+    role,
+  }: JwtTokenRequirements = {}): RequestHandler<AuthorizedRequest> =>
   async (request, env: Env) => {
     // If JWT token is provided, verify it.
     const authHeader = request.headers.get('Authorization')
@@ -47,9 +55,20 @@ export const makeJwtAuthMiddleware =
     }
 
     const jwtPayload = await verifyJwt(env, token)
-    if (!roles.includes(jwtPayload.role)) {
+
+    // Verify audience if provided.
+    if (
+      audience?.length &&
+      (!jwtPayload.aud || !audience.some((a) => jwtPayload.aud?.includes(a)))
+    ) {
+      throw new KnownError(401, 'Unauthorized', 'Invalid token audience.')
+    }
+
+    // Verify role if provided.
+    if (role?.length && (!jwtPayload.role || !role.includes(jwtPayload.role))) {
       throw new KnownError(401, 'Unauthorized', 'Invalid token role.')
     }
+
     request.jwtPayload = jwtPayload
 
     const profile = await getProfileFromUuid(env, request.jwtPayload.sub)
@@ -66,17 +85,20 @@ export const makeJwtAuthMiddleware =
       throw new KnownError(401, 'Unauthorized', 'Token invalidated.')
     }
 
-    const body: RequestBody = request.body
-      ? await request.json<RequestBody>().catch((err) => {
-          // Cannot parse body twice, and signature auth needs a valid body, so
-          // if JSON parsing fails, return a fatal error and stop early.
-          throw new KnownError(400, 'Invalid request body', err, true)
-        })
-      : // If no body, use empty object for data and no signature.
-        {
-          data: {},
-        }
-    request.validatedBody = body
+    // Don't parse the body again if it was already parsed.
+    if (!request.validatedBody) {
+      request.validatedBody = request.body
+        ? await request.json<RequestBody>().catch((err) => {
+            // Cannot parse body twice, and signature auth needs a valid body,
+            // so if JSON parsing fails, return a fatal error and stop early.
+            throw new KnownError(400, 'Invalid request body', err, true)
+          })
+        : // If no body, use empty object for data and no signature.
+          {
+            data: {},
+          }
+    }
+    const body = request.validatedBody
 
     // If auth is provided, validate that it matches the profile. If it doesn't
     // match, strip it since it's untrusted.
@@ -124,12 +146,10 @@ export const signatureAuthMiddleware: RequestHandler<
 > = async (request, env: Env) => {
   // JWT auth may have failed after the body was parsed—don't parse it again.
   if (!request.validatedBody) {
-    const body = await request.json<RequestBody>?.().catch((err) => {
+    request.validatedBody = await request.json<RequestBody>?.().catch((err) => {
       throw new KnownError(400, 'Invalid request body', err)
     })
-    request.validatedBody = body
   }
-
   const body = request.validatedBody
 
   // Verify body and add generated public key to request.
@@ -213,9 +233,9 @@ export const signatureAuthMiddleware: RequestHandler<
  * @param request - The request to authenticate.
  */
 export const makeJwtOrSignatureAuthMiddleware = (
-  ...roles: JwtRole[]
+  requirements?: JwtTokenRequirements
 ): RequestHandler<AuthorizedRequest> => {
-  const jwtAuthMiddleware = makeJwtAuthMiddleware(...roles)
+  const jwtAuthMiddleware = makeJwtAuthMiddleware(requirements)
 
   return async (...params) => {
     // Attempt JWT auth first. On success, stop early.

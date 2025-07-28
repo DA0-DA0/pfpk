@@ -527,7 +527,7 @@ export const getValidTokensForProfile = async (
   (
     await env.DB.prepare(
       `
-      SELECT id, profileId, uuid, name, audience, expiresAt, createdAt
+      SELECT id, profileId, uuid, name, audience, role, expiresAt, createdAt
       FROM profile_tokens
       WHERE profileId = ?1 AND expiresAt > ?2
       `
@@ -546,7 +546,7 @@ export const getTokenForProfile = async (
 ): Promise<DbRowProfileToken | null> => {
   const token = await env.DB.prepare(
     `
-    SELECT id, profileId, uuid, name, audience, expiresAt, createdAt
+    SELECT id, profileId, uuid, name, audience, role, expiresAt, createdAt
     FROM profile_tokens
     WHERE profileId = ?1 AND uuid = ?2
     `
@@ -567,23 +567,25 @@ export const saveTokensToProfile = async (
     tokenUuid: string
     name?: string | null
     audience?: string[] | null
+    role?: string | null
     expiresAt: number
     issuedAt: number
   }[]
 ) => {
   await env.DB.batch(
     tokens.map(
-      ({ profileId, tokenUuid, name, audience, expiresAt, issuedAt }) =>
+      ({ profileId, tokenUuid, name, audience, role, expiresAt, issuedAt }) =>
         env.DB.prepare(
           `
-          INSERT INTO profile_tokens (profileId, uuid, name, audience, expiresAt, createdAt, updatedAt)
-          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
+          INSERT INTO profile_tokens (profileId, uuid, name, audience, role, expiresAt, createdAt, updatedAt)
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
           `
         ).bind(
           profileId,
           tokenUuid,
           name || null,
           audience?.length ? JSON.stringify(audience) : null,
+          role || null,
           expiresAt,
           issuedAt
         )

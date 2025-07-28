@@ -10,10 +10,11 @@ export const fetchTokens: RequestHandler<AuthorizedRequest> = async (
   const tokens = await getValidTokensForProfile(env, profile.id)
   return {
     tokens: tokens.map(
-      ({ uuid, name, audience, expiresAt, createdAt }): TokenJson => ({
+      ({ uuid, name, audience, role, createdAt, expiresAt }): TokenJson => ({
         id: uuid,
         name,
         audience: audience ? JSON.parse(audience) : null,
+        role,
         issuedAt: createdAt,
         expiresAt,
       })

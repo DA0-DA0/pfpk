@@ -4,20 +4,20 @@ import { fetchAuthenticated } from './routes'
 import { TestUser } from '../TestUser'
 
 describe('GET /auth', () => {
-  it('returns 204 if authenticated', async () => {
+  it('returns 200 for valid tokens', async () => {
     const user = await TestUser.create('neutron-1')
     await user.createTokens()
 
     // both tokens should be valid
     expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
-      204
+      200
     )
-    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
-      204
-    )
+    expect(
+      (await fetchAuthenticated(user.tokens.notAdmin)).response.status
+    ).toBe(200)
   })
 
-  it('returns 204 if token has audiences but none are required', async () => {
+  it('returns 200 if token has audiences but none are required', async () => {
     const user = await TestUser.create('neutron-1')
     await user.createTokens({
       tokens: [
@@ -27,16 +27,13 @@ describe('GET /auth', () => {
       ],
     })
 
-    // both tokens should be valid
-    expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
-      204
-    )
-    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
-      204
+    // token should be valid
+    expect((await fetchAuthenticated(user.tokens.first)).response.status).toBe(
+      200
     )
   })
 
-  it('returns 204 with matching audience', async () => {
+  it('returns 200 with matching audience', async () => {
     const user = await TestUser.create('neutron-1')
     await user.createTokens({
       tokens: [
@@ -48,45 +45,35 @@ describe('GET /auth', () => {
 
     expect(
       (
-        await fetchAuthenticated(user.tokens.admin, {
-          query: {
-            audience: 'pfpk.test',
-          },
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['pfpk.test'],
         })
       ).response.status
-    ).toBe(204)
+    ).toBe(200)
 
     expect(
       (
-        await fetchAuthenticated(user.tokens.verify, {
-          query: {
-            audience: 'daodao.zone',
-          },
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['daodao.zone'],
         })
       ).response.status
-    ).toBe(204)
+    ).toBe(200)
 
     expect(
       (
-        await fetchAuthenticated(user.tokens.verify, {
-          query: [
-            ['audience', 'pfpk.test'],
-            ['audience', 'daodao.zone'],
-          ],
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['pfpk.test', 'daodao.zone'],
         })
       ).response.status
-    ).toBe(204)
+    ).toBe(200)
 
     expect(
       (
-        await fetchAuthenticated(user.tokens.verify, {
-          query: [
-            ['audience', 'invalid.audience'],
-            ['audience', 'pfpk.test'],
-          ],
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['invalid.audience', 'pfpk.test'],
         })
       ).response.status
-    ).toBe(204)
+    ).toBe(200)
   })
 
   it('returns 401 with mismatched audience', async () => {
@@ -99,26 +86,166 @@ describe('GET /auth', () => {
       ],
     })
 
-    const { response, error } = await fetchAuthenticated(user.tokens.verify, {
-      query: {
-        audience: 'pf.pk',
-      },
+    const { response, error } = await fetchAuthenticated(user.tokens.first, {
+      audience: ['pf.pk'],
     })
     expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid audience.')
+    expect(error).toBe('Unauthorized: Invalid token audience.')
   })
 
   it('returns 401 with no audience', async () => {
     const user = await TestUser.create('neutron-1')
-    await user.createTokens()
+    await user.createTokens({ tokens: [{}] })
 
-    const { response, error } = await fetchAuthenticated(user.tokens.verify, {
-      query: {
-        audience: 'pf.pk',
-      },
+    const { response, error } = await fetchAuthenticated(user.tokens.first, {
+      audience: ['pf.pk'],
     })
     expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid audience.')
+    expect(error).toBe('Unauthorized: Invalid token audience.')
+  })
+
+  it('returns 200 if token has role but none are required', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.createTokens({
+      tokens: [
+        {
+          role: 'some_role',
+        },
+      ],
+    })
+
+    // token should be valid
+    expect((await fetchAuthenticated(user.tokens.first)).response.status).toBe(
+      200
+    )
+  })
+
+  it('returns 200 with matching role', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.createTokens({
+      tokens: [
+        {
+          role: 'some_role',
+        },
+      ],
+    })
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          role: ['some_role'],
+        })
+      ).response.status
+    ).toBe(200)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          role: ['some_other_role', 'some_role'],
+        })
+      ).response.status
+    ).toBe(200)
+  })
+
+  it('returns 401 with mismatched role', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.createTokens({
+      tokens: [
+        {
+          role: 'some_role',
+        },
+      ],
+    })
+
+    const { response, error } = await fetchAuthenticated(user.tokens.first, {
+      role: ['some_other_role'],
+    })
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid token role.')
+  })
+
+  it('returns 401 with no role', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.createTokens({ tokens: [{}] })
+
+    const { response, error } = await fetchAuthenticated(user.tokens.first, {
+      role: ['some_role'],
+    })
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid token role.')
+  })
+
+  it('returns 200 with matching audience and role', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.createTokens({
+      tokens: [{ audience: ['pfpk.test'], role: 'some_role' }],
+    })
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['pfpk.test', 'daodao.zone'],
+        })
+      ).response.status
+    ).toBe(200)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          role: ['some_role'],
+        })
+      ).response.status
+    ).toBe(200)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['pfpk.test'],
+          role: ['some_role'],
+        })
+      ).response.status
+    ).toBe(200)
+  })
+
+  it('returns 401 with mismatched audience and role', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.createTokens({
+      tokens: [{ audience: ['pfpk.test'], role: 'some_role' }],
+    })
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['invalid.audience'],
+        })
+      ).response.status
+    ).toBe(401)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          role: ['invalid_role'],
+        })
+      ).response.status
+    ).toBe(401)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['pfpk.test'],
+          role: ['invalid_role'],
+        })
+      ).response.status
+    ).toBe(401)
+
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          audience: ['invalid.audience'],
+          role: ['some_role'],
+        })
+      ).response.status
+    ).toBe(401)
   })
 
   it('returns 401 if no Authorization header', async () => {
@@ -133,7 +260,7 @@ describe('GET /auth', () => {
 
     const { response, error } = await fetchAuthenticated(undefined, {
       headers: {
-        Authorization: 'Basic ' + user.tokens.verify,
+        Authorization: 'Basic ' + user.tokens.first,
       },
     })
     expect(response.status).toBe(401)
@@ -167,26 +294,25 @@ describe('GET /auth', () => {
     vi.advanceTimersByTime(14 * 24 * 60 * 60 * 1000 - 1000)
 
     // tokens should still be valid
-    expect((await fetchAuthenticated(user.tokens.verify)).response.status).toBe(
-      204
-    )
     expect((await fetchAuthenticated(user.tokens.admin)).response.status).toBe(
-      204
+      200
     )
+    expect(
+      (await fetchAuthenticated(user.tokens.notAdmin)).response.status
+    ).toBe(200)
 
     // advance time by 2 seconds
     vi.advanceTimersByTime(2 * 1000)
 
-    // verify token should be expired
+    // both tokens should be expired
     const { response: invalidResponse, error } = await fetchAuthenticated(
-      user.tokens.verify
+      user.tokens.admin
     )
     expect(invalidResponse.status).toBe(401)
     expect(error).toBe('Unauthorized: Token expired.')
 
-    // admin token should be expired
     const { response: invalidResponse2, error: error2 } =
-      await fetchAuthenticated(user.tokens.admin)
+      await fetchAuthenticated(user.tokens.notAdmin)
     expect(invalidResponse2.status).toBe(401)
     expect(error2).toBe('Unauthorized: Token expired.')
   })
@@ -200,12 +326,12 @@ describe('GET /auth', () => {
       chainIds: 'neutron-1',
     })
 
-    const { response, error } = await fetchAuthenticated(user.tokens.verify)
+    const { response, error } = await fetchAuthenticated(user.tokens.admin)
     expect(response.status).toBe(404)
     expect(error).toBe('Profile not found.')
 
     const { response: response2, error: error2 } = await fetchAuthenticated(
-      user.tokens.admin
+      user.tokens.notAdmin
     )
     expect(response2.status).toBe(404)
     expect(error2).toBe('Profile not found.')

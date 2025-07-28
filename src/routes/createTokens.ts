@@ -33,14 +33,15 @@ export const createTokens: RequestHandler<
   // Create new tokens for the profile.
   const issuedAt = new Date()
   const createdTokens = await Promise.all(
-    tokens.map(async ({ name, audience }) => {
+    tokens.map(async ({ name, audience, role }) => {
       const {
         uuid: tokenUuid,
         expiresAt,
-        tokens,
+        token,
       } = await createJwtSet(env, {
         profileUuid: profile.uuid,
         audience,
+        role,
         expiresInSeconds: 60 * 60 * 24 * 14, // 2 weeks
         issuedAt,
       })
@@ -50,9 +51,10 @@ export const createTokens: RequestHandler<
         tokenUuid,
         name,
         audience,
+        role,
         expiresAt,
         issuedAt: issuedAt.getTime(),
-        tokens,
+        token,
       }
     })
   )
@@ -61,10 +63,24 @@ export const createTokens: RequestHandler<
   await saveTokensToProfile(env, createdTokens)
 
   return {
-    tokens: createdTokens.map(({ tokenUuid, expiresAt, tokens }) => ({
-      id: tokenUuid,
-      expiresAt,
-      tokens,
-    })),
+    tokens: createdTokens.map(
+      ({
+        tokenUuid,
+        name = null,
+        audience = null,
+        role = null,
+        issuedAt,
+        expiresAt,
+        token,
+      }) => ({
+        id: tokenUuid,
+        token,
+        name,
+        audience,
+        role,
+        issuedAt,
+        expiresAt,
+      })
+    ),
   }
 }
