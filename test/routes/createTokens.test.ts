@@ -6,7 +6,7 @@ import { INITIAL_NONCE } from '../../src/utils'
 import { TestUser } from '../TestUser'
 
 describe('POST /tokens', () => {
-  it('returns 200 with created tokens', async () => {
+  it('returns 200 with created tokens via wallet signature auth', async () => {
     const user = await TestUser.create('neutron-1')
     const {
       response: { status },
@@ -85,6 +85,98 @@ describe('POST /tokens', () => {
     expect(fetchedTokens[1].role).toBeNull()
   })
 
+  it('returns 200 with created tokens via JWT auth', async () => {
+    const user = await TestUser.create('neutron-1')
+    // create admin token for creating other tokens
+    await user.createTokens({
+      tokens: [{ audience: ['pfpk'], role: 'admin' }],
+    })
+
+    const {
+      response: { status },
+      body: { tokens },
+    } = await createTokens(
+      {
+        data: {
+          tokens: [
+            {
+              name: 'test token',
+            },
+            {
+              name: 'test token 2',
+            },
+          ],
+        },
+      },
+      user.tokens.admin
+    )
+
+    expect(status).toBe(200)
+    expect(tokens.length).toBe(2)
+    expect(tokens[0].token).toBeTruthy()
+    expect(tokens[0].name).toBe('test token')
+    expect(tokens[0].audience).toBeNull()
+    expect(tokens[0].role).toBeNull()
+    expect(tokens[1].token).toBeTruthy()
+    expect(tokens[1].name).toBe('test token 2')
+    expect(tokens[1].audience).toBeNull()
+    expect(tokens[1].role).toBeNull()
+
+    // both tokens should be valid
+    expect((await fetchAuthenticated(tokens[0].token)).response.status).toBe(
+      200
+    )
+    expect((await fetchAuthenticated(tokens[1].token)).response.status).toBe(
+      200
+    )
+
+    // but not if an audience or role is provided
+    expect(
+      (
+        await fetchAuthenticated(tokens[0].token, {
+          audience: ['pfpk'],
+        })
+      ).response.status
+    ).toBe(401)
+    expect(
+      (
+        await fetchAuthenticated(tokens[0].token, {
+          role: ['admin'],
+        })
+      ).response.status
+    ).toBe(401)
+    expect(
+      (
+        await fetchAuthenticated(tokens[1].token, {
+          audience: ['pfpk'],
+        })
+      ).response.status
+    ).toBe(401)
+    expect(
+      (
+        await fetchAuthenticated(tokens[1].token, {
+          role: ['admin'],
+        })
+      ).response.status
+    ).toBe(401)
+
+    // check that tokens show up in list with correct data
+    const {
+      body: { tokens: fetchedTokens },
+    } = await fetchTokens(user.tokens.admin)
+    expect(fetchedTokens.length).toBe(3)
+    expect(fetchedTokens[0].audience).toEqual(['pfpk'])
+    expect(fetchedTokens[0].role).toBe('admin')
+    expect(fetchedTokens[1].id).toBe(tokens[0].id)
+    expect(fetchedTokens[1].name).toBe('test token')
+    expect(fetchedTokens[1].audience).toBeNull()
+    expect(fetchedTokens[1].role).toBeNull()
+    expect(fetchedTokens[2].id).toBe(tokens[1].id)
+    expect(fetchedTokens[2].name).toBe('test token 2')
+    expect(fetchedTokens[2].audience).toBeNull()
+    expect(fetchedTokens[2].role).toBeNull()
+  })
+
   it('returns 200 with multiple tokens', async () => {
     const user = await TestUser.create('neutron-1')
     const {
@@ -145,6 +237,39 @@ describe('POST /tokens', () => {
     const { response, error } = await createTokens()
     expect(response.status).toBe(400)
     expect(error).toBe('Invalid request body: Unexpected end of JSON input')
+  })
+
+  it('returns 401 for non-admin tokens', async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.createTokens()
+
+    const { response, error } = await createTokens(
+      {
+        data: {
+          tokens: [{ name: 'test token' }],
+        },
+      },
+      user.tokens.notAdmin
+    )
+    expect(response.status).toBe(401)
+    expect(error).toBe('Unauthorized: Invalid auth data.')
+
+    const [{ token: wrongAudienceToken }] = await user.createTokens({
+      tokens: [{ name: 'test token', role: 'admin' }],
+    })
+
+    // errors if audience is not correct
+    const { response: audienceResponse, error: audienceError } =
+      await createTokens(
+        {
+          data: {
+            tokens: [{ name: 'test token', audience: ['pfpk'] }],
+          },
+        },
+        wrongAudienceToken
+      )
+    expect(audienceResponse.status).toBe(401)
+    expect(audienceError).toBe('Unauthorized: Invalid auth data.')
   })
 
   it('returns 401 with invalid auth data', async () => {

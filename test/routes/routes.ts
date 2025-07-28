@@ -24,12 +24,14 @@ const url = (
   BASE_URL + path + (query ? `?${new URLSearchParams(query).toString()}` : '')
 
 export const createTokens = async (
-  data?: RequestBody<CreateTokensRequest, true>
+  data?: RequestBody<CreateTokensRequest>,
+  token?: string
 ) => {
   const request = new Request(url('/tokens'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: data && JSON.stringify(data),
   })

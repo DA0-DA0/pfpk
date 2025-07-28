@@ -17,7 +17,6 @@ import {
   KnownError,
   makeJwtAuthMiddleware,
   makeJwtOrSignatureAuthMiddleware,
-  signatureAuthMiddleware,
 } from './utils'
 
 // Create CORS handlers.
@@ -74,8 +73,12 @@ router
 
 // Token stuff
 router
-  // Create JWT token(s) via wallet auth.
-  .post('/tokens', signatureAuthMiddleware, createTokens)
+  // Create JWT token(s) via JWT auth or wallet auth.
+  .post(
+    '/tokens',
+    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    createTokens
+  )
   // Fetch tokens for profile (only JWT auth since GET cannot have a body).
   .get(
     '/tokens',
