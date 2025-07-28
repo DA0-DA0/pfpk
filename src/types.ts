@@ -1,15 +1,9 @@
-import { Request as IttyRequest } from 'itty-router'
-
-// Cloudflare Worker bindings.
-export type Env = {
-  PROFILES: KVNamespace
-  DB: D1Database
-}
+import { IRequestStrict } from 'itty-router'
 
 /**
  * Profile used when updating/saving.
  */
-export type UpdateProfile = {
+export type ProfileUpdate = Partial<{
   /**
    * Next profile nonce.
    */
@@ -22,7 +16,7 @@ export type UpdateProfile = {
    * Profile NFT.
    */
   nft: ProfileNft | null
-}
+}>
 
 /**
  * Profile used when fetching directly.
@@ -82,8 +76,6 @@ export type ResolvedProfile = {
   nft: ProfileNftWithImage | null
 }
 
-export type UpdateProfileWithId = UpdateProfile & { id: number }
-
 export type ProfileNft = {
   chainId: string
   collectionAddress: string
@@ -94,66 +86,86 @@ export type ProfileNftWithImage = ProfileNft & {
   imageUrl: string
 }
 
+export type NonceResponse = {
+  nonce: number
+}
+
+export type StatsResponse = {
+  total: number
+}
+
 // Body of fetch profile response.
-export type FetchProfileResponse =
-  | FetchedProfile
-  | {
-      error: string
-    }
+export type FetchProfileResponse = FetchedProfile
 
 // Body of profile update request.
 export type UpdateProfileRequest = {
-  // Allow partial updates to profile, but require nonce.
-  profile: Partial<Omit<UpdateProfile, 'nonce'>> & Pick<UpdateProfile, 'nonce'>
-  // Optionally use the current public key as the preference for these chains.
-  // If undefined, defaults to the chain used to sign this request on profile
-  // creation.
+  /**
+   * Allow partial updates to profile.
+   */
+  profile: Omit<ProfileUpdate, 'nonce'>
+  /**
+   * Optionally use the current public key as the preference for these chains.
+   * If undefined, defaults to the chain used to sign this request on profile
+   * creation.
+   */
   chainIds?: string[]
 }
 
-// Body of profile update response.
-export type UpdateProfileResponse =
-  | {
-      success: true
-    }
-  | {
-      error: string
-    }
-
-// Body of register public key request.
-export type RegisterPublicKeyRequest = {
-  // List of public key authorizations that allow this public key to register.
-  publicKeys: RequestBody<{
-    // Public key hex that is allowed to register this public key.
-    allow: string
-    // Optionally use this public key as the preference for chains. If
-    // undefined, no preferences set.
-    chainIds?: string[]
-  }>[]
+// Body of register public keys request.
+export type RegisterPublicKeysRequest = {
+  /**
+   * List of public key authorizations to register.
+   */
+  publicKeys: RequestBody<
+    {
+      /**
+       * Profile UUID or public key that is allowed to register this public key.
+       */
+      allow:
+        | {
+            uuid: string
+          }
+        | {
+            publicKey: PublicKeyJson
+          }
+      /**
+       * Optionally use this public key as the preference for certain chains. If
+       * undefined, no preferences set.
+       */
+      chainIds?: string[]
+    },
+    true
+  >[]
 }
 
-// Body of register public key response.
-export type RegisterPublicKeyResponse =
-  | {
-      success: true
-    }
-  | {
-      error: string
-    }
-
-// Body of unregister public key request.
-export type UnregisterPublicKeyRequest = {
+// Body of unregister public keys request.
+export type UnregisterPublicKeysRequest = {
   publicKeys: PublicKeyJson[]
 }
 
-// Body of unregister public key response.
-export type UnregisterPublicKeyResponse =
-  | {
-      success: true
-    }
-  | {
-      error: string
-    }
+export type InvalidateTokensRequest = {
+  /**
+   * Token IDs to invalidate. If not provided, only expired tokens will be
+   * invalidated.
+   */
+  tokens?: string[]
+}
+
+export type TokenJson = {
+  id: string
+  name: string | null
+  audience: string[] | null
+  issuedAt: number
+  expiresAt: number
+}
+
+export type FetchTokensResponse = {
+  tokens: TokenJson[]
+}
+
+export type ErrorResponse = {
+  error: string
+}
 
 // Throws NotOwnerError if wallet does not own NFT or other more specific errors
 // if failed to retrieve image data.
@@ -164,46 +176,110 @@ export type GetOwnedNftImageUrlFunction = (
   tokenId: string
 ) => Promise<string | undefined>
 
-export type SearchProfilesResponse =
-  | {
-      profiles: ResolvedProfile[]
-    }
-  | {
-      error: string
-    }
+export type SearchProfilesResponse = {
+  profiles: ResolvedProfile[]
+}
 
-export type ResolveProfileResponse =
-  | {
-      resolved: ResolvedProfile
-    }
-  | {
-      error: string
-    }
+export type ResolveProfileResponse = {
+  resolved: ResolvedProfile
+}
+
+export type CreateTokenRequest = {
+  name?: string
+  audience?: string[]
+}
+
+export type CreateTokenResponse = {
+  id: string
+  expiresAt: number
+  tokens: Record<JwtRole, string>
+}
 
 export type Auth = {
+  /**
+   * Timestamp must be within the last 5 minutes.
+   */
+  timestamp: number
   type: string
   nonce: number
   chainId: string
   chainFeeDenom: string
   chainBech32Prefix: string
-  publicKeyType: string
-  publicKeyHex: string
+  publicKey: PublicKeyJson
 }
 
 export type RequestBody<
   Data extends Record<string, unknown> = Record<string, any>,
+  /**
+   * Whether or not the request body requires authentication.
+   */
+  RequireAuth extends boolean = boolean,
 > = {
-  data: {
-    auth: Auth
-  } & Data
-  signature: string
+  data: (RequireAuth extends true
+    ? {
+        /**
+         * Authentication data that must be provided.
+         */
+        auth: Auth
+      }
+    : {
+        /**
+         * Authentication data. Only set if the request is authenticated via:
+         * 1. wallet signature.
+         * 2. JWT token AND EITHER the public key auth provided matches the
+         *    profile of the JWT token.
+         *
+         * If `auth` is sent in the body when using a JWT token, and it doesn't
+         * match the profile, it will be stripped since it is untrusted. This is the
+         * same as the `publicKey` field in the authorized request object.
+         */
+        auth?: Auth
+      }) &
+    Data
+  /**
+   * Signature of the `data` field using ADR-036 (see `verifySignature` in
+   * `auth.ts`).
+   *
+   * If not provided, a valid JWT bearer token must be provided via the
+   * `Authorization` header for the profile associated with the public key used
+   * in the `data.auth` field.
+   */
+  signature?: string
 }
 
 export type AuthorizedRequest<
   Data extends Record<string, any> = Record<string, any>,
-> = IttyRequest & {
-  parsedBody: RequestBody<Data>
-  publicKey: PublicKey
+> = IRequestStrict & {
+  /**
+   * Validated request body.
+   */
+  validatedBody: RequestBody<Data>
+  /**
+   * Authorized profile, before nonce is incremented (if at all). The nonce is
+   * incremented in the DB, but if request handlers need to access the nonce,
+   * they want the nonce before the increment.
+   */
+  profile: DbRowProfile
+  /**
+   * Public key provided in the `data.auth` field. Only set if the request is
+   * authenticated via:
+   * 1. wallet signature.
+   * 2. JWT token AND a public key was provided that matches the profile of the
+   *    JWT token.
+   *
+   * This is the same as the `data.auth` field in the request body, since this
+   * public key is generated after `data.auth` is validated.
+   */
+  publicKey?: PublicKey
+  /**
+   * The DB row ID of the profile public key. This will be set if `publicKey` is
+   * set.
+   */
+  profilePublicKeyRowId?: number
+  /**
+   * The decoded JWT payload if the request is authenticated via JWT token auth.
+   */
+  jwtPayload?: JwtPayload
 }
 
 /**
@@ -217,8 +293,6 @@ export type DbRowProfile = {
   nftChainId: string | null
   nftCollectionAddress: string | null
   nftTokenId: string | null
-  createdAt: Date
-  updatedAt: Date
 }
 
 /**
@@ -230,8 +304,7 @@ export type DbRowProfilePublicKey = {
   type: string
   publicKeyHex: string
   addressHex: string
-  createdAt: Date
-  updatedAt: Date
+  updatedAt: number
 }
 
 /**
@@ -242,8 +315,45 @@ export type DbRowProfilePublicKeyChainPreference = {
   profileId: number
   profilePublicKeyId: number
   chainId: string
-  createdAt: Date
-  updatedAt: Date
+}
+
+export type DbRowProfileToken = {
+  id: number
+  profileId: number
+  uuid: string
+  name: string | null
+  /**
+   * JSON array of strings.
+   */
+  audience: string | null
+  expiresAt: number
+  createdAt: number
+}
+
+/**
+ * Role a JWT token can have.
+ */
+export enum JwtRole {
+  /**
+   * Can do anything. This is intended to be used by the profile owner to manage
+   * their profile and tokens in this auth service.
+   */
+  Admin = 'admin',
+  /**
+   * Can only verify whether or not the token is valid. This is intended to be
+   * used by other services to so they can ensure the caller is the authorized
+   * UUID and thus it's safe to associate data with the provided UUID.
+   */
+  Verify = 'verify',
+}
+
+export type JwtPayload = {
+  sub: string
+  aud?: string[]
+  exp: number
+  iat: number
+  jti: string
+  role: JwtRole
 }
 
 /**

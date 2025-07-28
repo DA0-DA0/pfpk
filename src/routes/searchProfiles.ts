@@ -1,47 +1,35 @@
-import { Request, RouteHandler } from 'itty-router'
+import { RequestHandler } from 'itty-router'
 
 import { makePublicKey } from '../publicKeys'
-import { Env, ResolvedProfile, SearchProfilesResponse } from '../types'
+import { ResolvedProfile, SearchProfilesResponse } from '../types'
 import {
+  KnownError,
   getChain,
   getOwnedNftWithImage,
   getPreferredProfilePublicKey,
   getProfilesWithNamePrefix,
 } from '../utils'
 
-export const searchProfiles: RouteHandler<Request> = async (
+export const searchProfiles: RequestHandler = async (
   request,
   env: Env
-) => {
-  const respond = (status: number, response: SearchProfilesResponse) =>
-    new Response(JSON.stringify(response), {
-      status,
-    })
-
+): Promise<SearchProfilesResponse> => {
   const chainId = request.params?.chainId?.trim()
   if (!chainId) {
-    return respond(400, {
-      error: 'Missing chainId.',
-    })
+    throw new KnownError(400, 'Missing chainId.')
   }
 
   const namePrefix = request.params?.namePrefix?.trim()
   if (!namePrefix) {
-    return respond(400, {
-      error: 'Missing namePrefix.',
-    })
+    throw new KnownError(400, 'Missing namePrefix.')
   }
   if (namePrefix.length < 3) {
-    return respond(400, {
-      error: 'Name prefix must be at least 3 characters.',
-    })
+    throw new KnownError(400, 'Name prefix must be at least 3 characters.')
   }
 
   const chain = await getChain(chainId)
   if (!chain) {
-    return respond(400, {
-      error: 'Unknown chainId.',
-    })
+    throw new KnownError(400, 'Unknown chainId.')
   }
 
   try {
@@ -101,16 +89,15 @@ export const searchProfiles: RouteHandler<Request> = async (
       )
     ).filter((profile): profile is ResolvedProfile => !!profile)
 
-    return respond(200, {
+    return {
       profiles,
-    })
+    }
   } catch (err) {
-    console.error('Profile retrieval for search', err)
+    if (err instanceof KnownError) {
+      throw err
+    }
 
-    return respond(500, {
-      error:
-        'Failed to retrieve profile for search: ' +
-        (err instanceof Error ? err.message : `${err}`),
-    })
+    console.error('Profile retrieval for search', err)
+    throw new KnownError(500, 'Failed to retrieve profile for search', err)
   }
 }

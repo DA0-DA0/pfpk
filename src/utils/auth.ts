@@ -1,32 +1,237 @@
 import { makeSignDoc, serializeSignDoc } from '@cosmjs/amino'
+import { RequestHandler } from 'itty-router'
 
+import {
+  getProfileFromPublicKeyHex,
+  getProfileFromUuid,
+  getTokenForProfile,
+  saveProfile,
+} from './db'
 import { KnownError } from './error'
+import { verifyJwt } from './jwt'
 import { objectMatchesStructure } from './objectMatchesStructure'
-import { makePublicKey } from '../publicKeys'
-import { AuthorizedRequest, PublicKey, RequestBody } from '../types'
+import { makePublicKeyFromJson } from '../publicKeys'
+import { AuthorizedRequest, JwtRole, PublicKey, RequestBody } from '../types'
 
-// Middleware to protect routes with authentication. If it does not return, the
-// request is authorized. If successful, the `parsedBody` field will be set on
-// the request object, accessible by successive middleware and route handlers.
-export const authMiddleware = async (
-  request: AuthorizedRequest
-): Promise<Response | void> => {
-  try {
-    const parsedBody: RequestBody = await request.json?.()
+export const INITIAL_NONCE = 0
 
-    // Verify body and add generated public key to request.
-    request.publicKey = await verifyRequestBodyAndGetPublicKey(parsedBody)
-
-    // If all is valid, add parsed body to request and do not return to allow
-    // continuing.
-    request.parsedBody = parsedBody
-  } catch (err) {
-    if (err instanceof Response) {
-      return err
+/**
+ * Middleware to protect routes via JWT token authorization. If it does not
+ * throw an error, the request is authorized. If successful, the `validatedBody`
+ * field will be set on the request object, accessible by successive middleware
+ * and route handlers.
+ *
+ * @param request - The request to authenticate.
+ */
+export const makeJwtAuthMiddleware =
+  (...roles: JwtRole[]): RequestHandler<AuthorizedRequest> =>
+  async (request, env: Env) => {
+    // If JWT token is provided, verify it.
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader) {
+      throw new KnownError(401, 'Unauthorized', 'No authorization header.')
     }
 
-    // Rethrow err to be caught by global error handler.
-    throw err
+    const [type, token] = authHeader.split(' ')
+
+    if (type !== 'Bearer') {
+      throw new KnownError(
+        401,
+        'Unauthorized',
+        'Invalid token type, expected `Bearer`.'
+      )
+    }
+
+    if (!token) {
+      throw new KnownError(401, 'Unauthorized', 'No token provided.')
+    }
+
+    const jwtPayload = await verifyJwt(env, token)
+    if (!roles.includes(jwtPayload.role)) {
+      throw new KnownError(401, 'Unauthorized', 'Invalid token role.')
+    }
+    request.jwtPayload = jwtPayload
+
+    const profile = await getProfileFromUuid(env, request.jwtPayload.sub)
+    if (!profile) {
+      throw new KnownError(404, 'Profile not found.')
+    }
+    request.profile = profile
+
+    // Verify token exists in DB. If not, it must have been invalidated.
+    // Expiration was checked in verifyJwt above, so we should only get here if
+    // the token is valid but was manually invalidated.
+    const dbToken = await getTokenForProfile(env, profile.id, jwtPayload.jti)
+    if (!dbToken) {
+      throw new KnownError(401, 'Unauthorized', 'Token invalidated.')
+    }
+
+    const body: RequestBody = request.body
+      ? await request.json<RequestBody>().catch((err) => {
+          // Cannot parse body twice, and signature auth needs a valid body, so
+          // if JSON parsing fails, return a fatal error and stop early.
+          throw new KnownError(400, 'Invalid request body', err, true)
+        })
+      : // If no body, use empty object for data and no signature.
+        {
+          data: {},
+        }
+    request.validatedBody = body
+
+    // If auth is provided, validate that it matches the profile. If it doesn't
+    // match, strip it since it's untrusted.
+    if (body.data.auth) {
+      const profileForPublicKey = await getProfileFromPublicKeyHex(
+        env,
+        body.data.auth.publicKey.hex
+      )
+
+      if (profileForPublicKey?.id === profile.id) {
+        // If auth matches the profile, validate public key and add to request.
+        request.publicKey = makePublicKeyFromJson(body.data.auth.publicKey)
+        request.profilePublicKeyRowId = profileForPublicKey.profilePublicKeyId
+      } else {
+        // If public key auth does not match the profile, error.
+        throw new KnownError(
+          401,
+          'Unauthorized',
+          'Mismatched token and public key auth.',
+          true
+        )
+      }
+    }
+  }
+
+/**
+ * Middleware to protect routes via wallet signature authorization. If it does
+ * not throw an error, the request is authorized. If successful, the
+ * `validatedBody` field will be set on the request object, accessible by
+ * successive middleware and route handlers.
+ *
+ * Notes:
+ * - Creates a new profile for the public key if one does not exist.
+ * - Increments nonce to prevent replay attacks.
+ * - Decrements nonce for profile stored in the request object so that the
+ *   handlers have access to the nonce when the request was initiated. This is
+ *   important when route handlers validate nested auth data inside the request
+ *   body, like `registerPublicKeys`. The profile nonce should be the same
+ *   regardless of JWT or signature auth.
+ *
+ * @param request - The request to authenticate.
+ */
+export const signatureAuthMiddleware: RequestHandler<
+  AuthorizedRequest
+> = async (request, env: Env) => {
+  // JWT auth may have failed after the body was parsed—don't parse it again.
+  if (!request.validatedBody) {
+    const body = await request.json<RequestBody>?.().catch((err) => {
+      throw new KnownError(400, 'Invalid request body', err)
+    })
+    request.validatedBody = body
+  }
+
+  const body = request.validatedBody
+
+  // Verify body and add generated public key to request.
+  request.publicKey = await verifyRequestBodyAndGetPublicKey(body)
+
+  // Retrieve or create profile for public key.
+  let existingProfile
+  try {
+    existingProfile = await getProfileFromPublicKeyHex(
+      env,
+      request.publicKey.hex
+    )
+  } catch (err) {
+    console.error('Profile retrieval', err)
+    throw new KnownError(500, 'Failed to retrieve existing profile', err)
+  }
+
+  // If no profile found, create a new one.
+  if (!existingProfile) {
+    // Ensure nonce is the initial nonce since this is the first time the user
+    // is authenticating. If it's not, they may think they're using an account
+    // that already exists.
+    if (body.data.auth?.nonce !== INITIAL_NONCE) {
+      throw new KnownError(401, `Invalid nonce. Expected: ${INITIAL_NONCE}`)
+    }
+
+    const { profilePublicKeyId, ...profile } = await saveProfile(
+      env,
+      {
+        // Increment nonce to prevent replay attacks.
+        nonce: INITIAL_NONCE + 1,
+      },
+      {
+        publicKey: request.publicKey,
+        // Create chain preference with the current chain used to sign.
+        chainIds: [body.data.auth.chainId],
+      }
+    )
+    request.profile = profile
+    request.profilePublicKeyRowId = profilePublicKeyId
+  }
+  // If profile found, validate nonce and save.
+  else {
+    // Validate nonce to prevent replay attacks.
+    if (body.data.auth?.nonce !== existingProfile.nonce) {
+      throw new KnownError(
+        401,
+        `Invalid nonce. Expected: ${existingProfile.nonce}`
+      )
+    }
+
+    const { profilePublicKeyId, ...profile } = await saveProfile(
+      env,
+      {
+        // Increment nonce to prevent replay attacks.
+        nonce: existingProfile.nonce + 1,
+      },
+      {
+        publicKey: request.publicKey,
+      }
+    )
+    request.profile = profile
+    request.profilePublicKeyRowId = profilePublicKeyId
+  }
+
+  // Ensure profile public key exists. This should never happen.
+  if (!request.profilePublicKeyRowId) {
+    throw new KnownError(500, 'Failed to retrieve profile public key from DB.')
+  }
+
+  // Decrement nonce since the request handler increments it.
+  request.profile.nonce--
+}
+
+/**
+ * Middleware to protect routes via JWT token or wallet signature authorization.
+ * If it does not throw an error, the request is authorized. If successful, the
+ * `validatedBody` field will be set on the request object, accessible by
+ * successive middleware and route handlers.
+ *
+ * @param request - The request to authenticate.
+ */
+export const makeJwtOrSignatureAuthMiddleware = (
+  ...roles: JwtRole[]
+): RequestHandler<AuthorizedRequest> => {
+  const jwtAuthMiddleware = makeJwtAuthMiddleware(...roles)
+
+  return async (...params) => {
+    // Attempt JWT auth first. On success, stop early.
+    try {
+      await jwtAuthMiddleware(...params)
+      return
+    } catch (err) {
+      // Propagate only fatal JWT auth errors that should not fallback to
+      // signature auth.
+      if (err instanceof KnownError && err.fatal) {
+        throw err
+      }
+    }
+
+    // Attempt signature auth.
+    await signatureAuthMiddleware(...params)
   }
 }
 
@@ -42,40 +247,63 @@ export const verifyRequestBodyAndGetPublicKey = async (
     !objectMatchesStructure(body, {
       data: {
         auth: {
+          timestamp: {},
           type: {},
           nonce: {},
           chainId: {},
           chainFeeDenom: {},
           chainBech32Prefix: {},
-          publicKeyType: {},
-          publicKeyHex: {},
+          publicKey: {
+            type: {},
+            hex: {},
+          },
         },
       },
       signature: {},
-    })
+    }) ||
+    !body.data.auth
   ) {
-    throw new KnownError(400, 'Invalid auth body.')
+    throw new KnownError(401, 'Unauthorized', 'Invalid auth data.')
+  }
+
+  // Validate timestamp is within the last 5 minutes.
+  if (body.data.auth.timestamp < Date.now() - 5 * 60 * 1000) {
+    throw new KnownError(
+      401,
+      'Unauthorized',
+      'Timestamp must be within the past 5 minutes.'
+    )
   }
 
   // Validate public key.
-  const publicKey = makePublicKey(
-    body.data.auth.publicKeyType,
-    body.data.auth.publicKeyHex
-  )
+  const publicKey = makePublicKeyFromJson(body.data.auth.publicKey)
 
   // Validate signature.
   if (!(await verifySignature(publicKey, body))) {
-    throw new KnownError(401, 'Unauthorized. Invalid signature.')
+    throw new KnownError(401, 'Unauthorized', 'Invalid signature.')
   }
 
   return publicKey
 }
 
-// Verify signature.
+/**
+ * Verify signature using ADR-036.
+ *
+ * https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-036-arbitrary-signature.md
+ */
 export const verifySignature = async (
   publicKey: PublicKey,
   { data, signature }: RequestBody
 ): Promise<boolean> => {
+  if (!signature) {
+    throw new KnownError(401, 'Unauthorized', 'No signature provided.')
+  }
+
+  // Validate auth data is present.
+  if (!data.auth) {
+    throw new KnownError(401, 'Unauthorized', 'Invalid auth data.')
+  }
+
   try {
     const signer = publicKey.getBech32Address(data.auth.chainBech32Prefix)
 

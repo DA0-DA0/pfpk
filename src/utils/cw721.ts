@@ -22,9 +22,13 @@ export const getImageAndOwner = async (
       throw new Error(await res.text().catch(() => 'Unknown error.'))
     }
 
-    return await res.json()
+    return (await res.json()) as {
+      imageUrl: string
+      owner: string
+      staker?: string
+    }
   } catch (err) {
-    console.error(err)
+    console.error('Failed to get NFT image and owner.', err)
     throw new KnownError(500, 'Failed to get NFT image and owner.', err)
   }
 }

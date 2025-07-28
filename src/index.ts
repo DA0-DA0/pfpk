@@ -1,27 +1,31 @@
-import { createCors } from 'itty-cors'
-import { Router } from 'itty-router'
+import { Router, cors, json, text } from 'itty-router'
 
+import { createToken } from './routes/createToken'
+import { fetchAuthenticated } from './routes/fetchAuthenticated'
+import { fetchMe } from './routes/fetchMe'
+import { fetchNonce } from './routes/fetchNonce'
 import { fetchProfile } from './routes/fetchProfile'
-import { handleNonce } from './routes/nonce'
+import { fetchStats } from './routes/fetchStats'
+import { fetchTokens } from './routes/fetchTokens'
+import { invalidateTokens } from './routes/invalidateTokens'
 import { registerPublicKeys } from './routes/registerPublicKeys'
 import { resolveProfile } from './routes/resolveProfile'
 import { searchProfiles } from './routes/searchProfiles'
-import { stats } from './routes/stats'
 import { unregisterPublicKeys } from './routes/unregisterPublicKeys'
 import { updateProfile } from './routes/updateProfile'
-import { Env } from './types'
-import { KnownError } from './utils'
-import { authMiddleware } from './utils/auth'
+import { JwtRole } from './types'
+import {
+  KnownError,
+  makeJwtAuthMiddleware,
+  makeJwtOrSignatureAuthMiddleware,
+  signatureAuthMiddleware,
+} from './utils'
 
 // Create CORS handlers.
-const { preflight, corsify } = createCors({
-  methods: ['GET', 'POST'],
-  origins: ['*'],
+const { preflight, corsify } = cors({
+  allowMethods: ['GET', 'POST', 'DELETE'],
   maxAge: 3600,
-  headers: {
-    'Access-Control-Allow-Origin': '*',
-    'Content-Type': 'application/json',
-  },
+  exposeHeaders: ['Content-Type'],
 })
 
 const router = Router()
@@ -29,62 +33,91 @@ const router = Router()
 // Handle CORS preflight.
 router.all('*', preflight)
 
-// Get stats.
-router.get('/stats', stats)
+// Miscellaneous stuff
+router
+  // Get stats.
+  .get('/stats', fetchStats)
+  // Get nonce for publicKey.
+  .get('/nonce/:publicKey', fetchNonce)
 
-// Get nonce for publicKey.
-router.get('/nonce/:publicKey', handleNonce)
+// Profile stuff
+router
+  // Update profile.
+  .post('/me', makeJwtOrSignatureAuthMiddleware(JwtRole.Admin), updateProfile)
+  // Register more public keys.
+  .post(
+    '/register',
+    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    registerPublicKeys
+  )
+  // Unregister existing public keys.
+  .post(
+    '/unregister',
+    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    unregisterPublicKeys
+  )
+  // Resolve profile.
+  .get('/resolve/:chainId/:name', resolveProfile)
+  // Search profiles.
+  .get('/search/:chainId/:namePrefix', searchProfiles)
+  // Fetch profile with bech32 address.
+  .get('/address/:bech32Address', fetchProfile)
+  // Fetch profile with address hex.
+  .get('/hex/:addressHex', fetchProfile)
+  // Backwards compatible.
+  .get('/bech32/:addressHex', fetchProfile)
 
-// Search profiles.
-router.get('/search/:chainId/:namePrefix', searchProfiles)
+// Token stuff
+router
+  // Create JWT token via wallet auth.
+  .post('/token', signatureAuthMiddleware, createToken)
+  // Fetch tokens for profile (only JWT auth since GET cannot have a body).
+  .get('/tokens', makeJwtAuthMiddleware(JwtRole.Admin), fetchTokens)
+  // Invalidate tokens.
+  .delete(
+    '/tokens',
+    makeJwtOrSignatureAuthMiddleware(JwtRole.Admin),
+    invalidateTokens
+  )
+  // Return successfully if authenticated via JWT token.
+  .get(
+    '/auth',
+    makeJwtAuthMiddleware(JwtRole.Verify, JwtRole.Admin),
+    fetchAuthenticated
+  )
+  // Get the token-authenticated profile, validating the JWT token.
+  .get('/me', makeJwtAuthMiddleware(JwtRole.Verify, JwtRole.Admin), fetchMe)
 
-// Resolve profile.
-router.get('/resolve/:chainId/:name', resolveProfile)
-
-// Fetch profile.
+//! MUST BE LAST SINCE IT MATCHES ALL ROUTES
+// Fetch profile with public key hex.
 router.get('/:publicKey', fetchProfile)
 
-// Fetch profile with bech32 address.
-router.get('/address/:bech32Address', fetchProfile)
-
-// Fetch profile with address hex.
-router.get('/hex/:addressHex', fetchProfile)
-// Backwards compatible.
-router.get('/bech32/:addressHex', fetchProfile)
-
-// Update profile.
-router.post('/', authMiddleware, updateProfile)
-
-// Register more public keys.
-router.post('/register', authMiddleware, registerPublicKeys)
-
-// Unregister existing public keys.
-router.post('/unregister', authMiddleware, unregisterPublicKeys)
-
 // 404
-router.all('*', () => new Response('404', { status: 404 }))
+router.all('*', () => text('Not found', { status: 404 }))
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
     return router
-      .handle(request, env)
+      .fetch(request, env, ctx)
+      .then(json)
       .catch((err) => {
         if (err instanceof KnownError) {
-          return new Response(JSON.stringify(err.responseJson), {
-            status: err.statusCode,
-          })
+          return json(err.responseJson, { status: err.statusCode })
         }
 
         console.error('Unknown error', err)
-        return new Response(
-          JSON.stringify({
+
+        return json(
+          {
             error:
               'Unknown error occurred: ' +
               (err instanceof Error ? err.message : `${err}`),
-          }),
-          {
-            status: 500,
-          }
+          },
+          { status: 500 }
         )
       })
       .then(corsify)

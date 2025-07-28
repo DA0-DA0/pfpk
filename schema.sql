@@ -14,8 +14,10 @@ CREATE TABLE profiles (
   -- unique uuid among all profiles
   CONSTRAINT unique_uuid UNIQUE (uuid),
   -- unique name among all profiles
-  CONSTRAINT unique_name UNIQUE (name)
+  CONSTRAINT unique_name UNIQUE (name COLLATE NOCASE)
 );
+
+CREATE INDEX IF NOT EXISTS idx_profiles_name ON profiles(name COLLATE NOCASE);
 
 -- ProfilePublicKey
 DROP TABLE IF EXISTS profile_public_keys;
@@ -52,3 +54,25 @@ CREATE TABLE profile_public_key_chain_preferences (
 );
 
 CREATE INDEX IF NOT EXISTS idx_profile_public_key_chain_preferences_profile_chain ON profile_public_key_chain_preferences(profileId, chainId);
+
+-- ProfileTokens
+DROP TABLE IF EXISTS profile_tokens;
+
+CREATE TABLE profile_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  profileId INTEGER NOT NULL,
+  uuid TEXT NOT NULL,
+  name TEXT,
+  -- json array of strings
+  audience TEXT,
+  expiresAt DATETIME NOT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_profiles FOREIGN KEY (profileId) REFERENCES profiles (id) ON DELETE CASCADE,
+  -- unique uuid among all tokens
+  CONSTRAINT unique_uuid UNIQUE (uuid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_tokens_uuid ON profile_tokens(uuid);
+
+CREATE INDEX IF NOT EXISTS idx_profile_tokens_profile_expires_at ON profile_tokens(profileId, expiresAt);

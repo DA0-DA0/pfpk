@@ -1,18 +1,35 @@
+import { INITIAL_NONCE } from './auth'
 import { KnownError } from './error'
-import { INITIAL_NONCE } from './nft'
 import { PublicKeyBase, makePublicKey } from '../publicKeys'
 import {
   DbRowProfile,
   DbRowProfilePublicKey,
   DbRowProfilePublicKeyChainPreference,
-  Env,
+  DbRowProfileToken,
+  ProfileUpdate,
   PublicKey,
   PublicKeyJson,
-  UpdateProfile,
 } from '../types'
 
 /**
- * Get the profile for a given name.
+ * Get the profile for a given UUID.
+ */
+export const getProfileFromUuid = async (
+  env: Env,
+  uuid: string
+): Promise<DbRowProfile | null> =>
+  await env.DB.prepare(
+    `
+    SELECT *
+    FROM profiles
+    WHERE uuid = ?1
+    `
+  )
+    .bind(uuid)
+    .first<DbRowProfile>()
+
+/**
+ * Get the profile for a given name (case insensitive).
  */
 export const getProfileFromName = async (
   env: Env,
@@ -22,7 +39,7 @@ export const getProfileFromName = async (
     `
     SELECT *
     FROM profiles
-    WHERE name = ?1
+    WHERE name = ?1 COLLATE NOCASE
     `
   )
     .bind(name)
@@ -34,10 +51,10 @@ export const getProfileFromName = async (
 export const getProfileFromPublicKeyHex = async (
   env: Env,
   publicKeyHex: string
-): Promise<(DbRowProfile & { publicKeyId: number }) | null> =>
+): Promise<(DbRowProfile & { profilePublicKeyId: number }) | null> =>
   await env.DB.prepare(
     `
-    SELECT profiles.*, profile_public_keys.id AS publicKeyId
+    SELECT profiles.*, profile_public_keys.id AS profilePublicKeyId
     FROM profiles
     INNER JOIN profile_public_keys
     ON profiles.id = profile_public_keys.profileId
@@ -45,7 +62,7 @@ export const getProfileFromPublicKeyHex = async (
     `
   )
     .bind(publicKeyHex)
-    .first<DbRowProfile & { publicKeyId: number }>()
+    .first<DbRowProfile & { profilePublicKeyId: number }>()
 
 /**
  * Get the profile for a given address hex.
@@ -79,28 +96,8 @@ export const getNonce = async (
 }
 
 /**
- * Get the public key hex for a given address hex.
- */
-export const getPublicKeyHexForAddressHex = async (
-  env: Env,
-  addressHex: string
-): Promise<string | undefined> => {
-  const publicKeyRow = await env.DB.prepare(
-    `
-    SELECT publicKey
-    FROM profile_public_keys
-    WHERE addressHex = ?1
-    `
-  )
-    .bind(addressHex)
-    .first<DbRowProfilePublicKey>()
-
-  return publicKeyRow?.publicKeyHex
-}
-
-/**
- * Get top 5 profiles by name prefix and each profiles' public key for a given
- * chain.
+ * Get top 5 profiles by name prefix (case insensitive) and each profiles'
+ * public key for a given chain.
  */
 export const getProfilesWithNamePrefix = async (
   env: Env,
@@ -127,9 +124,9 @@ export const getProfilesWithNamePrefix = async (
       ON profiles.id = profile_public_key_chain_preferences.profileId
       INNER JOIN profile_public_keys
       ON profile_public_key_chain_preferences.profilePublicKeyId = profile_public_keys.id
-      WHERE profiles.name LIKE ?1
+      WHERE profiles.name LIKE ?1 COLLATE NOCASE
       AND profile_public_key_chain_preferences.chainId = ?2
-      ORDER BY name ASC
+      ORDER BY profiles.name COLLATE NOCASE ASC
       LIMIT 5
       `
     )
@@ -228,52 +225,110 @@ export const getProfilePublicKeyPerChain = async (
  */
 export const saveProfile = async (
   env: Env,
-  publicKey: PublicKey,
-  profile: UpdateProfile,
-  // Optionally set chain preferences for this public key.
-  chainIds?: string[]
-): Promise<DbRowProfile> => {
-  const existingProfile = await getProfileFromPublicKeyHex(env, publicKey.hex)
+  profileUpdate: ProfileUpdate,
+  options:
+    | {
+        /**
+         * Public key to locate the profile or add to the new profile if it
+         * doesn't exist yet.
+         *
+         * This is required to create a new profile or else no one will be able
+         * to access it.
+         */
+        publicKey: PublicKey
+        /**
+         * Optionally set chain preferences for this public key.
+         */
+        chainIds?: string[]
+      }
+    | {
+        /**
+         * Existing profile UUID to update.
+         */
+        uuid: string
+
+        chainIds?: never
+      }
+): Promise<
+  DbRowProfile & {
+    /**
+     * The DB row ID of the profile public key. This will be set if `publicKey`
+     * is set, regardless of whether the profile was created or updated.
+     */
+    profilePublicKeyId?: number
+  }
+> => {
+  const existingProfile:
+    | (DbRowProfile & { profilePublicKeyId?: number })
+    | null =
+    'uuid' in options
+      ? await getProfileFromUuid(env, options.uuid)
+      : 'publicKey' in options
+        ? await getProfileFromPublicKeyHex(env, options.publicKey.hex)
+        : null
+
+  // If no profile exists and a UUID is provided, throw an error.
+  if ('uuid' in options && !existingProfile) {
+    throw new KnownError(404, 'Profile not found.')
+  }
 
   let updatedProfileRow: DbRowProfile | null
-  let profilePublicKeyId = existingProfile?.publicKeyId
+  let profilePublicKeyId = existingProfile?.profilePublicKeyId
+
+  const fieldsToUpdate: [string, string | number | undefined | null][] = [
+    ['nonce', profileUpdate.nonce] as [string, number],
+    ['name', profileUpdate.name] as [string, string | null | undefined],
+    ['nftChainId', profileUpdate.nft?.chainId] as [
+      string,
+      string | null | undefined,
+    ],
+    ['nftCollectionAddress', profileUpdate.nft?.collectionAddress] as [
+      string,
+      string | null | undefined,
+    ],
+    ['nftTokenId', profileUpdate.nft?.tokenId] as [
+      string,
+      string | null | undefined,
+    ],
+  ].filter(([, value]) => value !== undefined)
 
   // If profile exists, update.
   if (existingProfile) {
     updatedProfileRow = await env.DB.prepare(
       `
       UPDATE profiles
-      SET nonce = ?1, name = ?2, nftChainId = ?3, nftCollectionAddress = ?4, nftTokenId = ?5, updatedAt = CURRENT_TIMESTAMP
-      WHERE id = ?6
+      SET ${fieldsToUpdate.map(([key], index) => `${key} = ?${index + 2}`).join(', ')}, updatedAt = CURRENT_TIMESTAMP
+      WHERE id = ?1
       RETURNING *
       `
     )
       .bind(
-        profile.nonce,
-        profile.name,
-        profile.nft?.chainId ?? null,
-        profile.nft?.collectionAddress ?? null,
-        profile.nft?.tokenId ?? null,
-        existingProfile.id
+        existingProfile.id,
+        ...fieldsToUpdate.map(([, value]) => value ?? null)
       )
       .first<DbRowProfile>()
   }
   // Otherwise, create.
   else {
+    // If no public key is provided, throw an error. This should never happen,
+    // since the public key is required if not passing an existing profile UUID.
+    if (!('publicKey' in options)) {
+      throw new KnownError(
+        400,
+        'Public key is required when creating a new profile.'
+      )
+    }
+
     updatedProfileRow = await env.DB.prepare(
       `
-      INSERT INTO profiles (uuid, nonce, name, nftChainId, nftCollectionAddress, nftTokenId)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+      INSERT INTO profiles (uuid, ${fieldsToUpdate.map(([key]) => key).join(', ')})
+      VALUES (?1, ${fieldsToUpdate.map((_, index) => `?${index + 2}`).join(', ')})
       RETURNING *
       `
     )
       .bind(
         crypto.randomUUID(),
-        profile.nonce,
-        profile.name,
-        profile.nft?.chainId ?? null,
-        profile.nft?.collectionAddress ?? null,
-        profile.nft?.tokenId ?? null
+        ...fieldsToUpdate.map(([, value]) => value ?? null)
       )
       .first<DbRowProfile>()
     if (!updatedProfileRow) {
@@ -289,9 +344,9 @@ export const saveProfile = async (
     )
       .bind(
         updatedProfileRow.id,
-        publicKey.type,
-        publicKey.hex,
-        publicKey.addressHex
+        options.publicKey.type,
+        options.publicKey.hex,
+        options.publicKey.addressHex
       )
       .first<DbRowProfilePublicKey>()
     if (!profilePublicKeyRow) {
@@ -306,34 +361,22 @@ export const saveProfile = async (
   }
 
   // Set chain preferences for this public key if specified.
-  if (chainIds && profilePublicKeyId !== undefined) {
-    await setProfileChainPreferences(
-      env,
-      updatedProfileRow.id,
+  if (
+    'chainIds' in options &&
+    options.chainIds &&
+    profilePublicKeyId !== undefined
+  ) {
+    await setProfileChainPreferences(env, {
+      profileId: updatedProfileRow.id,
       profilePublicKeyId,
-      chainIds
-    )
+      chainIds: options.chainIds,
+    })
   }
 
-  return updatedProfileRow
-}
-
-/**
- * Increment profile nonce.
- */
-export const incrementProfileNonce = async (
-  env: Env,
-  profileId: number
-): Promise<void> => {
-  await env.DB.prepare(
-    `
-    UPDATE profiles
-    SET nonce = nonce + 1, updatedAt = CURRENT_TIMESTAMP
-    WHERE id = ?1
-    `
-  )
-    .bind(profileId)
-    .run()
+  return {
+    ...updatedProfileRow,
+    profilePublicKeyId,
+  }
 }
 
 /**
@@ -384,23 +427,28 @@ export const addProfilePublicKey = async (
 
   // Set chain preferences for this public key if specified.
   if (chainIds) {
-    await setProfileChainPreferences(
-      env,
+    await setProfileChainPreferences(env, {
       profileId,
-      profilePublicKeyRow.id,
-      chainIds
-    )
+      profilePublicKeyId: profilePublicKeyRow.id,
+      chainIds,
+    })
   }
 }
 
 /**
  * Set chain preferences for a given public key.
  */
-const setProfileChainPreferences = async (
+export const setProfileChainPreferences = async (
   env: Env,
-  profileId: number,
-  publicKeyRowId: number,
-  chainIds: string[]
+  {
+    profileId,
+    profilePublicKeyId,
+    chainIds,
+  }: {
+    profileId: number
+    profilePublicKeyId: number
+    chainIds: string[]
+  }
 ): Promise<void> => {
   // Insert or update chain preferences.
   await env.DB.batch(
@@ -412,7 +460,7 @@ const setProfileChainPreferences = async (
         ON CONFLICT (profileId, chainId)
         DO UPDATE SET profilePublicKeyId = ?3, updatedAt = CURRENT_TIMESTAMP
         `
-      ).bind(profileId, chainId, publicKeyRowId)
+      ).bind(profileId, chainId, profilePublicKeyId)
     )
   )
 }
@@ -433,7 +481,7 @@ export const removeProfilePublicKeys = async (
   // keys will have access to it anymore and thus we need to free up the name.
   if (
     publicKeyRows.every(({ publicKey }) =>
-      publicKeys.some((key) => PublicKeyBase.publicKeysEqual(publicKey, key))
+      publicKeys.some((key) => PublicKeyBase.equal(publicKey, key))
     )
   ) {
     // Delete cascades to public keys and chain preferences.
@@ -452,9 +500,10 @@ export const removeProfilePublicKeys = async (
   const publicKeyRowsToDelete = publicKeys.flatMap(
     (key) =>
       publicKeyRows.find(({ publicKey }) =>
-        PublicKeyBase.publicKeysEqual(publicKey, key)
+        PublicKeyBase.equal(publicKey, key)
       ) || []
   )
+
   await env.DB.batch(
     publicKeyRowsToDelete.map(({ row: { id } }) =>
       // Delete cascades to chain preferences.
@@ -466,4 +515,119 @@ export const removeProfilePublicKeys = async (
       ).bind(id)
     )
   )
+}
+
+/**
+ * Get valid (not expired) tokens for a given profile.
+ */
+export const getValidTokensForProfile = async (
+  env: Env,
+  profileId: number
+): Promise<DbRowProfileToken[]> =>
+  (
+    await env.DB.prepare(
+      `
+      SELECT id, profileId, uuid, name, audience, expiresAt, createdAt
+      FROM profile_tokens
+      WHERE profileId = ?1 AND expiresAt > ?2
+      `
+    )
+      .bind(profileId, Math.floor(Date.now() / 1000))
+      .all<DbRowProfileToken>()
+  ).results
+
+/**
+ * Retrieve a specific token for a given profile.
+ */
+export const getTokenForProfile = async (
+  env: Env,
+  profileId: number,
+  tokenUuid: string
+): Promise<DbRowProfileToken | null> => {
+  const token = await env.DB.prepare(
+    `
+    SELECT id, profileId, uuid, name, audience, expiresAt, createdAt
+    FROM profile_tokens
+    WHERE profileId = ?1 AND uuid = ?2
+    `
+  )
+    .bind(profileId, tokenUuid)
+    .first<DbRowProfileToken>()
+
+  return token
+}
+
+/**
+ * Save token ID to a profile.
+ */
+export const saveTokenIdToProfile = async (
+  env: Env,
+  {
+    profileId,
+    tokenUuid,
+    name,
+    audience,
+    expiresAt,
+    issuedAt,
+  }: {
+    profileId: number
+    tokenUuid: string
+    name?: string | null
+    audience?: string[] | null
+    expiresAt: number
+    issuedAt: number
+  }
+) => {
+  await env.DB.prepare(
+    `
+    INSERT INTO profile_tokens (profileId, uuid, name, audience, expiresAt, createdAt, updatedAt)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
+    `
+  )
+    .bind(
+      profileId,
+      tokenUuid,
+      name || null,
+      audience?.length ? JSON.stringify(audience) : null,
+      expiresAt,
+      issuedAt
+    )
+    .run()
+}
+
+/**
+ * Remove token ID from a profile.
+ */
+export const removeTokenIdFromProfile = async (
+  env: Env,
+  {
+    profileId,
+    tokenUuid,
+  }: {
+    profileId: number
+    tokenUuid: string
+  }
+) => {
+  await env.DB.prepare(
+    `
+    DELETE FROM profile_tokens
+    WHERE profileId = ?1 AND uuid = ?2
+    `
+  )
+    .bind(profileId, tokenUuid)
+    .run()
+}
+
+/**
+ * Clean up expired tokens for a given profile.
+ */
+export const cleanUpExpiredTokens = async (env: Env, profileId: number) => {
+  await env.DB.prepare(
+    `
+    DELETE FROM profile_tokens
+    WHERE profileId = ?1 AND expiresAt <= ?2
+    `
+  )
+    .bind(profileId, Math.floor(Date.now() / 1000))
+    .run()
 }

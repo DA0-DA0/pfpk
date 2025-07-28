@@ -1,184 +1,118 @@
+import { RequestHandler } from 'itty-router'
+
 import { getOwnedNftImageUrl } from '../chains'
 import {
   AuthorizedRequest,
-  Env,
-  UpdateProfile,
+  ProfileUpdate,
   UpdateProfileRequest,
-  UpdateProfileResponse,
 } from '../types'
 import {
   KnownError,
   NotOwnerError,
   getPreferredProfilePublicKey,
   getProfileFromName,
-  getProfileFromPublicKeyHex,
+  objectMatchesStructure,
   saveProfile,
+  setProfileChainPreferences,
 } from '../utils'
 
 const ALLOWED_NAME_CHARS = /^[a-zA-Z0-9._]+$/
 
-export const updateProfile = async (
+export const updateProfile: RequestHandler<
+  AuthorizedRequest<UpdateProfileRequest>
+> = async (
   {
-    parsedBody: { data: requestBody },
+    validatedBody: { data: body },
+    profile: existingProfile,
     publicKey,
-  }: AuthorizedRequest<UpdateProfileRequest>,
+    profilePublicKeyRowId,
+  },
   env: Env
 ) => {
-  const respond = (status: number, response: UpdateProfileResponse) =>
-    new Response(JSON.stringify(response), {
-      status,
-    })
-
   try {
-    // Validate body.
-    if (!requestBody) {
-      throw new Error('Missing.')
-    }
-    if (!('profile' in requestBody) || !requestBody.profile) {
-      throw new Error('Missing profile.')
-    }
+    // Validate profile exists.
     if (
-      !('nonce' in requestBody.profile) ||
-      typeof requestBody.profile.nonce !== 'number'
+      !objectMatchesStructure(body, {
+        profile: {},
+      })
     ) {
-      throw new Error('Missing profile.nonce.')
+      throw new Error('Missing profile update object.')
     }
-    // Only validate name if truthy, since it can be set to null to clear it.
-    if (
-      'name' in requestBody.profile &&
-      typeof requestBody.profile.name === 'string'
-    ) {
-      requestBody.profile.name = requestBody.profile.name.trim()
 
-      if (requestBody.profile.name.length === 0) {
+    // Only validate name if a string, since it can be set to null to clear it.
+    if ('name' in body.profile && typeof body.profile.name === 'string') {
+      body.profile.name = body.profile.name.trim()
+
+      if (body.profile.name.length === 0) {
         throw new Error('Name cannot be empty.')
       }
 
-      if (requestBody.profile.name.length > 32) {
+      if (body.profile.name.length > 32) {
         throw new Error('Name cannot be longer than 32 characters.')
       }
 
-      if (!ALLOWED_NAME_CHARS.test(requestBody.profile.name)) {
+      if (!ALLOWED_NAME_CHARS.test(body.profile.name)) {
         throw new Error(
           'Name can only contain alphanumeric characters, periods, and underscores.'
         )
       }
     }
-    // Only validate NFT properties if truthy, since it can be set to null to
+
+    // Only validate NFT properties if present, since it can be set to null to
     // clear it.
     if (
-      'nft' in requestBody.profile &&
-      requestBody.profile.nft &&
-      (!('chainId' in requestBody.profile.nft) ||
-        !requestBody.profile.nft.chainId ||
-        !('collectionAddress' in requestBody.profile.nft) ||
-        !requestBody.profile.nft.collectionAddress ||
-        !('tokenId' in requestBody.profile.nft) ||
-        // tokenId could be an empty string, so only perform a typecheck here.
-        typeof requestBody.profile.nft.tokenId !== 'string')
+      'nft' in body.profile &&
+      body.profile.nft &&
+      !objectMatchesStructure(body.profile.nft, {
+        chainId: {},
+        collectionAddress: {},
+        tokenId: {},
+      })
     ) {
-      throw new Error('NFT needs chainId, collectionAddress, and tokenId.')
+      throw new Error(
+        'Invalid NFT update object. Must have `chainId`, `collectionAddress`, and `tokenId`.'
+      )
     }
   } catch (err) {
-    console.error('Parsing request body', err)
-
-    return respond(400, {
-      error: err instanceof Error ? err.message : `${err}`,
-    })
-  }
-
-  // Get existing profile. Initialize with defaults in case no profile found.
-  let existingProfileId: number | undefined
-  let profile: UpdateProfile = {
-    nonce: 0,
-    name: null,
-    nft: null,
-  }
-
-  try {
-    const profileRow = await getProfileFromPublicKeyHex(env, publicKey.hex)
-    if (profileRow) {
-      existingProfileId = profileRow.id
-      profile = {
-        nonce: profileRow.nonce,
-        name: profileRow.name,
-        nft:
-          profileRow.nftChainId &&
-          profileRow.nftCollectionAddress &&
-          profileRow.nftTokenId
-            ? {
-                chainId: profileRow.nftChainId,
-                collectionAddress: profileRow.nftCollectionAddress,
-                tokenId: profileRow.nftTokenId,
-              }
-            : null,
-      }
-    }
-  } catch (err) {
-    console.error('Profile retrieval', err)
-
-    return respond(500, {
-      error:
-        'Failed to retrieve existing profile: ' +
-        (err instanceof Error ? err.message : `${err}`),
-    })
-  }
-
-  // Validate nonce to prevent replay attacks.
-  if (requestBody.profile.nonce !== profile.nonce) {
-    return respond(401, {
-      error: `Invalid nonce. Expected: ${profile.nonce}`,
-    })
+    throw new KnownError(400, err instanceof Error ? err.message : `${err}`)
   }
 
   // Validate name and NFT partial updates.
-  const { name, nft } = requestBody.profile
+  const { name, nft } = body.profile
 
   // If setting name, verify unique.
   if (typeof name === 'string') {
     try {
       const namedProfile = await getProfileFromName(env, name)
       // Only error if profile that is not the existing profile has the name.
-      if (namedProfile && namedProfile.id !== existingProfileId) {
-        return respond(400, {
-          error: 'Name already taken.',
-        })
+      if (namedProfile && namedProfile.id !== existingProfile.id) {
+        throw new KnownError(400, 'Name already taken.')
       }
     } catch (err) {
-      console.error('Name uniqueness retrieval', err)
+      if (err instanceof KnownError) {
+        throw err
+      }
 
-      return respond(500, {
-        error:
-          'Failed to check name uniqueness: ' +
-          (err instanceof Error ? err.message : `${err}`),
-      })
+      console.error('Name uniqueness retrieval', err)
+      throw new KnownError(500, 'Failed to check name uniqueness', err)
     }
   }
 
   // If setting NFT, verify it belongs to the profile's public key.
   if (nft) {
     try {
-      // If profile exists, get public key for the NFT's chain, falling back to
-      // the current public key in case no public key has been added for that
-      // chain..
-      const chainPublicKeyHex = existingProfileId
-        ? (await getPreferredProfilePublicKey(
-            env,
-            existingProfileId,
-            nft.chainId
-          )) || publicKey
-        : // If profile doesn't exist yet, but the NFT is on a chain being registered for this public key right now, use the current public key. `getPreferredProfilePublicKey` will fail if no profile exists, but the profile is about to exist.
-          (
-              requestBody.chainIds
-                ? requestBody.chainIds.includes(nft.chainId)
-                : requestBody.auth.chainId === nft.chainId
-            )
-          ? publicKey
-          : undefined
-      if (!chainPublicKeyHex) {
+      // Get public key for the NFT's chain, falling back to the current public
+      // key if it's for the same chain.
+      const chainPublicKey =
+        (await getPreferredProfilePublicKey(
+          env,
+          existingProfile.id,
+          nft.chainId
+        )) || publicKey
+      if (!chainPublicKey) {
         throw new KnownError(
           405,
-          "No public key is associated with the NFT's chain."
+          "No public key is associated with the NFT's chain or provided in the request."
         )
       }
 
@@ -186,7 +120,7 @@ export const updateProfile = async (
       const imageUrl = await getOwnedNftImageUrl(
         nft.chainId,
         env,
-        chainPublicKeyHex,
+        chainPublicKey,
         nft.collectionAddress,
         nft.tokenId
       )
@@ -196,62 +130,65 @@ export const updateProfile = async (
         throw new KnownError(415, 'Failed to retrieve image from NFT.')
       }
     } catch (err) {
-      if (err instanceof NotOwnerError) {
-        return respond(401, {
-          error: 'You do not own this NFT.',
-        })
-      }
-
-      // If already handled, respond with specific error.
       if (err instanceof KnownError) {
-        return respond(err.statusCode, err.responseJson)
+        throw err
       }
 
-      return respond(500, {
-        error:
-          'Unexpected ownership verification error: ' +
-          (err instanceof Error ? err.message : `${err}`),
-      })
+      if (err instanceof NotOwnerError) {
+        throw new KnownError(401, 'You do not own this NFT.')
+      }
+
+      throw new KnownError(500, 'Unexpected ownership verification error', err)
     }
   }
 
   // Update fields with partial updates if available. Both are nullable, so
   // allow setting to null or new value.
-
-  if (name !== undefined) {
-    profile.name = name
+  const profileUpdate: ProfileUpdate = {
+    ...(name !== undefined && { name }),
+    ...(nft !== undefined && {
+      // Explicitly copy over values to prevent the user from setting whatever
+      // values they want in this object.
+      nft: nft && {
+        chainId: nft.chainId,
+        collectionAddress: nft.collectionAddress,
+        tokenId: nft.tokenId,
+      },
+    }),
   }
-  if (nft !== undefined) {
-    // Explicitly copy over values to prevent the user from setting whatever
-    // values they want in this object.
-    profile.nft = nft && {
-      chainId: nft.chainId,
-      collectionAddress: nft.collectionAddress,
-      tokenId: nft.tokenId,
+
+  // If chains passed to set preferences, validate public key auth exists and
+  // then set preferences.
+  if (body.chainIds?.length) {
+    // If no public key auth, throw error, since we need a public key to set
+    // chain preferences for.
+    if (profilePublicKeyRowId === undefined) {
+      throw new KnownError(
+        400,
+        'Public key authorization required when setting chain preferences.'
+      )
     }
-  }
 
-  // Increment nonce to prevent replay attacks.
-  profile.nonce++
-
-  // Save.
-  try {
-    await saveProfile(
-      env,
-      publicKey,
-      profile,
-      // If no chains passed, default to the current chain used to sign.
-      requestBody.chainIds || [requestBody.auth.chainId]
-    )
-  } catch (err) {
-    console.error('Profile save', err)
-
-    return respond(500, {
-      error:
-        'Failed to save profile: ' +
-        (err instanceof Error ? err.message : `${err}`),
+    await setProfileChainPreferences(env, {
+      profileId: existingProfile.id,
+      profilePublicKeyId: profilePublicKeyRowId,
+      chainIds: body.chainIds,
     })
   }
 
-  return respond(200, { success: true })
+  // Save.
+  try {
+    await saveProfile(env, profileUpdate, {
+      uuid: existingProfile.uuid,
+    })
+  } catch (err) {
+    if (err instanceof KnownError) {
+      throw err
+    }
+
+    console.error('Profile save', err)
+    throw new KnownError(500, 'Failed to save profile', err)
+  }
+
+  return new Response(null, { status: 204 })
 }

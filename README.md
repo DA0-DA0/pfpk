@@ -1,9 +1,8 @@
 # pfpk
 
-pic for public key. A [Cloudflare
-Worker](https://developers.cloudflare.com/workers) that allows associating a
-name and NFT (image) with a given set of [Cosmos](https://cosmos.network)
-wallets / public keys.
+profile for public key. A [Cloudflare
+Worker](https://developers.cloudflare.com/workers) that allows creating profiles
+attached to wallets / public keys.
 
 Currently deployed at https://pfpk.daodao.zone
 
@@ -52,13 +51,21 @@ npm run dev
 
 1. Copy `wrangler.toml.example` to `wrangler.toml`.
 
-2. Create D1 database for production:
+2. Copy `.dev.vars.example` to `.dev.vars`.
+
+3. Create D1 database:
 
 ```sh
 npx wrangler d1 create pfpk
 ```
 
-3. Update the binding ID in `wrangler.toml`:
+4. Create secrets:
+
+```sh
+echo -n "your-secret" | npx wrangler secret put JWT_SECRET
+```
+
+5. Update the binding ID in `wrangler.toml`:
 
 ```toml
 [[ d1_databases ]]
@@ -83,34 +90,34 @@ The returned type is:
 
 ```ts
 type FetchProfileResponse = {
-  uuid: string;
-  nonce: number;
-  name: string | null;
+  uuid: string
+  nonce: number
+  name: string | null
   nft: {
-    chainId: string;
-    collectionAddress: string;
-    tokenId: string;
-    imageUrl: string;
-  } | null;
+    chainId: string
+    collectionAddress: string
+    tokenId: string
+    imageUrl: string
+  } | null
   chains: Record<
     string,
     {
       publicKey: {
-        type: string;
-        hex: string;
+        type: string
+        hex: string
       }
-      address: string;
+      address: string
     }
-  >;
-};
+  >
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type FetchProfileResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route checks that the given public key is attached to a profile, verifies
@@ -154,43 +161,40 @@ The expected request body type is:
 type UpdateProfileRequest = {
   data: {
     profile: {
-      nonce: number;
-      name?: string | null;
+      nonce: number
+      name?: string | null
       nft?: {
-        chainId: string;
-        collectionAddress: string;
-        tokenId: string;
-      } | null;
-    };
-    chainIds?: string[];
+        chainId: string
+        collectionAddress: string
+        tokenId: string
+      } | null
+    }
+    chainIds?: string[]
     auth: {
-      type: string;
-      nonce: number;
-      chainId: string;
-      chainFeeDenom: string;
-      chainBech32Prefix: string;
-      publicKeyType: string;
-      publicKeyHex: string;
-    };
-  };
-  signature: string;
-};
+      type: string
+      nonce: number
+      chainId: string
+      chainFeeDenom: string
+      chainBech32Prefix: string
+      publicKey: {
+        type: string
+        hex: string
+      }
+    }
+  }
+  signature: string
+}
 ```
 
-The returned type is:
+The successful response is a 204 status code.
+
+In case of an error, the response status is >= 400 and the response body
+contains an error message:
 
 ```ts
 type UpdateProfileResponse = {
-  success: true;
-};
-```
-
-or in the case of an error:
-
-```ts
-type UpdateProfileResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets the user perform partial updates to their existing profile, or
@@ -224,48 +228,56 @@ type RegisterPublicKeyRequest = {
   data: {
     publicKeys: {
       data: {
-        allow: string;
-        chainIds?: string[];
+        allow:
+          | {
+              uuid: string
+            }
+          | {
+              publicKey: {
+                type: string
+                hex: string
+              }
+            }
+        chainIds?: string[]
         auth: {
-          type: string;
-          nonce: number;
-          chainId: string;
-          chainFeeDenom: string;
-          chainBech32Prefix: string;
-          publicKeyType: string;
-          publicKeyHex: string;
-        };
-      };
-      signature: string;
-    }[];
+          type: string
+          nonce: number
+          chainId: string
+          chainFeeDenom: string
+          chainBech32Prefix: string
+          publicKey: {
+            type: string
+            hex: string
+          }
+        }
+      }
+      signature: string
+    }[]
     auth: {
-      type: string;
-      nonce: number;
-      chainId: string;
-      chainFeeDenom: string;
-      chainBech32Prefix: string;
-      publicKeyType: string;
-      publicKeyHex: string;
-    };
-  };
-  signature: string;
-};
+      type: string
+      nonce: number
+      chainId: string
+      chainFeeDenom: string
+      chainBech32Prefix: string
+      publicKey: {
+        type: string
+        hex: string
+      }
+    }
+  }
+  signature: string
+}
 ```
 
-The returned type is:
+The successful response is a 204 status code.
+
+In case of an error, the response status is >= 400 and the response body
+contains an error message:
 
 ```ts
 type RegisterPublicKeyResponse = {
-  success: true;
-};
-```
-
-or in the case of an error:
-
-```ts
-type RegisterPublicKeyResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets the user register public keys for their profile and/or set chain
@@ -324,33 +336,30 @@ type UnregisterPublicKeyRequest = {
       hex: string
     }[]
     auth: {
-      type: string;
-      nonce: number;
-      chainId: string;
-      chainFeeDenom: string;
-      chainBech32Prefix: string;
-      publicKeyType: string;
-      publicKeyHex: string;
-    };
-  };
-  signature: string;
-};
+      type: string
+      nonce: number
+      chainId: string
+      chainFeeDenom: string
+      chainBech32Prefix: string
+      publicKey: {
+        type: string
+        hex: string
+      }
+    }
+  }
+  signature: string
+}
 ```
 
-The returned type is:
+The successful response is a 204 status code.
+
+In case of an error, the response status is >= 400 and the response body
+contains an error message:
 
 ```ts
 type UnregisterPublicKeyResponse = {
-  success: true;
-};
-```
-
-or in the case of an error:
-
-```ts
-type UnregisterPublicKeyResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets the user unregister public keys from their profile.
@@ -376,29 +385,29 @@ The returned type is:
 ```ts
 type SearchProfilesResponse = {
   profiles: Array<{
-    uuid: string | null;
+    uuid: string | null
     publicKey: {
-      type: string;
-      hex: string;
-    };
-    address: string;
-    name: string | null;
+      type: string
+      hex: string
+    }
+    address: string
+    name: string | null
     nft: {
-      chainId: string;
-      collectionAddress: string;
-      tokenId: string;
-      imageUrl: string;
-    } | null;
-  }>;
-};
+      chainId: string
+      collectionAddress: string
+      tokenId: string
+      imageUrl: string
+    } | null
+  }>
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type SearchProfilesResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets you search for profiles with names that have a given prefix. It
@@ -416,29 +425,29 @@ The returned type is:
 ```ts
 type ResolveProfileResponse = {
   resolved: {
-    uuid: string;
+    uuid: string
     publicKey: {
-      type: string;
-      hex: string;
-    };
-    address: string;
-    name: string | null;
+      type: string
+      hex: string
+    }
+    address: string
+    name: string | null
     nft: {
-      chainId: string;
-      collectionAddress: string;
-      tokenId: string;
-      imageUrl: string;
-    } | null;
-  } | null;
-};
+      chainId: string
+      collectionAddress: string
+      tokenId: string
+      imageUrl: string
+    } | null
+  } | null
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type ResolveProfileResponse = {
-  error: string;
-};
+  error: string
+}
 ```
 
 This route lets you resolve a profile from its name.
@@ -451,14 +460,14 @@ The returned type is:
 
 ```ts
 type StatsResponse = {
-  total: number;
-};
+  total: number
+}
 ```
 
 or in the case of an error:
 
 ```ts
 type StatsResponse = {
-  error: string;
-};
+  error: string
+}
 ```

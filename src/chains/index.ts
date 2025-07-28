@@ -3,7 +3,7 @@ import { getOwnedNftImageUrl as stargaze } from './stargaze'
 import { GetOwnedNftImageUrlFunction } from '../types'
 
 // Override NFT getter for chains.
-export const CHAINS: Record<string, GetOwnedNftImageUrlFunction | undefined> = {
+const CHAINS: Record<string, GetOwnedNftImageUrlFunction | undefined> = {
   ['stargaze-1']: stargaze,
 }
 
