@@ -16,12 +16,16 @@ import {
   UpdateProfileRequest,
 } from '../../src/types'
 
-const BASE_URL = 'https://pfpk.test'
+export const TEST_HOSTNAME = 'pfpk.test'
+
 const url = (
   path: string,
   query?: [string, string][] | Record<string, string>
 ) =>
-  BASE_URL + path + (query ? `?${new URLSearchParams(query).toString()}` : '')
+  'https://' +
+  TEST_HOSTNAME +
+  path +
+  (query ? `?${new URLSearchParams(query).toString()}` : '')
 
 export const createTokens = async (
   data?: RequestBody<CreateTokensRequest>,

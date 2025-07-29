@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test'
 import { describe, expect, it, vi } from 'vitest'
 
-import { fetchAuthenticated, invalidateTokens } from './routes'
+import { TEST_HOSTNAME, fetchAuthenticated, invalidateTokens } from './routes'
 import { TestUser } from '../TestUser'
 
 describe('DELETE /tokens', () => {
@@ -10,7 +10,7 @@ describe('DELETE /tokens', () => {
 
     // create 2 tokens
     const [tokenToDelete, adminToken] = await user.createTokens({
-      tokens: [{}, { audience: ['pfpk'], role: 'admin' }],
+      tokens: [{}, { audience: [TEST_HOSTNAME], role: 'admin' }],
     })
 
     // should have 2 tokens
@@ -50,7 +50,7 @@ describe('DELETE /tokens', () => {
 
     // create 3 tokens, one as admin so we can fetch tokens
     await user.createTokens({
-      tokens: [{ audience: ['pfpk'], role: 'admin' }, {}, {}],
+      tokens: [{ audience: [TEST_HOSTNAME], role: 'admin' }, {}, {}],
     })
 
     // should have 3 tokens

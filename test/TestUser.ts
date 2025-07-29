@@ -7,6 +7,7 @@ import { stringToPath as stringToHdPath } from '@cosmjs/crypto'
 import { fromBech32, toHex } from '@cosmjs/encoding'
 
 import {
+  TEST_HOSTNAME,
   createTokens,
   fetchAuthenticated,
   fetchMe,
@@ -146,11 +147,11 @@ export class TestUser {
     chainId,
     tokens = [
       {
-        audience: ['pfpk'],
+        audience: [TEST_HOSTNAME],
         role: 'admin',
       },
       {
-        audience: ['pfpk'],
+        audience: [TEST_HOSTNAME],
         role: 'notAdmin',
       },
     ],
