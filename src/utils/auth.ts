@@ -59,7 +59,10 @@ export const makeJwtAuthMiddleware =
     // Verify audience if provided.
     if (
       audience?.length &&
-      (!jwtPayload.aud || !audience.some((a) => jwtPayload.aud?.includes(a)))
+      (!jwtPayload.aud ||
+        !(audience === 'current'
+          ? jwtPayload.aud.includes(new URL(request.url).hostname)
+          : jwtPayload.aud.some((a) => audience?.includes(a))))
     ) {
       throw new KnownError(401, 'Unauthorized', 'Invalid token audience.')
     }

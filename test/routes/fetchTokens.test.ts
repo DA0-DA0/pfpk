@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { fetchTokens } from './routes'
+import { TEST_HOSTNAME, fetchTokens } from './routes'
 import { TestUser } from '../TestUser'
 
 describe('GET /tokens', () => {
@@ -10,7 +10,7 @@ describe('GET /tokens', () => {
       tokens: [
         {
           name: 'test token 1',
-          audience: ['pfpk'],
+          audience: [TEST_HOSTNAME],
           role: 'admin',
         },
       ],
@@ -24,7 +24,7 @@ describe('GET /tokens', () => {
       {
         id: expect.any(String),
         name: 'test token 1',
-        audience: ['pfpk'],
+        audience: [TEST_HOSTNAME],
         role: 'admin',
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
@@ -50,7 +50,7 @@ describe('GET /tokens', () => {
       {
         id: expect.any(String),
         name: 'test token 1',
-        audience: ['pfpk'],
+        audience: [TEST_HOSTNAME],
         role: 'admin',
         issuedAt: expect.any(Number),
         expiresAt: expect.any(Number),
@@ -88,7 +88,9 @@ describe('GET /tokens', () => {
     vi.advanceTimersByTime(14 * 24 * 60 * 60 * 1000 - 1000)
 
     // create 1 more token, admin so we can fetch tokens
-    await user.createTokens({ tokens: [{ audience: ['pfpk'], role: 'admin' }] })
+    await user.createTokens({
+      tokens: [{ audience: [TEST_HOSTNAME], role: 'admin' }],
+    })
 
     // should have 4 tokens
     let tokens = await user.fetchTokens()

@@ -41,23 +41,23 @@ router
 // Profile stuff
 router
   // Get the profile via JWT token.
-  .get('/me', makeJwtAuthMiddleware({ audience: ['pfpk'] }), fetchMe)
+  .get('/me', makeJwtAuthMiddleware({ audience: 'current' }), fetchMe)
   // Update profile.
   .post(
     '/me',
-    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    makeJwtOrSignatureAuthMiddleware({ audience: 'current', role: ['admin'] }),
     updateProfile
   )
   // Register more public keys.
   .post(
     '/register',
-    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    makeJwtOrSignatureAuthMiddleware({ audience: 'current', role: ['admin'] }),
     registerPublicKeys
   )
   // Unregister existing public keys.
   .post(
     '/unregister',
-    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    makeJwtOrSignatureAuthMiddleware({ audience: 'current', role: ['admin'] }),
     unregisterPublicKeys
   )
   // Resolve profile.
@@ -76,19 +76,19 @@ router
   // Create JWT token(s) via JWT auth or wallet auth.
   .post(
     '/tokens',
-    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    makeJwtOrSignatureAuthMiddleware({ audience: 'current', role: ['admin'] }),
     createTokens
   )
   // Fetch tokens for profile (only JWT auth since GET cannot have a body).
   .get(
     '/tokens',
-    makeJwtAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    makeJwtAuthMiddleware({ audience: 'current', role: ['admin'] }),
     fetchTokens
   )
   // Invalidate tokens.
   .delete(
     '/tokens',
-    makeJwtOrSignatureAuthMiddleware({ audience: ['pfpk'], role: ['admin'] }),
+    makeJwtOrSignatureAuthMiddleware({ audience: 'current', role: ['admin'] }),
     invalidateTokens
   )
   // Return successfully if authenticated via JWT token. JWT auth middleware is

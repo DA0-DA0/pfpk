@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createTokens, fetchAuthenticated, fetchTokens } from './routes'
+import {
+  TEST_HOSTNAME,
+  createTokens,
+  fetchAuthenticated,
+  fetchTokens,
+} from './routes'
 import { CreateTokensRequest } from '../../src/types'
 import { INITIAL_NONCE } from '../../src/utils'
 import { TestUser } from '../TestUser'
@@ -16,7 +21,7 @@ describe('POST /tokens', () => {
         tokens: [
           {
             name: 'test token',
-            audience: ['pfpk'],
+            audience: [TEST_HOSTNAME],
             role: 'admin',
           },
           {
@@ -30,7 +35,7 @@ describe('POST /tokens', () => {
     expect(tokens.length).toBe(2)
     expect(tokens[0].token).toBeTruthy()
     expect(tokens[0].name).toBe('test token')
-    expect(tokens[0].audience).toEqual(['pfpk'])
+    expect(tokens[0].audience).toEqual([TEST_HOSTNAME])
     expect(tokens[0].role).toBe('admin')
     expect(tokens[1].token).toBeTruthy()
     expect(tokens[1].name).toBe('test token 2')
@@ -44,7 +49,7 @@ describe('POST /tokens', () => {
     expect(
       (
         await fetchAuthenticated(tokens[0].token, {
-          audience: ['pfpk'],
+          audience: [TEST_HOSTNAME],
           role: ['admin'],
         })
       ).response.status
@@ -58,7 +63,7 @@ describe('POST /tokens', () => {
     expect(
       (
         await fetchAuthenticated(tokens[1].token, {
-          audience: ['pfpk'],
+          audience: [TEST_HOSTNAME],
         })
       ).response.status
     ).toBe(401)
@@ -77,7 +82,7 @@ describe('POST /tokens', () => {
     expect(fetchedTokens.length).toBe(2)
     expect(fetchedTokens[0].id).toBe(tokens[0].id)
     expect(fetchedTokens[0].name).toBe('test token')
-    expect(fetchedTokens[0].audience).toEqual(['pfpk'])
+    expect(fetchedTokens[0].audience).toEqual([TEST_HOSTNAME])
     expect(fetchedTokens[0].role).toBe('admin')
     expect(fetchedTokens[1].id).toBe(tokens[1].id)
     expect(fetchedTokens[1].name).toBe('test token 2')
@@ -89,7 +94,7 @@ describe('POST /tokens', () => {
     const user = await TestUser.create('neutron-1')
     // create admin token for creating other tokens
     await user.createTokens({
-      tokens: [{ audience: ['pfpk'], role: 'admin' }],
+      tokens: [{ audience: [TEST_HOSTNAME], role: 'admin' }],
     })
 
     const {
@@ -134,7 +139,7 @@ describe('POST /tokens', () => {
     expect(
       (
         await fetchAuthenticated(tokens[0].token, {
-          audience: ['pfpk'],
+          audience: [TEST_HOSTNAME],
         })
       ).response.status
     ).toBe(401)
@@ -148,7 +153,7 @@ describe('POST /tokens', () => {
     expect(
       (
         await fetchAuthenticated(tokens[1].token, {
-          audience: ['pfpk'],
+          audience: [TEST_HOSTNAME],
         })
       ).response.status
     ).toBe(401)
@@ -165,7 +170,7 @@ describe('POST /tokens', () => {
       body: { tokens: fetchedTokens },
     } = await fetchTokens(user.tokens.admin)
     expect(fetchedTokens.length).toBe(3)
-    expect(fetchedTokens[0].audience).toEqual(['pfpk'])
+    expect(fetchedTokens[0].audience).toEqual([TEST_HOSTNAME])
     expect(fetchedTokens[0].role).toBe('admin')
     expect(fetchedTokens[1].id).toBe(tokens[0].id)
     expect(fetchedTokens[1].name).toBe('test token')
@@ -177,60 +182,39 @@ describe('POST /tokens', () => {
     expect(fetchedTokens[2].role).toBeNull()
   })
 
-  it('returns 200 with multiple tokens', async () => {
+  it('returns 401 if creating token for auth service with JWT auth', async () => {
     const user = await TestUser.create('neutron-1')
-    const {
-      response: { status },
-      body,
-    } = await createTokens(
-      await user.signRequestBody({
-        tokens: [
-          {
-            name: 'first',
-            audience: ['pfpk'],
-            role: 'admin',
-          },
-          {},
-          {
-            audience: ['some.domain'],
-          },
-        ],
-      })
+    await user.createTokens()
+
+    const { response, error } = await createTokens(
+      {
+        data: { tokens: [{ name: 'test token', audience: [TEST_HOSTNAME] }] },
+      },
+      user.tokens.admin
+    )
+    expect(response.status).toBe(401)
+    expect(error).toBe(
+      `Unauthorized: Tokens for ${TEST_HOSTNAME} must be created via signature auth.`
     )
 
-    expect(status).toBe(200)
-    expect(body.tokens.length).toBe(3)
-    // Different IDs
-    expect(body.tokens[0].id).not.toBe(body.tokens[1].id)
-    expect(body.tokens[0].id).not.toBe(body.tokens[2].id)
-    expect(body.tokens[1].id).not.toBe(body.tokens[2].id)
-    // Same issuedAt/expiresAt
-    expect(body.tokens[0].issuedAt).toBe(body.tokens[1].issuedAt)
-    expect(body.tokens[0].issuedAt).toBe(body.tokens[2].issuedAt)
-    expect(body.tokens[0].expiresAt).toBe(body.tokens[1].expiresAt)
-    expect(body.tokens[0].expiresAt).toBe(body.tokens[2].expiresAt)
-    // Different tokens
-    expect(body.tokens[0].token).not.toBe(body.tokens[1].token)
-    expect(body.tokens[0].token).not.toBe(body.tokens[2].token)
-    expect(body.tokens[1].token).not.toBe(body.tokens[2].token)
-
-    // List tokens
-    const {
-      body: { tokens },
-    } = await fetchTokens(body.tokens[0].token)
-    expect(tokens.length).toBe(3)
-    expect(tokens[0].id).toBe(body.tokens[0].id)
-    expect(tokens[1].id).toBe(body.tokens[1].id)
-    expect(tokens[2].id).toBe(body.tokens[2].id)
-    expect(tokens[0].name).toBe('first')
-    expect(tokens[1].name).toBeNull()
-    expect(tokens[2].name).toBeNull()
-    expect(tokens[0].audience).toEqual(['pfpk'])
-    expect(tokens[1].audience).toBeNull()
-    expect(tokens[2].audience).toEqual(['some.domain'])
-    expect(tokens[0].role).toBe('admin')
-    expect(tokens[1].role).toBeNull()
-    expect(tokens[2].role).toBeNull()
+    const { response: response2, error: error2 } = await createTokens(
+      {
+        data: {
+          tokens: [
+            {
+              name: 'test token',
+              audience: [TEST_HOSTNAME, 'another.domain'],
+              role: 'admin',
+            },
+          ],
+        },
+      },
+      user.tokens.admin
+    )
+    expect(response2.status).toBe(401)
+    expect(error2).toBe(
+      `Unauthorized: Tokens for ${TEST_HOSTNAME} must be created via signature auth.`
+    )
   })
 
   it('returns 400 when missing body', async () => {
@@ -263,7 +247,7 @@ describe('POST /tokens', () => {
       await createTokens(
         {
           data: {
-            tokens: [{ name: 'test token', audience: ['pfpk'] }],
+            tokens: [{ name: 'test token', audience: [TEST_HOSTNAME] }],
           },
         },
         wrongAudienceToken

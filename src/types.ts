@@ -214,9 +214,10 @@ export type FetchAuthenticatedResponse = {
 
 export type JwtTokenRequirements = {
   /**
-   * Optionally verify the token contains at least one of the audiences.
+   * Optionally verify the token contains at least one of the audiences. If
+   * `current` is provided, the audience must be the current domain.
    */
-  audience?: string[]
+  audience?: 'current' | string[]
   /**
    * Optionally verify the token contains at least one of the roles.
    */
