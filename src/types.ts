@@ -153,6 +153,7 @@ export type InvalidateTokensRequest = {
 
 export type TokenJson = {
   id: string
+  token: string
   name: string | null
   audience: string[] | null
   role: string | null
@@ -160,8 +161,10 @@ export type TokenJson = {
   expiresAt: number
 }
 
+export type TokenJsonNoToken = Omit<TokenJson, 'token'>
+
 export type FetchTokensResponse = {
-  tokens: TokenJson[]
+  tokens: TokenJsonNoToken[]
 }
 
 export type ErrorResponse = {
@@ -197,15 +200,7 @@ export type CreateTokensRequest = {
 }
 
 export type CreateTokensResponse = {
-  tokens: {
-    id: string
-    token: string
-    name: string | null
-    audience: string[] | null
-    role: string | null
-    issuedAt: number
-    expiresAt: number
-  }[]
+  tokens: TokenJson[]
 }
 
 export type FetchAuthenticatedResponse = {

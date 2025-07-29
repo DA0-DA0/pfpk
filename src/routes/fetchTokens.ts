@@ -1,6 +1,10 @@
 import { RequestHandler } from 'itty-router'
 
-import { AuthorizedRequest, FetchTokensResponse, TokenJson } from '../types'
+import {
+  AuthorizedRequest,
+  FetchTokensResponse,
+  TokenJsonNoToken,
+} from '../types'
 import { getValidTokensForProfile } from '../utils'
 
 export const fetchTokens: RequestHandler<AuthorizedRequest> = async (
@@ -10,7 +14,14 @@ export const fetchTokens: RequestHandler<AuthorizedRequest> = async (
   const tokens = await getValidTokensForProfile(env, profile.id)
   return {
     tokens: tokens.map(
-      ({ uuid, name, audience, role, createdAt, expiresAt }): TokenJson => ({
+      ({
+        uuid,
+        name,
+        audience,
+        role,
+        createdAt,
+        expiresAt,
+      }): TokenJsonNoToken => ({
         id: uuid,
         name,
         audience: audience ? JSON.parse(audience) : null,
