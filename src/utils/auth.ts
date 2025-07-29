@@ -1,4 +1,5 @@
 import { makeSignDoc, serializeSignDoc } from '@cosmjs/amino'
+import { parse } from 'cookie'
 import { RequestHandler } from 'itty-router'
 
 import {
@@ -34,20 +35,35 @@ export const makeJwtAuthMiddleware =
     role,
   }: JwtTokenRequirements = {}): RequestHandler<AuthorizedRequest> =>
   async (request, env: Env) => {
-    // If JWT token is provided, verify it.
+    let token: string | undefined
+
+    // Get JWT token from Authorization header or cookie.
     const authHeader = request.headers.get('Authorization')
-    if (!authHeader) {
-      throw new KnownError(401, 'Unauthorized', 'No authorization header.')
-    }
+    if (authHeader) {
+      const [type, _token] = authHeader.split(' ')
 
-    const [type, token] = authHeader.split(' ')
+      if (type !== 'Bearer') {
+        throw new KnownError(
+          401,
+          'Unauthorized',
+          'Invalid token type, expected `Bearer`.'
+        )
+      }
 
-    if (type !== 'Bearer') {
-      throw new KnownError(
-        401,
-        'Unauthorized',
-        'Invalid token type, expected `Bearer`.'
-      )
+      token = _token
+    } else {
+      const cookieStr = request.headers.get('Cookie')
+      if (!cookieStr?.length) {
+        throw new KnownError(
+          401,
+          'Unauthorized',
+          'No authorization header nor cookie provided.'
+        )
+      }
+
+      const tokens = Object.values(parse(cookieStr))
+
+      // TODO: try each token?
     }
 
     if (!token) {
@@ -59,7 +75,10 @@ export const makeJwtAuthMiddleware =
     // Verify audience if provided.
     if (
       audience?.length &&
-      (!jwtPayload.aud || !audience.some((a) => jwtPayload.aud?.includes(a)))
+      (!jwtPayload.aud ||
+        !(audience === 'current'
+          ? jwtPayload.aud.includes(new URL(request.url).hostname)
+          : jwtPayload.aud.some((a) => audience?.includes(a))))
     ) {
       throw new KnownError(401, 'Unauthorized', 'Invalid token audience.')
     }

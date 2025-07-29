@@ -1,3 +1,4 @@
+import { serialize } from 'cookie'
 import { RequestHandler } from 'itty-router'
 
 import {
@@ -6,6 +7,7 @@ import {
   CreateTokensResponse,
 } from '../types'
 import {
+  KnownError,
   cleanUpExpiredTokens,
   createJwtSet,
   saveTokensToProfile,
@@ -80,25 +82,52 @@ export const createTokens: RequestHandler<
   // Save tokens in the DB so they can be listed or invalidated later.
   await saveTokensToProfile(env, createdTokens)
 
-  return {
-    tokens: createdTokens.map(
-      ({
-        tokenUuid,
-        name = null,
-        audience = null,
-        role = null,
-        issuedAt,
-        expiresAt,
-        token,
-      }) => ({
-        id: tokenUuid,
-        token,
-        name,
-        audience,
-        role,
-        issuedAt,
-        expiresAt,
-      })
-    ),
-  }
+  const headers = new Headers()
+
+  // Save cookie for each token and domain (audience) if provided.
+  createdTokens.forEach(({ tokenUuid, token, expiresAt, audience }) => {
+    const domains = audience || [undefined]
+    domains.forEach((domain) => {
+      headers.append(
+        'Set-Cookie',
+        serialize(tokenUuid, token, {
+          httpOnly: true,
+          sameSite: 'none',
+          domain,
+          secure: true,
+          expires: new Date(expiresAt * 1000),
+        })
+      )
+    })
+  })
+
+  const response = new Response(
+    JSON.stringify({
+      tokens: createdTokens.map(
+        ({
+          tokenUuid,
+          name = null,
+          audience = null,
+          role = null,
+          issuedAt,
+          expiresAt,
+          token,
+        }) => ({
+          id: tokenUuid,
+          token,
+          name,
+          audience,
+          role,
+          issuedAt,
+          expiresAt,
+        })
+      ),
+    } satisfies CreateTokensResponse),
+    {
+      status: 200,
+      headers,
+    }
+  )
+
+  return response
 }

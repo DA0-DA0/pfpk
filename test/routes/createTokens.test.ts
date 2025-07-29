@@ -1,3 +1,4 @@
+import { parse } from 'cookie'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -41,6 +42,20 @@ describe('POST /tokens', () => {
     expect(tokens[1].name).toBe('test token 2')
     expect(tokens[1].audience).toBeNull()
     expect(tokens[1].role).toBeNull()
+
+    // check that cookies are set
+    expect(headers.getAll('Set-Cookie')).toHaveLength(2)
+    expect(parse(headers.getAll('Set-Cookie')[0])).toEqual({
+      [tokens[0].id]: tokens[0].token,
+      Domain: TEST_HOSTNAME,
+      Expires: expect.any(String),
+      SameSite: 'None',
+    })
+    expect(parse(headers.getAll('Set-Cookie')[1])).toEqual({
+      [tokens[1].id]: tokens[1].token,
+      Expires: expect.any(String),
+      SameSite: 'None',
+    })
 
     // admin token should be valid
     expect((await fetchAuthenticated(tokens[0].token)).response.status).toBe(
@@ -98,7 +113,7 @@ describe('POST /tokens', () => {
     })
 
     const {
-      response: { status },
+      response: { status, headers },
       body: { tokens },
     } = await createTokens(
       {
@@ -126,6 +141,19 @@ describe('POST /tokens', () => {
     expect(tokens[1].name).toBe('test token 2')
     expect(tokens[1].audience).toBeNull()
     expect(tokens[1].role).toBeNull()
+
+    // check that cookies are set
+    expect(headers.getAll('Set-Cookie')).toHaveLength(2)
+    expect(parse(headers.getAll('Set-Cookie')[0])).toEqual({
+      [tokens[0].id]: tokens[0].token,
+      Expires: expect.any(String),
+      SameSite: 'None',
+    })
+    expect(parse(headers.getAll('Set-Cookie')[1])).toEqual({
+      [tokens[1].id]: tokens[1].token,
+      Expires: expect.any(String),
+      SameSite: 'None',
+    })
 
     // both tokens should be valid
     expect((await fetchAuthenticated(tokens[0].token)).response.status).toBe(

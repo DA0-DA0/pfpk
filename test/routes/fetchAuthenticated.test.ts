@@ -248,10 +248,12 @@ describe('GET /auth', () => {
     ).toBe(401)
   })
 
-  it('returns 401 if no Authorization header', async () => {
+  it('returns 401 if no Authorization header nor cookie', async () => {
     const { response, error } = await fetchAuthenticated()
     expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: No authorization header.')
+    expect(error).toBe(
+      'Unauthorized: No authorization header nor cookie provided.'
+    )
   })
 
   it('returns 401 if not Bearer type', async () => {

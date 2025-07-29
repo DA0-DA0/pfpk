@@ -110,6 +110,8 @@ describe('GET /tokens', () => {
 
     const { response, error } = await fetchTokens()
     expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: No authorization header.')
+    expect(error).toBe(
+      'Unauthorized: No authorization header nor cookie provided.'
+    )
   })
 })
