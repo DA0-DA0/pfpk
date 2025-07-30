@@ -36,7 +36,7 @@ export const createTokens: RequestHandler<
   await cleanUpExpiredTokens(env, profile.id)
 
   // Create new tokens for the profile.
-  const issuedAt = new Date()
+  const now = new Date()
   const createdTokens = await Promise.all(
     tokens.map(async ({ name, audience, role }) => {
       // If making a token for the current domain, require that they used wallet
@@ -55,6 +55,7 @@ export const createTokens: RequestHandler<
 
       const {
         uuid: tokenUuid,
+        issuedAt,
         expiresAt,
         token,
       } = await createJwtSet(env, {
@@ -62,7 +63,7 @@ export const createTokens: RequestHandler<
         audience,
         role,
         expiresInSeconds: EXPIRATION_TIME_SECONDS,
-        issuedAt,
+        issuedAtDate: now,
       })
 
       return {
@@ -71,8 +72,8 @@ export const createTokens: RequestHandler<
         name,
         audience,
         role,
+        issuedAt,
         expiresAt,
-        issuedAt: issuedAt.getTime(),
         token,
       }
     })

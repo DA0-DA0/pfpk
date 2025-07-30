@@ -19,7 +19,7 @@ export const createJwtSet = async (
     audience,
     role,
     expiresInSeconds,
-    issuedAt: issuedAtDate = new Date(),
+    issuedAtDate = new Date(),
   }: {
     /**
      * UUID of the profile.
@@ -40,7 +40,7 @@ export const createJwtSet = async (
     /**
      * Optionally set issuedAt timestamp. Defaults to now.
      */
-    issuedAt?: Date
+    issuedAtDate?: Date
   }
 ): Promise<{
   uuid: string

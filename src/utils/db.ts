@@ -568,8 +568,8 @@ export const saveTokensToProfile = async (
     name?: string | null
     audience?: string[] | null
     role?: string | null
-    expiresAt: number
     issuedAt: number
+    expiresAt: number
   }[]
 ) => {
   await env.DB.batch(
