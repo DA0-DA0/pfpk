@@ -58,6 +58,12 @@ const chains: Chain[] = [
     slip44: 118,
     fee_denom: 'uodis',
   },
+  {
+    chain_id: 'regen-upgrade',
+    bech32_prefix: 'regen',
+    slip44: 118,
+    fee_denom: 'uregen',
+  },
 ]
 
 /**
