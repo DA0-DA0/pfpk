@@ -156,6 +156,7 @@ export type TokenJson = {
   token: string
   name: string | null
   audience: string[] | null
+  scopes: string[] | null
   role: string | null
   issuedAt: number
   expiresAt: number
@@ -195,6 +196,7 @@ export type CreateTokensRequest = {
   tokens?: {
     name?: string
     audience?: string[]
+    scopes?: string[]
     role?: string
   }[]
 }
@@ -216,12 +218,16 @@ export type FetchAuthenticatedResponse = {
 
 export type JwtTokenRequirements = {
   /**
-   * Optionally verify the token contains at least one of the audiences. If
-   * `current` is provided, the audience must be the current domain.
+   * Optionally verify whether the token contains at least one of the audiences.
+   * If `current` is provided, the audience must be the current domain.
    */
   audience?: 'current' | string[]
   /**
-   * Optionally verify the token contains at least one of the roles.
+   * Optionally verify whether the token contains all of the scopes.
+   */
+  scopes?: string[]
+  /**
+   * Optionally verify whether the token contains at least one of the roles.
    */
   role?: string[]
 }
@@ -357,6 +363,7 @@ export type DbRowProfileToken = {
    * JSON array of strings.
    */
   audience: string | null
+  scope: string | null
   role: string | null
   expiresAt: number
   createdAt: number
@@ -368,6 +375,7 @@ export type JwtPayload = {
   exp: number
   iat: number
   jti: string
+  scope?: string
   role?: string
 }
 

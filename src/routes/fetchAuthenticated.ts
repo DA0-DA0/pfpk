@@ -15,13 +15,16 @@ export const fetchAuthenticated: RequestHandler<AuthorizedRequest> = async (
   const audience = request.query.audience?.length
     ? [request.query.audience].flat()
     : undefined
+  const scopes = request.query.scope?.length
+    ? [request.query.scope].flat()
+    : undefined
   const role = request.query.role?.length
     ? [request.query.role].flat()
     : undefined
 
   // Run the JWT auth middleware to verify the token. This will either throw an
   // error for an invalid token or set the `request.profile` field.
-  await makeJwtAuthMiddleware({ audience, role })(request, env)
+  await makeJwtAuthMiddleware({ audience, scopes, role })(request, env)
 
   // TODO: consolidate this with logic in profile.ts
 

@@ -52,10 +52,12 @@ export const fetchAuthenticated = async (
   token?: string,
   {
     audience,
+    scope,
     role,
     headers,
   }: {
     audience?: string[]
+    scope?: string[]
     role?: string[]
     headers?: HeadersInit
   } = {}
@@ -66,6 +68,7 @@ export const fetchAuthenticated = async (
         'audience',
         audience,
       ]) ?? []),
+      ...(scope?.map((scope): [string, string] => ['scope', scope]) ?? []),
       ...(role?.map((role): [string, string] => ['role', role]) ?? []),
     ]),
     {

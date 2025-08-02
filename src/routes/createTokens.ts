@@ -8,7 +8,7 @@ import {
 import {
   KnownError,
   cleanUpExpiredTokens,
-  createJwtSet,
+  createJwt,
   saveTokensToProfile,
 } from '../utils'
 
@@ -38,7 +38,7 @@ export const createTokens: RequestHandler<
   // Create new tokens for the profile.
   const now = new Date()
   const createdTokens = await Promise.all(
-    tokens.map(async ({ name, audience, role }) => {
+    tokens.map(async ({ name, audience, scopes, role }) => {
       // If making a token for the current domain, require that they used wallet
       // signature auth. This forces the user to re-authenticate with their
       // wallet to get a new token for this core auth service, in case their
@@ -53,14 +53,19 @@ export const createTokens: RequestHandler<
         )
       }
 
+      // Scope should be a space-separated string according to the spec:
+      // https://datatracker.ietf.org/doc/html/rfc8693#name-scope-scopes-claim
+      const scope = scopes?.join(' ').trim()
+
       const {
         uuid: tokenUuid,
         issuedAt,
         expiresAt,
         token,
-      } = await createJwtSet(env, {
+      } = await createJwt(env, {
         profileUuid: profile.uuid,
         audience,
+        scope,
         role,
         expiresInSeconds: EXPIRATION_TIME_SECONDS,
         issuedAtDate: now,
@@ -71,6 +76,7 @@ export const createTokens: RequestHandler<
         tokenUuid,
         name,
         audience,
+        scopes,
         role,
         issuedAt,
         expiresAt,
@@ -88,6 +94,7 @@ export const createTokens: RequestHandler<
         tokenUuid,
         name = null,
         audience = null,
+        scopes = null,
         role = null,
         issuedAt,
         expiresAt,
@@ -97,6 +104,7 @@ export const createTokens: RequestHandler<
         token,
         name,
         audience,
+        scopes,
         role,
         issuedAt,
         expiresAt,

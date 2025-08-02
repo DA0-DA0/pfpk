@@ -17,47 +17,254 @@ describe('GET /auth', () => {
     ).toBe(200)
   })
 
-  it('returns 200 if token has audiences but none are required', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({
-      tokens: [
-        {
-          audience: ['pfpk.test', 'daodao.zone'],
-        },
-      ],
+  describe('audience', () => {
+    it('returns 200 if token has audiences but none are required', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            audience: ['pfpk.test', 'daodao.zone'],
+          },
+        ],
+      })
+
+      // token should be valid
+      expect(
+        (await fetchAuthenticated(user.tokens.first)).response.status
+      ).toBe(200)
     })
 
-    // token should be valid
-    expect((await fetchAuthenticated(user.tokens.first)).response.status).toBe(
-      200
-    )
+    it('returns 200 with matching audience', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            audience: ['pfpk.test', 'daodao.zone'],
+          },
+        ],
+      })
+
+      expect(
+        (
+          await fetchAuthenticated(user.tokens.first, {
+            audience: ['pfpk.test'],
+          })
+        ).response.status
+      ).toBe(200)
+
+      expect(
+        (
+          await fetchAuthenticated(user.tokens.first, {
+            audience: ['daodao.zone'],
+          })
+        ).response.status
+      ).toBe(200)
+
+      expect(
+        (
+          await fetchAuthenticated(user.tokens.first, {
+            audience: ['pfpk.test', 'daodao.zone'],
+          })
+        ).response.status
+      ).toBe(200)
+
+      expect(
+        (
+          await fetchAuthenticated(user.tokens.first, {
+            audience: ['invalid.audience', 'pfpk.test'],
+          })
+        ).response.status
+      ).toBe(200)
+    })
+
+    it('returns 401 with mismatched audience', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            audience: ['pfpk.test', 'daodao.zone'],
+          },
+        ],
+      })
+
+      const { response, error } = await fetchAuthenticated(user.tokens.first, {
+        audience: ['pf.pk'],
+      })
+      expect(response.status).toBe(401)
+      expect(error).toBe('Unauthorized: Invalid token audience.')
+    })
+
+    it('returns 401 with no audience', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({ tokens: [{}] })
+
+      const { response, error } = await fetchAuthenticated(user.tokens.first, {
+        audience: ['pf.pk'],
+      })
+      expect(response.status).toBe(401)
+      expect(error).toBe('Unauthorized: Invalid token audience.')
+    })
   })
 
-  it('returns 200 with matching audience', async () => {
+  describe('scope', () => {
+    it('returns 200 if token has scope but none are required', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            scopes: ['some_scope'],
+          },
+        ],
+      })
+
+      // token should be valid
+      expect(
+        (await fetchAuthenticated(user.tokens.first)).response.status
+      ).toBe(200)
+    })
+
+    it('returns 200 with matching scope', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            scopes: ['some_scope'],
+          },
+        ],
+      })
+
+      expect(
+        (
+          await fetchAuthenticated(user.tokens.first, {
+            scope: ['some_scope'],
+          })
+        ).response.status
+      ).toBe(200)
+    })
+
+    it('returns 401 with mismatched scopes', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            scopes: ['some_scope'],
+          },
+        ],
+      })
+
+      const { response, error } = await fetchAuthenticated(user.tokens.first, {
+        scope: ['some_other_scope'],
+      })
+      expect(response.status).toBe(401)
+      expect(error).toBe('Unauthorized: Invalid token scope.')
+
+      // requires all scopes
+      const { response: response2, error: error2 } = await fetchAuthenticated(
+        user.tokens.first,
+        {
+          scope: ['some_scope', 'some_other_scope'],
+        }
+      )
+      expect(response2.status).toBe(401)
+      expect(error2).toBe('Unauthorized: Invalid token scope.')
+    })
+
+    it('returns 401 with no scope', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({ tokens: [{}] })
+
+      const { response, error } = await fetchAuthenticated(user.tokens.first, {
+        scope: ['some_scope'],
+      })
+      expect(response.status).toBe(401)
+      expect(error).toBe('Unauthorized: Invalid token scope.')
+    })
+  })
+
+  describe('role', () => {
+    it('returns 200 if token has role but none are required', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            role: 'some_role',
+          },
+        ],
+      })
+
+      // token should be valid
+      expect(
+        (await fetchAuthenticated(user.tokens.first)).response.status
+      ).toBe(200)
+    })
+
+    it('returns 200 with matching role', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            role: 'some_role',
+          },
+        ],
+      })
+
+      expect(
+        (
+          await fetchAuthenticated(user.tokens.first, {
+            role: ['some_role'],
+          })
+        ).response.status
+      ).toBe(200)
+
+      expect(
+        (
+          await fetchAuthenticated(user.tokens.first, {
+            role: ['some_other_role', 'some_role'],
+          })
+        ).response.status
+      ).toBe(200)
+    })
+
+    it('returns 401 with mismatched role', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({
+        tokens: [
+          {
+            role: 'some_role',
+          },
+        ],
+      })
+
+      const { response, error } = await fetchAuthenticated(user.tokens.first, {
+        role: ['some_other_role'],
+      })
+      expect(response.status).toBe(401)
+      expect(error).toBe('Unauthorized: Invalid token role.')
+    })
+
+    it('returns 401 with no role', async () => {
+      const user = await TestUser.create('neutron-1')
+      await user.createTokens({ tokens: [{}] })
+
+      const { response, error } = await fetchAuthenticated(user.tokens.first, {
+        role: ['some_role'],
+      })
+      expect(response.status).toBe(401)
+      expect(error).toBe('Unauthorized: Invalid token role.')
+    })
+  })
+
+  it('returns 200 with matching audience, scope, and role', async () => {
     const user = await TestUser.create('neutron-1')
     await user.createTokens({
       tokens: [
         {
-          audience: ['pfpk.test', 'daodao.zone'],
-        },
-      ],
-    })
-
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
           audience: ['pfpk.test'],
-        })
-      ).response.status
-    ).toBe(200)
-
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
-          audience: ['daodao.zone'],
-        })
-      ).response.status
-    ).toBe(200)
+          scopes: ['scope1', 'scope2'],
+          role: 'some_role',
+        },
+      ],
+    })
 
     expect(
       (
@@ -70,65 +277,18 @@ describe('GET /auth', () => {
     expect(
       (
         await fetchAuthenticated(user.tokens.first, {
-          audience: ['invalid.audience', 'pfpk.test'],
+          scope: ['scope1'],
         })
       ).response.status
     ).toBe(200)
-  })
 
-  it('returns 401 with mismatched audience', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({
-      tokens: [
-        {
-          audience: ['pfpk.test', 'daodao.zone'],
-        },
-      ],
-    })
-
-    const { response, error } = await fetchAuthenticated(user.tokens.first, {
-      audience: ['pf.pk'],
-    })
-    expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid token audience.')
-  })
-
-  it('returns 401 with no audience', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({ tokens: [{}] })
-
-    const { response, error } = await fetchAuthenticated(user.tokens.first, {
-      audience: ['pf.pk'],
-    })
-    expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid token audience.')
-  })
-
-  it('returns 200 if token has role but none are required', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({
-      tokens: [
-        {
-          role: 'some_role',
-        },
-      ],
-    })
-
-    // token should be valid
-    expect((await fetchAuthenticated(user.tokens.first)).response.status).toBe(
-      200
-    )
-  })
-
-  it('returns 200 with matching role', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({
-      tokens: [
-        {
-          role: 'some_role',
-        },
-      ],
-    })
+    expect(
+      (
+        await fetchAuthenticated(user.tokens.first, {
+          scope: ['scope1', 'scope2'],
+        })
+      ).response.status
+    ).toBe(200)
 
     expect(
       (
@@ -141,66 +301,8 @@ describe('GET /auth', () => {
     expect(
       (
         await fetchAuthenticated(user.tokens.first, {
-          role: ['some_other_role', 'some_role'],
-        })
-      ).response.status
-    ).toBe(200)
-  })
-
-  it('returns 401 with mismatched role', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({
-      tokens: [
-        {
-          role: 'some_role',
-        },
-      ],
-    })
-
-    const { response, error } = await fetchAuthenticated(user.tokens.first, {
-      role: ['some_other_role'],
-    })
-    expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid token role.')
-  })
-
-  it('returns 401 with no role', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({ tokens: [{}] })
-
-    const { response, error } = await fetchAuthenticated(user.tokens.first, {
-      role: ['some_role'],
-    })
-    expect(response.status).toBe(401)
-    expect(error).toBe('Unauthorized: Invalid token role.')
-  })
-
-  it('returns 200 with matching audience and role', async () => {
-    const user = await TestUser.create('neutron-1')
-    await user.createTokens({
-      tokens: [{ audience: ['pfpk.test'], role: 'some_role' }],
-    })
-
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
-          audience: ['pfpk.test', 'daodao.zone'],
-        })
-      ).response.status
-    ).toBe(200)
-
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
-          role: ['some_role'],
-        })
-      ).response.status
-    ).toBe(200)
-
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
           audience: ['pfpk.test'],
+          scope: ['scope1', 'scope2'],
           role: ['some_role'],
         })
       ).response.status
@@ -210,42 +312,78 @@ describe('GET /auth', () => {
   it('returns 401 with mismatched audience and role', async () => {
     const user = await TestUser.create('neutron-1')
     await user.createTokens({
-      tokens: [{ audience: ['pfpk.test'], role: 'some_role' }],
+      tokens: [
+        {
+          audience: ['pfpk.test'],
+          scopes: ['scope1', 'scope2'],
+          role: 'some_role',
+        },
+      ],
     })
 
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
-          audience: ['invalid.audience'],
-        })
-      ).response.status
-    ).toBe(401)
+    const invalidFilters = [
+      // invalid audience
+      {
+        audience: ['invalid.audience'],
+      },
+      // non-existent scope
+      {
+        scope: ['invalid_scope'],
+      },
+      // extra scope
+      {
+        scope: ['scope1', 'scope2', 'scope3'],
+      },
+      // invalid role
+      {
+        role: ['invalid_role'],
+      },
+      // valid audience, invalid scope
+      {
+        audience: ['pfpk.test'],
+        scope: ['invalid_scope'],
+      },
+      // valid audience, invalid role
+      {
+        audience: ['pfpk.test'],
+        role: ['invalid_role'],
+      },
+      // invalid audience, valid role
+      {
+        audience: ['invalid.audience'],
+        role: ['some_role'],
+      },
+      // invalid audience, valid scope, valid role
+      {
+        audience: ['invalid.audience'],
+        scope: ['scope1', 'scope2'],
+        role: ['some_role'],
+      },
+      // valid audience, invalid scope, valid role
+      {
+        audience: ['pfpk.test'],
+        scope: ['scope1', 'scope2', 'scope3'],
+        role: ['some_role'],
+      },
+      // valid audience, invalid scope, invalid role
+      {
+        audience: ['pfpk.test'],
+        scope: ['scope1', 'scope2', 'scope3'],
+        role: ['invalid_role'],
+      },
+      // valid audience, valid scope, invalid role
+      {
+        audience: ['pfpk.test'],
+        scope: ['scope1', 'scope2'],
+        role: ['invalid_role'],
+      },
+    ]
 
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
-          role: ['invalid_role'],
-        })
-      ).response.status
-    ).toBe(401)
-
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
-          audience: ['pfpk.test'],
-          role: ['invalid_role'],
-        })
-      ).response.status
-    ).toBe(401)
-
-    expect(
-      (
-        await fetchAuthenticated(user.tokens.first, {
-          audience: ['invalid.audience'],
-          role: ['some_role'],
-        })
-      ).response.status
-    ).toBe(401)
+    for (const test of invalidFilters) {
+      expect(
+        (await fetchAuthenticated(user.tokens.first, test)).response.status
+      ).toBe(401)
+    }
   })
 
   it('returns 401 if no Authorization header', async () => {

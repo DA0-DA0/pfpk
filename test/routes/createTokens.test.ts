@@ -26,21 +26,35 @@ describe('POST /tokens', () => {
           },
           {
             name: 'test token 2',
+            scopes: ['scope1', 'scope2'],
           },
         ],
       })
     )
 
     expect(status).toBe(200)
-    expect(tokens.length).toBe(2)
-    expect(tokens[0].token).toBeTruthy()
-    expect(tokens[0].name).toBe('test token')
-    expect(tokens[0].audience).toEqual([TEST_HOSTNAME])
-    expect(tokens[0].role).toBe('admin')
-    expect(tokens[1].token).toBeTruthy()
-    expect(tokens[1].name).toBe('test token 2')
-    expect(tokens[1].audience).toBeNull()
-    expect(tokens[1].role).toBeNull()
+    expect(tokens).toEqual([
+      {
+        id: tokens[0].id,
+        name: 'test token',
+        audience: [TEST_HOSTNAME],
+        scopes: null,
+        role: 'admin',
+        token: expect.any(String),
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+      {
+        id: tokens[1].id,
+        name: 'test token 2',
+        audience: null,
+        scopes: ['scope1', 'scope2'],
+        role: null,
+        token: expect.any(String),
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+    ])
 
     // admin token should be valid
     expect((await fetchAuthenticated(tokens[0].token)).response.status).toBe(
@@ -59,11 +73,18 @@ describe('POST /tokens', () => {
     expect((await fetchAuthenticated(tokens[1].token)).response.status).toBe(
       200
     )
-    // but not if an audience or role is provided
+    // but not if an audience, scope, or role is provided
     expect(
       (
         await fetchAuthenticated(tokens[1].token, {
           audience: [TEST_HOSTNAME],
+        })
+      ).response.status
+    ).toBe(401)
+    expect(
+      (
+        await fetchAuthenticated(tokens[1].token, {
+          scope: ['scope3'],
         })
       ).response.status
     ).toBe(401)
@@ -79,15 +100,26 @@ describe('POST /tokens', () => {
     const {
       body: { tokens: fetchedTokens },
     } = await fetchTokens(tokens[0].token)
-    expect(fetchedTokens.length).toBe(2)
-    expect(fetchedTokens[0].id).toBe(tokens[0].id)
-    expect(fetchedTokens[0].name).toBe('test token')
-    expect(fetchedTokens[0].audience).toEqual([TEST_HOSTNAME])
-    expect(fetchedTokens[0].role).toBe('admin')
-    expect(fetchedTokens[1].id).toBe(tokens[1].id)
-    expect(fetchedTokens[1].name).toBe('test token 2')
-    expect(fetchedTokens[1].audience).toBeNull()
-    expect(fetchedTokens[1].role).toBeNull()
+    expect(fetchedTokens).toEqual([
+      {
+        id: tokens[0].id,
+        name: 'test token',
+        audience: [TEST_HOSTNAME],
+        scopes: null,
+        role: 'admin',
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+      {
+        id: tokens[1].id,
+        name: 'test token 2',
+        audience: null,
+        scopes: ['scope1', 'scope2'],
+        role: null,
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+    ])
   })
 
   it('returns 200 with created tokens via JWT auth', async () => {
@@ -117,15 +149,28 @@ describe('POST /tokens', () => {
     )
 
     expect(status).toBe(200)
-    expect(tokens.length).toBe(2)
-    expect(tokens[0].token).toBeTruthy()
-    expect(tokens[0].name).toBe('test token')
-    expect(tokens[0].audience).toBeNull()
-    expect(tokens[0].role).toBeNull()
-    expect(tokens[1].token).toBeTruthy()
-    expect(tokens[1].name).toBe('test token 2')
-    expect(tokens[1].audience).toBeNull()
-    expect(tokens[1].role).toBeNull()
+    expect(tokens).toEqual([
+      {
+        id: tokens[0].id,
+        name: 'test token',
+        audience: null,
+        scopes: null,
+        role: null,
+        token: expect.any(String),
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+      {
+        id: tokens[1].id,
+        name: 'test token 2',
+        audience: null,
+        scopes: null,
+        role: null,
+        token: expect.any(String),
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+    ])
 
     // both tokens should be valid
     expect((await fetchAuthenticated(tokens[0].token)).response.status).toBe(
@@ -135,11 +180,18 @@ describe('POST /tokens', () => {
       200
     )
 
-    // but not if an audience or role is provided
+    // but not if an audience, scope, or role is provided
     expect(
       (
         await fetchAuthenticated(tokens[0].token, {
           audience: [TEST_HOSTNAME],
+        })
+      ).response.status
+    ).toBe(401)
+    expect(
+      (
+        await fetchAuthenticated(tokens[0].token, {
+          scope: ['scope1'],
         })
       ).response.status
     ).toBe(401)
@@ -154,6 +206,13 @@ describe('POST /tokens', () => {
       (
         await fetchAuthenticated(tokens[1].token, {
           audience: [TEST_HOSTNAME],
+        })
+      ).response.status
+    ).toBe(401)
+    expect(
+      (
+        await fetchAuthenticated(tokens[1].token, {
+          scope: ['scope1'],
         })
       ).response.status
     ).toBe(401)
@@ -169,17 +228,35 @@ describe('POST /tokens', () => {
     const {
       body: { tokens: fetchedTokens },
     } = await fetchTokens(user.tokens.admin)
-    expect(fetchedTokens.length).toBe(3)
-    expect(fetchedTokens[0].audience).toEqual([TEST_HOSTNAME])
-    expect(fetchedTokens[0].role).toBe('admin')
-    expect(fetchedTokens[1].id).toBe(tokens[0].id)
-    expect(fetchedTokens[1].name).toBe('test token')
-    expect(fetchedTokens[1].audience).toBeNull()
-    expect(fetchedTokens[1].role).toBeNull()
-    expect(fetchedTokens[2].id).toBe(tokens[1].id)
-    expect(fetchedTokens[2].name).toBe('test token 2')
-    expect(fetchedTokens[2].audience).toBeNull()
-    expect(fetchedTokens[2].role).toBeNull()
+    expect(fetchedTokens).toEqual([
+      {
+        id: expect.any(String),
+        name: null,
+        audience: [TEST_HOSTNAME],
+        scopes: null,
+        role: 'admin',
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+      {
+        id: tokens[0].id,
+        name: 'test token',
+        audience: null,
+        scopes: null,
+        role: null,
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+      {
+        id: tokens[1].id,
+        name: 'test token 2',
+        audience: null,
+        scopes: null,
+        role: null,
+        issuedAt: expect.any(Number),
+        expiresAt: expect.any(Number),
+      },
+    ])
   })
 
   it('returns 401 if creating token for auth service with JWT auth', async () => {

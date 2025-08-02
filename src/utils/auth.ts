@@ -31,6 +31,7 @@ export const INITIAL_NONCE = 0
 export const makeJwtAuthMiddleware =
   ({
     audience,
+    scopes,
     role,
   }: JwtTokenRequirements = {}): RequestHandler<AuthorizedRequest> =>
   async (request, env: Env) => {
@@ -65,6 +66,15 @@ export const makeJwtAuthMiddleware =
           : jwtPayload.aud.some((a) => audience?.includes(a))))
     ) {
       throw new KnownError(401, 'Unauthorized', 'Invalid token audience.')
+    }
+
+    // Verify scope if provided.
+    const tokenScopes = jwtPayload.scope?.split(' ')
+    if (
+      scopes?.length &&
+      (!tokenScopes || !scopes.every((s) => tokenScopes.includes(s)))
+    ) {
+      throw new KnownError(401, 'Unauthorized', 'Invalid token scope.')
     }
 
     // Verify role if provided.

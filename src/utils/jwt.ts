@@ -5,18 +5,19 @@ import { objectMatchesStructure } from './objectMatchesStructure'
 import { JwtPayload } from '../types'
 
 /**
- * Create a JWT token set for each role.
+ * Create a JWT token.
  *
  * @param env - The environment.
  * @param options - The options to create the JWT token.
  * @returns The signed JWT tokens, token UUID, issued at timestamp, and
  * expiration timestamp.
  */
-export const createJwtSet = async (
+export const createJwt = async (
   env: Env,
   {
     profileUuid,
     audience,
+    scope,
     role,
     expiresInSeconds,
     issuedAtDate = new Date(),
@@ -29,6 +30,10 @@ export const createJwtSet = async (
      * Optional audience.
      */
     audience?: string[]
+    /**
+     * Optional scope.
+     */
+    scope?: string
     /**
      * Optional role.
      */
@@ -59,7 +64,8 @@ export const createJwtSet = async (
       exp: expiresAt,
       iat: issuedAt,
       jti: uuid,
-      role,
+      ...(scope && { scope }),
+      ...(role && { role }),
     } satisfies JwtPayload,
     env.JWT_SECRET
   )
