@@ -1,7 +1,11 @@
 import { RequestHandler } from 'itty-router'
 
 import { AuthorizedRequest, InvalidateTokensRequest } from '../types'
-import { cleanUpExpiredTokens, removeTokenIdFromProfile } from '../utils'
+import {
+  cleanUpExpiredTokens,
+  removeAllTokensFromProfile,
+  removeTokenIdFromProfile,
+} from '../utils'
 
 export const invalidateTokens: RequestHandler<
   AuthorizedRequest<InvalidateTokensRequest>
@@ -14,18 +18,22 @@ export const invalidateTokens: RequestHandler<
   },
   env: Env
 ) => {
-  // Clean up expired tokens for the profile.
-  await cleanUpExpiredTokens(env, profile.id)
+  // Remove specific tokens or all tokens if none are provided.
+  if (tokens?.length) {
+    await Promise.all(
+      tokens?.map((tokenUuid) =>
+        removeTokenIdFromProfile(env, {
+          profileId: profile.id,
+          tokenUuid,
+        })
+      ) ?? []
+    )
 
-  // Invalidate specified tokens.
-  await Promise.all(
-    tokens?.map((tokenUuid) =>
-      removeTokenIdFromProfile(env, {
-        profileId: profile.id,
-        tokenUuid,
-      })
-    ) ?? []
-  )
+    // Clean up expired tokens as well.
+    await cleanUpExpiredTokens(env, profile.id)
+  } else {
+    await removeAllTokensFromProfile(env, profile.id)
+  }
 
   return new Response(null, { status: 204 })
 }

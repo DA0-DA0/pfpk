@@ -5,17 +5,27 @@ import { TEST_HOSTNAME, fetchAuthenticated, invalidateTokens } from './routes'
 import { TestUser } from '../TestUser'
 
 describe('DELETE /tokens', () => {
-  it('returns 204 and deletes provided tokens', async () => {
+  it('returns 204 and deletes provided and expired tokens', async () => {
     const user = await TestUser.create('neutron-1')
+
+    // create 1 admin token
+    await user.createTokens({
+      tokens: [{ audience: [TEST_HOSTNAME], role: 'admin' }],
+    })
+
+    // advance time by 14 days minus 1 second, so the admin token is almost
+    // expired but not yet
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(14 * 24 * 60 * 60 * 1000 - 1000)
 
     // create 2 tokens
     const [tokenToDelete, adminToken] = await user.createTokens({
       tokens: [{}, { audience: [TEST_HOSTNAME], role: 'admin' }],
     })
 
-    // should have 2 tokens
+    // should have 3 valid tokens
     let tokens = await user.fetchTokens()
-    expect(tokens.length).toBe(2)
+    expect(tokens.length).toBe(3)
 
     // delete first token via signature auth
     const { response } = await invalidateTokens(
@@ -25,9 +35,9 @@ describe('DELETE /tokens', () => {
     )
     expect(response.status).toBe(204)
 
-    // should have 1 token
+    // should have 2 tokens, since the other tokens are still valid
     tokens = await user.fetchTokens()
-    expect(tokens.length).toBe(1)
+    expect(tokens.length).toBe(2)
 
     // deleted token should no longer be valid
     const { response: invalidResponse, error: invalidError } =
@@ -35,17 +45,36 @@ describe('DELETE /tokens', () => {
     expect(invalidResponse.status).toBe(401)
     expect(invalidError).toBe('Unauthorized: Token invalidated.')
 
+    // advance time by 2 seconds, expiring the admin token
+    vi.advanceTimersByTime(2000)
+
+    // should have 1 token
+    tokens = await user.fetchTokens()
+    expect(tokens.length).toBe(1)
+
+    // DB should have 2 rows still since the expired token is not deleted yet
+    let count = (
+      await env.DB.prepare('SELECT COUNT(*) as count FROM profile_tokens').all()
+    ).results[0].count
+    expect(count).toBe(2)
+
     // delete remaining token via JWT auth
     const { response: response2 } = await invalidateTokens(
       await user.signRequestBody({
-        tokens: [tokens[0].id],
+        tokens: [adminToken.id],
       }),
       adminToken.token
     )
     expect(response2.status).toBe(204)
+
+    // DB should have 0 rows in it
+    count = (
+      await env.DB.prepare('SELECT COUNT(*) as count FROM profile_tokens').all()
+    ).results[0].count
+    expect(count).toBe(0)
   })
 
-  it('returns 204 and deletes expired tokens', async () => {
+  it('returns 204 and deletes all tokens when no tokens are provided', async () => {
     const user = await TestUser.create('neutron-1')
 
     // create 3 tokens, one as admin so we can fetch tokens
@@ -57,22 +86,12 @@ describe('DELETE /tokens', () => {
     let tokens = await user.fetchTokens()
     expect(tokens.length).toBe(3)
 
-    // advance time by 14 days and 1 second
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(14 * 24 * 60 * 60 * 1000 + 1000)
-
-    // DB should have 3 tokens in it
-    let count = (
-      await env.DB.prepare('SELECT COUNT(*) as count FROM profile_tokens').all()
-    ).results[0].count
-    expect(count).toBe(3)
-
-    // invalidate expired tokens even when no tokens are provided in the body
+    // invalidate all tokens even when no tokens are provided in the body
     const { response } = await invalidateTokens(await user.signRequestBody({}))
     expect(response.status).toBe(204)
 
     // DB should have 0 tokens in it
-    count = (
+    const count = (
       await env.DB.prepare('SELECT COUNT(*) as count FROM profile_tokens').all()
     ).results[0].count
     expect(count).toBe(0)

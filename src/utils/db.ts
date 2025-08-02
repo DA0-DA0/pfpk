@@ -122,7 +122,7 @@ export const incrementNonce = (env: Env, { type, hex }: PublicKeyJson) =>
     .run()
 
 /**
- * Get top 5 profiles by name prefix (case insensitive) and each profiles'
+ * Get top 10 profiles by name prefix (case insensitive) and each profile's
  * public key for a given chain.
  */
 export const getProfilesWithNamePrefix = async (
@@ -153,7 +153,7 @@ export const getProfilesWithNamePrefix = async (
       WHERE profiles.name LIKE ?1 COLLATE NOCASE
       AND profile_public_key_chain_preferences.chainId = ?2
       ORDER BY profiles.name COLLATE NOCASE ASC
-      LIMIT 5
+      LIMIT 10
       `
     )
       .bind(namePrefix + '%', chainId)
@@ -651,6 +651,23 @@ export const removeTokenIdFromProfile = async (
     `
   )
     .bind(profileId, tokenUuid)
+    .run()
+}
+
+/**
+ * Remove all tokens from a profile.
+ */
+export const removeAllTokensFromProfile = async (
+  env: Env,
+  profileId: number
+) => {
+  await env.DB.prepare(
+    `
+    DELETE FROM profile_tokens
+    WHERE profileId = ?1
+    `
+  )
+    .bind(profileId)
     .run()
 }
 

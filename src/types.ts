@@ -137,8 +137,7 @@ export type UnregisterPublicKeysRequest = {
 
 export type InvalidateTokensRequest = {
   /**
-   * Token IDs to invalidate. If not provided, only expired tokens will be
-   * invalidated.
+   * Token IDs to invalidate. If not provided, all tokens will be invalidated.
    */
   tokens?: string[]
 }
