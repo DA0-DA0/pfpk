@@ -10,7 +10,7 @@ routes = [
 [[ d1_databases ]]
 binding = "DB"
 database_name = "pfpk"
-database_id = "DB_ID"
+database_id = "f7746f9d-4284-4cfc-8942-94d2ab911bf0"
 
 # Secrets:
 # - JWT_SECRET
