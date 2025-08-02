@@ -26,6 +26,7 @@ describe('GET /me', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
 
     // not admin token should work too

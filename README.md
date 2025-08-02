@@ -76,7 +76,8 @@ The empty profile is the following:
   "uuid": "",
   "name": null,
   "nft": null,
-  "chains": {}
+  "chains": {},
+  "createdAt": -1
 }
 ```
 
@@ -305,6 +306,7 @@ persistent data storage and other usecases.
       address: string
     }
   }
+  createdAt: number
 }
 ```
 

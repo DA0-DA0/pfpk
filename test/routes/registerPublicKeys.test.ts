@@ -253,6 +253,7 @@ describe('POST /register', () => {
           address: user.getAddress('phoenix-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
 
     // Profile DB should have one profile.

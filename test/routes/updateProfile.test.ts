@@ -28,6 +28,7 @@ describe('POST /me', () => {
       name: null,
       nft: null,
       chains: {},
+      createdAt: -1,
     })
 
     const { response } = await updateProfile(
@@ -55,6 +56,7 @@ describe('POST /me', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
   })
 
@@ -76,6 +78,7 @@ describe('POST /me', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
 
     const { response } = await updateProfile(
@@ -106,6 +109,7 @@ describe('POST /me', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
   })
 

@@ -68,6 +68,7 @@ export const fetchProfile: RequestHandler = async (
       name: null,
       nft: null,
       chains: {},
+      createdAt: -1,
     }
   }
 }

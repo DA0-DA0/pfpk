@@ -40,6 +40,10 @@ export type FetchedProfile = {
       address: string
     }
   >
+  /**
+   * Timestamp of when the profile was created.
+   */
+  createdAt: number
 }
 
 /**
@@ -320,6 +324,7 @@ export type DbRowProfile = {
   nftChainId: string | null
   nftCollectionAddress: string | null
   nftTokenId: string | null
+  createdAt: string
 }
 
 /**

@@ -18,6 +18,11 @@ export const getFetchedProfileJsonForProfile = async (
     name: profileRow.name?.trim() || null,
     nft: null,
     chains: {},
+    createdAt:
+      // In case the DB returns the timestamp as a number.
+      typeof profileRow.createdAt === 'number'
+        ? profileRow.createdAt
+        : new Date(profileRow.createdAt).getTime(),
   }
 
   // TODO: figure out what to do with chains that aren't in the registry. this

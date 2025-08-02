@@ -48,6 +48,7 @@ describe('GET /:publicKey', () => {
       name: null,
       nft: null,
       chains: {},
+      createdAt: -1,
     })
   })
 
@@ -92,6 +93,7 @@ describe('GET /:publicKey', () => {
             },
           ])
         ),
+        createdAt: expect.any(Number),
       })
     }
   })
@@ -127,6 +129,7 @@ describe('GET /:publicKey', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
@@ -178,6 +181,7 @@ describe('GET /:publicKey', () => {
             },
           ])
       ),
+      createdAt: expect.any(Number),
     })
   })
 })
@@ -195,6 +199,7 @@ describe('GET /address/:bech32Address', () => {
       name: null,
       nft: null,
       chains: {},
+      createdAt: -1,
     })
   })
 
@@ -239,6 +244,7 @@ describe('GET /address/:bech32Address', () => {
             },
           ])
         ),
+        createdAt: expect.any(Number),
       })
     }
   })
@@ -274,6 +280,7 @@ describe('GET /address/:bech32Address', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
@@ -304,6 +311,7 @@ describe('GET /hex/:addressHex', () => {
       name: null,
       nft: null,
       chains: {},
+      createdAt: -1,
     })
   })
 
@@ -348,6 +356,7 @@ describe('GET /hex/:addressHex', () => {
             },
           ])
         ),
+        createdAt: expect.any(Number),
       })
     }
   })
@@ -383,6 +392,7 @@ describe('GET /hex/:addressHex', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
@@ -433,6 +443,7 @@ describe('GET /uuid/:uuid', () => {
           },
         ])
       ),
+      createdAt: expect.any(Number),
     })
   })
 
@@ -465,6 +476,7 @@ describe('GET /uuid/:uuid', () => {
           address: user.getAddress('neutron-1'),
         },
       },
+      createdAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
