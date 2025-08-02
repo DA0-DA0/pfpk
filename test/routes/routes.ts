@@ -105,12 +105,9 @@ export const fetchMe = async (token: string) => {
 }
 
 export const fetchNonce = async (type: string, publicKey: string) => {
-  const request = new Request(
-    url(`/nonce/${publicKey}?` + new URLSearchParams({ type })),
-    {
-      method: 'GET',
-    }
-  )
+  const request = new Request(url(`/nonce/${publicKey}`, { type }), {
+    method: 'GET',
+  })
   const response = await SELF.fetch(request)
   const body = await response.json<any>()
   return {

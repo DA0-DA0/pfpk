@@ -52,14 +52,20 @@ describe('GET /search/:chainId/:namePrefix', () => {
       makeUser('teST5'),
       makeUser('test6'),
       makeUser('test7'),
+      makeUser('test8'),
+      makeUser('test9'),
+      makeUser('testA'),
+      makeUser('testB'),
+      makeUser('testC'),
+      makeUser('testD'),
     ])
 
     for (const chainId of chainIds) {
       const { response, body } = await searchProfiles(chainId, 'test')
       expect(response.status).toBe(200)
       expect(body).toEqual({
-        // Only 5 profiles are returned.
-        profiles: users.slice(0, 5).map(({ name, user }) => ({
+        // Only 10 profiles are returned.
+        profiles: users.slice(0, 10).map(({ name, user }) => ({
           uuid: expect.any(String),
           publicKey: {
             type: CosmosSecp256k1PublicKey.type,
