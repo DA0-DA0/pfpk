@@ -61,11 +61,12 @@ export const makeJwtAuthMiddleware =
     const jwtPayload = await verifyJwt(env, token)
 
     // Verify audience if provided.
+    const hostname = new URL(request.url).hostname
     if (
       audience?.length &&
       (!jwtPayload.aud ||
         !(audience === 'current'
-          ? jwtPayload.aud.includes(new URL(request.url).hostname)
+          ? jwtPayload.aud.includes(hostname)
           : jwtPayload.aud.some((a) => audience?.includes(a))))
     ) {
       throw new KnownError(401, 'Unauthorized', 'Invalid token audience.')
