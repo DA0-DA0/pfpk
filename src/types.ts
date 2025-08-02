@@ -205,6 +205,13 @@ export type CreateTokensResponse = {
 
 export type FetchAuthenticatedResponse = {
   uuid: string
+  chains: Record<
+    string,
+    {
+      publicKey: PublicKeyJson
+      address: string
+    }
+  >
 }
 
 export type JwtTokenRequirements = {

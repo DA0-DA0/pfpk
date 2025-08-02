@@ -4,6 +4,7 @@ import {
   fetchProfileViaAddress,
   fetchProfileViaAddressHex,
   fetchProfileViaPublicKey,
+  fetchProfileViaUuid,
 } from './routes'
 import * as chains from '../../src/chains'
 import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
@@ -107,7 +108,7 @@ describe('GET /:publicKey', () => {
         tokenId: '123',
       },
     })
-    const profile = await user.fetchProfile()
+    const { uuid, nonce } = await user.fetchProfile()
 
     mockGetOwnedNftImageUrl.mockResolvedValueOnce(null)
 
@@ -116,8 +117,8 @@ describe('GET /:publicKey', () => {
     )
     expect(response.status).toBe(200)
     expect(body).toEqual({
-      uuid: profile.uuid,
-      nonce: profile.nonce,
+      uuid,
+      nonce,
       name: 'test',
       nft: null,
       chains: {
@@ -145,7 +146,7 @@ describe('GET /:publicKey', () => {
     await user.registerPublicKeys({
       chainIds,
     })
-    const profile = await user.fetchProfile()
+    const { uuid, nonce } = await user.fetchProfile()
 
     // Pretend cosmoshub-4 is unknown after registration. It's needed during
     // test user creation to prepare the user public keys, but in practice,
@@ -163,8 +164,8 @@ describe('GET /:publicKey', () => {
     )
     expect(response.status).toBe(200)
     expect(body).toEqual({
-      uuid: profile.uuid,
-      nonce: profile.nonce,
+      uuid,
+      nonce,
       name: null,
       nft: null,
       chains: Object.fromEntries(
@@ -258,7 +259,7 @@ describe('GET /address/:bech32Address', () => {
         tokenId: '123',
       },
     })
-    const profile = await user.fetchProfile()
+    const { uuid, nonce } = await user.fetchProfile()
 
     mockGetOwnedNftImageUrl.mockResolvedValueOnce(null)
 
@@ -267,8 +268,8 @@ describe('GET /address/:bech32Address', () => {
     )
     expect(response.status).toBe(200)
     expect(body).toEqual({
-      uuid: profile.uuid,
-      nonce: profile.nonce,
+      uuid,
+      nonce,
       name: 'test',
       nft: null,
       chains: {
@@ -370,7 +371,7 @@ describe('GET /hex/:addressHex', () => {
         tokenId: '123',
       },
     })
-    const profile = await user.fetchProfile()
+    const { uuid, nonce } = await user.fetchProfile()
 
     mockGetOwnedNftImageUrl.mockResolvedValueOnce(null)
 
@@ -379,8 +380,8 @@ describe('GET /hex/:addressHex', () => {
     )
     expect(response.status).toBe(200)
     expect(body).toEqual({
-      uuid: profile.uuid,
-      nonce: profile.nonce,
+      uuid,
+      nonce,
       name: 'test',
       nft: null,
       chains: {
@@ -400,5 +401,96 @@ describe('GET /hex/:addressHex', () => {
       await fetchProfileViaAddressHex(user.getAddressHex('neutron-1'))
     expect(response2.status).toBe(200)
     expect(body2).toEqual(body)
+  })
+})
+
+describe('GET /uuid/:uuid', () => {
+  it('returns 200 with profile for existing UUID', async () => {
+    const user = await TestUser.create(...chainIds)
+    await user.updateProfile({
+      name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
+    })
+    await user.registerPublicKeys({
+      chainIds,
+    })
+    const { uuid, nonce } = await user.fetchProfile(chainIds[0])
+
+    const { response, body } = await fetchProfileViaUuid(uuid)
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid,
+      nonce: nonce,
+      name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+        imageUrl: 'https://daodao.zone/daodao.png',
+      },
+      chains: Object.fromEntries(
+        chainIds.map((chainId) => [
+          chainId,
+          {
+            publicKey: {
+              hex: user.getPublicKey(chainId),
+              type: CosmosSecp256k1PublicKey.type,
+            },
+            address: user.getAddress(chainId),
+          },
+        ])
+      ),
+    })
+  })
+
+  it("returns 200 with profile, ignoring NFT if image doesn't load", async () => {
+    const user = await TestUser.create('neutron-1')
+    await user.updateProfile({
+      name: 'test',
+      nft: {
+        chainId: 'neutron-1',
+        collectionAddress: 'neutron123',
+        tokenId: '123',
+      },
+    })
+    const { uuid, nonce } = await user.fetchProfile()
+
+    mockGetOwnedNftImageUrl.mockResolvedValueOnce(null)
+
+    const { response, body } = await fetchProfileViaUuid(uuid)
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid,
+      nonce,
+      name: 'test',
+      nft: null,
+      chains: {
+        'neutron-1': {
+          publicKey: {
+            hex: user.getPublicKey('neutron-1'),
+            type: CosmosSecp256k1PublicKey.type,
+          },
+          address: user.getAddress('neutron-1'),
+        },
+      },
+    })
+
+    mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
+
+    const { response: response2, body: body2 } = await fetchProfileViaUuid(uuid)
+    expect(response2.status).toBe(200)
+    expect(body2).toEqual(body)
+  })
+
+  it('returns 404 with empty profile for non-existent uuid', async () => {
+    const { response, body } = await fetchProfileViaUuid('non_existent_uuid')
+    expect(response.status).toBe(404)
+    expect(body).toEqual({
+      error: 'Profile not found for UUID: non_existent_uuid',
+    })
   })
 })

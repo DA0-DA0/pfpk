@@ -8,8 +8,12 @@ import {
   getFetchedProfileJsonForProfile,
   getProfileFromAddressHex,
   getProfileFromPublicKeyHex,
+  getProfileFromUuid,
 } from '../utils'
 
+/**
+ * Fetch a profile by public key, address hex, bech32 address, or UUID.
+ */
 export const fetchProfile: RequestHandler = async (
   request,
   env: Env
@@ -20,16 +24,8 @@ export const fetchProfile: RequestHandler = async (
   let addressHex = request.params?.addressHex?.trim()
   // via bech32 address
   const bech32Address = request.params?.bech32Address?.trim()
-
-  // If no public key nor address hex is set, get address hex from bech32
-  // address.
-  try {
-    if (!publicKey && !addressHex && bech32Address) {
-      addressHex = toHex(fromBech32(bech32Address).data)
-    }
-  } catch (err) {
-    throw new KnownError(400, 'Invalid bech32 address', err)
-  }
+  // via uuid
+  const uuid = request.params?.uuid?.trim()
 
   let profileRow: DbRowProfile | null = null
   try {
@@ -37,8 +33,29 @@ export const fetchProfile: RequestHandler = async (
       profileRow = await getProfileFromPublicKeyHex(env, publicKey)
     } else if (addressHex) {
       profileRow = await getProfileFromAddressHex(env, addressHex)
+    } else if (bech32Address) {
+      try {
+        addressHex = toHex(fromBech32(bech32Address).data)
+      } catch (err) {
+        throw new KnownError(400, 'Invalid bech32 address', err)
+      }
+
+      profileRow = await getProfileFromAddressHex(env, addressHex)
+    } else if (uuid) {
+      profileRow = await getProfileFromUuid(env, uuid)
+      // Return an error instead of the empty profile if the specified UUID
+      // isn't found.
+      if (!profileRow) {
+        throw new KnownError(404, `Profile not found for UUID: ${uuid}`)
+      }
+    } else {
+      throw new KnownError(400, 'No profile identifier provided')
     }
   } catch (err) {
+    if (err instanceof KnownError) {
+      throw err
+    }
+
     console.error('Profile retrieval', err)
     throw new KnownError(500, 'Failed to retrieve profile', err)
   }

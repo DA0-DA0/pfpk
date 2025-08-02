@@ -70,6 +70,8 @@ router
   .get('/hex/:addressHex', fetchProfile)
   // Backwards compatible.
   .get('/bech32/:addressHex', fetchProfile)
+  // Fetch profile via UUID.
+  .get('/uuid/:uuid', fetchProfile)
 
 // Token stuff
 router

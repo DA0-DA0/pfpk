@@ -153,6 +153,19 @@ export const fetchProfileViaAddressHex = async (addressHex: string) => {
   }
 }
 
+export const fetchProfileViaUuid = async (uuid: string) => {
+  const request = new Request(url(`/uuid/${uuid}`), {
+    method: 'GET',
+  })
+  const response = await SELF.fetch(request)
+  const body = await response.json<any>()
+  return {
+    response,
+    body: body as FetchProfileResponse,
+    error: body.error as string | undefined,
+  }
+}
+
 export const fetchStats = async () => {
   const request = new Request(url('/stats'), {
     method: 'GET',
