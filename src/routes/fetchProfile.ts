@@ -1,7 +1,11 @@
 import { fromBech32, toHex } from '@cosmjs/encoding'
 import { RequestHandler } from 'itty-router'
 
-import { DbRowProfile, FetchProfileResponse } from '../types'
+import {
+  DbRowProfile,
+  FetchProfileResponse,
+  FetchProfileUuidOnlyResponse,
+} from '../types'
 import {
   KnownError,
   getFetchedProfileJsonForProfile,
@@ -16,7 +20,10 @@ import {
 export const fetchProfile: RequestHandler = async (
   request,
   env: Env
-): Promise<FetchProfileResponse> => {
+): Promise<FetchProfileResponse | FetchProfileUuidOnlyResponse> => {
+  // UUID only.
+  const uuidOnly = request.query?.uuidOnly === 'true'
+
   // via public key
   let publicKey = request.params?.publicKey?.trim()
   // via address hex
@@ -57,6 +64,12 @@ export const fetchProfile: RequestHandler = async (
 
     console.error('Profile retrieval', err)
     throw new KnownError(500, 'Failed to retrieve profile', err)
+  }
+
+  if (uuidOnly) {
+    return {
+      uuid: profileRow?.uuid ?? '',
+    }
   }
 
   if (profileRow) {

@@ -97,6 +97,11 @@ export type StatsResponse = {
 // Body of fetch profile response.
 export type FetchProfileResponse = FetchedProfile
 
+// Body of fetch profile response.
+export type FetchProfileUuidOnlyResponse = {
+  uuid: string
+}
+
 // Body of profile update request.
 export type UpdateProfileRequest = {
   /**

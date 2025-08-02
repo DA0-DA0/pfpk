@@ -188,6 +188,20 @@ describe('GET /:publicKey', () => {
       updatedAt: expect.any(Number),
     })
   })
+
+  it('returns 200 with UUID only for existing public key', async () => {
+    const user = await TestUser.create(...chainIds)
+    const { uuid } = await user.fetchProfile()
+
+    const { response, body } = await fetchProfileViaPublicKey(
+      user.getPublicKey('neutron-1'),
+      true
+    )
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid,
+    })
+  })
 })
 
 describe('GET /address/:bech32Address', () => {
@@ -297,6 +311,20 @@ describe('GET /address/:bech32Address', () => {
     )
     expect(response2.status).toBe(200)
     expect(body2).toEqual(body)
+  })
+
+  it('returns 200 with UUID only for existing address', async () => {
+    const user = await TestUser.create(...chainIds)
+    const { uuid } = await user.fetchProfile()
+
+    const { response, body } = await fetchProfileViaAddress(
+      user.getAddress('neutron-1'),
+      true
+    )
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid,
+    })
   })
 
   it('returns 400 for invalid bech32 address', async () => {
@@ -412,6 +440,20 @@ describe('GET /hex/:addressHex', () => {
     expect(response2.status).toBe(200)
     expect(body2).toEqual(body)
   })
+
+  it('returns 200 with UUID only for existing address hex', async () => {
+    const user = await TestUser.create(...chainIds)
+    const { uuid } = await user.fetchProfile()
+
+    const { response, body } = await fetchProfileViaAddressHex(
+      user.getAddressHex('neutron-1'),
+      true
+    )
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid,
+    })
+  })
 })
 
 describe('GET /uuid/:uuid', () => {
@@ -503,6 +545,17 @@ describe('GET /uuid/:uuid', () => {
     expect(response.status).toBe(404)
     expect(body).toEqual({
       error: 'Profile not found for UUID: non_existent_uuid',
+    })
+  })
+
+  it('returns 200 with UUID only for existing UUID', async () => {
+    const user = await TestUser.create(...chainIds)
+    const { uuid } = await user.fetchProfile()
+
+    const { response, body } = await fetchProfileViaUuid(uuid, true)
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      uuid,
     })
   })
 })

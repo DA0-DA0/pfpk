@@ -117,10 +117,16 @@ export const fetchNonce = async (type: string, publicKey: string) => {
   }
 }
 
-export const fetchProfileViaPublicKey = async (publicKey: string) => {
-  const request = new Request(url(`/${publicKey}`), {
-    method: 'GET',
-  })
+export const fetchProfileViaPublicKey = async (
+  publicKey: string,
+  uuidOnly?: boolean
+) => {
+  const request = new Request(
+    url(`/${publicKey}`, uuidOnly ? { uuidOnly: 'true' } : undefined),
+    {
+      method: 'GET',
+    }
+  )
   const response = await SELF.fetch(request)
   const body = await response.json<any>()
   return {
@@ -130,10 +136,19 @@ export const fetchProfileViaPublicKey = async (publicKey: string) => {
   }
 }
 
-export const fetchProfileViaAddress = async (bech32Address: string) => {
-  const request = new Request(url(`/address/${bech32Address}`), {
-    method: 'GET',
-  })
+export const fetchProfileViaAddress = async (
+  bech32Address: string,
+  uuidOnly?: boolean
+) => {
+  const request = new Request(
+    url(
+      `/address/${bech32Address}`,
+      uuidOnly ? { uuidOnly: 'true' } : undefined
+    ),
+    {
+      method: 'GET',
+    }
+  )
   const response = await SELF.fetch(request)
   const body = await response.json<any>()
   return {
@@ -143,10 +158,16 @@ export const fetchProfileViaAddress = async (bech32Address: string) => {
   }
 }
 
-export const fetchProfileViaAddressHex = async (addressHex: string) => {
-  const request = new Request(url(`/hex/${addressHex}`), {
-    method: 'GET',
-  })
+export const fetchProfileViaAddressHex = async (
+  addressHex: string,
+  uuidOnly?: boolean
+) => {
+  const request = new Request(
+    url(`/hex/${addressHex}`, uuidOnly ? { uuidOnly: 'true' } : undefined),
+    {
+      method: 'GET',
+    }
+  )
   const response = await SELF.fetch(request)
   const body = await response.json<any>()
   return {
@@ -156,10 +177,13 @@ export const fetchProfileViaAddressHex = async (addressHex: string) => {
   }
 }
 
-export const fetchProfileViaUuid = async (uuid: string) => {
-  const request = new Request(url(`/uuid/${uuid}`), {
-    method: 'GET',
-  })
+export const fetchProfileViaUuid = async (uuid: string, uuidOnly?: boolean) => {
+  const request = new Request(
+    url(`/uuid/${uuid}`, uuidOnly ? { uuidOnly: 'true' } : undefined),
+    {
+      method: 'GET',
+    }
+  )
   const response = await SELF.fetch(request)
   const body = await response.json<any>()
   return {
