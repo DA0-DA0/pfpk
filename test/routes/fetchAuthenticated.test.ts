@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { fetchAuthenticated } from './routes'
+import { TEST_HOSTNAME, fetchAuthenticated } from './routes'
 import { TestUser } from '../TestUser'
 
 describe('GET /auth', () => {
@@ -23,7 +23,7 @@ describe('GET /auth', () => {
       await user.createTokens({
         tokens: [
           {
-            audience: ['pfpk.test', 'daodao.zone'],
+            audience: [TEST_HOSTNAME, 'daodao.zone'],
           },
         ],
       })
@@ -39,7 +39,7 @@ describe('GET /auth', () => {
       await user.createTokens({
         tokens: [
           {
-            audience: ['pfpk.test', 'daodao.zone'],
+            audience: [TEST_HOSTNAME, 'daodao.zone'],
           },
         ],
       })
@@ -47,7 +47,7 @@ describe('GET /auth', () => {
       expect(
         (
           await fetchAuthenticated(user.tokens.first, {
-            audience: ['pfpk.test'],
+            audience: [TEST_HOSTNAME],
           })
         ).response.status
       ).toBe(200)
@@ -63,7 +63,7 @@ describe('GET /auth', () => {
       expect(
         (
           await fetchAuthenticated(user.tokens.first, {
-            audience: ['pfpk.test', 'daodao.zone'],
+            audience: ['', 'daodao.zone'],
           })
         ).response.status
       ).toBe(200)
@@ -71,7 +71,7 @@ describe('GET /auth', () => {
       expect(
         (
           await fetchAuthenticated(user.tokens.first, {
-            audience: ['invalid.audience', 'pfpk.test'],
+            audience: ['invalid.audience', TEST_HOSTNAME],
           })
         ).response.status
       ).toBe(200)
@@ -82,7 +82,7 @@ describe('GET /auth', () => {
       await user.createTokens({
         tokens: [
           {
-            audience: ['pfpk.test', 'daodao.zone'],
+            audience: [TEST_HOSTNAME, 'daodao.zone'],
           },
         ],
       })
@@ -259,7 +259,7 @@ describe('GET /auth', () => {
     await user.createTokens({
       tokens: [
         {
-          audience: ['pfpk.test'],
+          audience: [TEST_HOSTNAME],
           scopes: ['scope1', 'scope2'],
           role: 'some_role',
         },
@@ -269,7 +269,7 @@ describe('GET /auth', () => {
     expect(
       (
         await fetchAuthenticated(user.tokens.first, {
-          audience: ['pfpk.test', 'daodao.zone'],
+          audience: [TEST_HOSTNAME, 'daodao.zone'],
         })
       ).response.status
     ).toBe(200)
@@ -301,7 +301,7 @@ describe('GET /auth', () => {
     expect(
       (
         await fetchAuthenticated(user.tokens.first, {
-          audience: ['pfpk.test'],
+          audience: [TEST_HOSTNAME],
           scope: ['scope1', 'scope2'],
           role: ['some_role'],
         })
@@ -314,7 +314,7 @@ describe('GET /auth', () => {
     await user.createTokens({
       tokens: [
         {
-          audience: ['pfpk.test'],
+          audience: [TEST_HOSTNAME],
           scopes: ['scope1', 'scope2'],
           role: 'some_role',
         },
@@ -340,12 +340,12 @@ describe('GET /auth', () => {
       },
       // valid audience, invalid scope
       {
-        audience: ['pfpk.test'],
+        audience: [TEST_HOSTNAME],
         scope: ['invalid_scope'],
       },
       // valid audience, invalid role
       {
-        audience: ['pfpk.test'],
+        audience: [TEST_HOSTNAME],
         role: ['invalid_role'],
       },
       // invalid audience, valid role
@@ -361,19 +361,19 @@ describe('GET /auth', () => {
       },
       // valid audience, invalid scope, valid role
       {
-        audience: ['pfpk.test'],
+        audience: [TEST_HOSTNAME],
         scope: ['scope1', 'scope2', 'scope3'],
         role: ['some_role'],
       },
       // valid audience, invalid scope, invalid role
       {
-        audience: ['pfpk.test'],
+        audience: [TEST_HOSTNAME],
         scope: ['scope1', 'scope2', 'scope3'],
         role: ['invalid_role'],
       },
       // valid audience, valid scope, invalid role
       {
-        audience: ['pfpk.test'],
+        audience: [TEST_HOSTNAME],
         scope: ['scope1', 'scope2'],
         role: ['invalid_role'],
       },

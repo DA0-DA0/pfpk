@@ -1,9 +1,11 @@
 import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vitest'
 
+import { TEST_HOSTNAME } from './routes/routes'
+
 describe('integration', () => {
   const fetch = async (path: string, init?: RequestInit): Promise<Response> => {
-    const request = new Request('https://pfpk.test' + path, init)
+    const request = new Request('https://' + TEST_HOSTNAME + path, init)
     return await SELF.fetch(request)
   }
 
