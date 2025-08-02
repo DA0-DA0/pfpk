@@ -4,7 +4,6 @@ DROP TABLE IF EXISTS profiles;
 CREATE TABLE profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   uuid TEXT NOT NULL,
-  nonce INTEGER NOT NULL DEFAULT 0,
   name TEXT,
   nftChainId TEXT,
   nftCollectionAddress TEXT,
@@ -78,3 +77,19 @@ CREATE TABLE profile_tokens (
 CREATE INDEX IF NOT EXISTS idx_profile_tokens_uuid ON profile_tokens(uuid);
 
 CREATE INDEX IF NOT EXISTS idx_profile_tokens_profile_expires_at ON profile_tokens(profileId, expiresAt);
+
+-- Nonces
+DROP TABLE IF EXISTS nonces;
+
+CREATE TABLE nonces (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  publicKeyType TEXT NOT NULL,
+  publicKeyHex TEXT NOT NULL,
+  nonce INTEGER NOT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  -- unique public key, only one nonce per public key
+  CONSTRAINT unique_public_key UNIQUE (publicKeyType, publicKeyHex)
+);
+
+CREATE INDEX IF NOT EXISTS idx_nonces_public_key ON nonces(publicKeyType, publicKeyHex);

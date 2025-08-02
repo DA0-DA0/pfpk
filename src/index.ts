@@ -35,11 +35,11 @@ router.all('*', preflight)
 router
   // Get stats.
   .get('/stats', fetchStats)
-  // Get nonce for publicKey.
-  .get('/nonce/:publicKey', fetchNonce)
 
 // Profile stuff
 router
+  // Get nonce for public key.
+  .get('/nonce/:publicKey', fetchNonce)
   // Get the profile via JWT token.
   .get('/me', makeJwtAuthMiddleware({ audience: 'current' }), fetchMe)
   // Update profile.

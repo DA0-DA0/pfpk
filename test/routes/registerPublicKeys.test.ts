@@ -15,7 +15,7 @@ describe('POST /register', () => {
     await user.createTokens({
       chainId: chainIds[0],
     })
-    const { uuid, nonce } = await user.fetchProfile()
+    const { uuid } = await user.fetchProfile()
 
     const { response } = await registerPublicKeys(
       await user.signRequestBody(
@@ -28,7 +28,7 @@ describe('POST /register', () => {
               },
               {
                 chainId: chainIds[1],
-                nonce,
+                nonce: await user.fetchNonce(chainIds[1]),
               }
             ),
             await user.signRequestBody(
@@ -38,14 +38,14 @@ describe('POST /register', () => {
               },
               {
                 chainId: chainIds[2],
-                nonce,
+                nonce: await user.fetchNonce(chainIds[2]),
               }
             ),
           ],
         },
         {
           chainId: chainIds[0],
-          nonce,
+          nonce: await user.fetchNonce(chainIds[0]),
         }
       )
     )
@@ -70,7 +70,7 @@ describe('POST /register', () => {
 
   it('returns 204 and registers public keys via public key allow', async () => {
     const user = await TestUser.create(...chainIds)
-    const { nonce } = await user.fetchProfile()
+    const nonce = await user.fetchNonce()
 
     const { response } = await registerPublicKeys(
       await user.signRequestBody(
@@ -138,7 +138,8 @@ describe('POST /register', () => {
     await user.createTokens({
       chainId: 'neutron-1',
     })
-    const { uuid, nonce } = await user.fetchProfile()
+    const { uuid } = await user.fetchProfile()
+    const phoenixNonce = await user.fetchNonce('phoenix-1')
 
     const { response } = await registerPublicKeys(
       {
@@ -151,7 +152,7 @@ describe('POST /register', () => {
               },
               {
                 chainId: 'phoenix-1',
-                nonce,
+                nonce: phoenixNonce,
               }
             ),
           ],
@@ -193,7 +194,7 @@ describe('POST /register', () => {
       chainId: 'phoenix-1',
     })
 
-    const { uuid: neutronUuid, nonce } = await user.fetchProfile('neutron-1')
+    const { uuid: neutronUuid } = await user.fetchProfile('neutron-1')
     const { uuid: phoenixUuid } = await user.fetchProfile('phoenix-1')
 
     expect(neutronUuid).not.toBe(phoenixUuid)
@@ -217,14 +218,14 @@ describe('POST /register', () => {
               },
               {
                 chainId: 'phoenix-1',
-                nonce,
+                nonce: await user.fetchNonce('phoenix-1'),
               }
             ),
           ],
         },
         {
           chainId: 'neutron-1',
-          nonce,
+          nonce: await user.fetchNonce('neutron-1'),
         }
       )
     )
@@ -234,7 +235,6 @@ describe('POST /register', () => {
     const newPhoenixProfile = await user.fetchProfile('phoenix-1')
     expect(newPhoenixProfile).toEqual({
       uuid: neutronUuid,
-      nonce: nonce + 1,
       name: null,
       nft: null,
       chains: {
@@ -267,7 +267,8 @@ describe('POST /register', () => {
     await user.createTokens({
       chainId: 'neutron-1',
     })
-    const { uuid, nonce, chains } = await user.fetchProfile()
+    const { uuid, chains } = await user.fetchProfile()
+    const nonce = await user.fetchNonce()
 
     expect(chains).toEqual({
       'neutron-1': {
@@ -327,7 +328,8 @@ describe('POST /register', () => {
     await user.createTokens({
       chainId: 'neutron-1',
     })
-    const { uuid, nonce } = await user.fetchProfile()
+    const { uuid } = await user.fetchProfile()
+    const nonce = await user.fetchNonce()
 
     const { response, error } = await registerPublicKeys(
       {
@@ -357,7 +359,8 @@ describe('POST /register', () => {
     await user.createTokens({
       chainId: 'neutron-1',
     })
-    const { uuid, nonce } = await user.fetchProfile()
+    const { uuid } = await user.fetchProfile()
+    const nonce = await user.fetchNonce()
 
     const { response, error } = await registerPublicKeys(
       await user.signRequestBody(
@@ -393,7 +396,8 @@ describe('POST /register', () => {
     await user.createTokens({
       chainId: 'neutron-1',
     })
-    const { uuid, nonce } = await user.fetchProfile()
+    const { uuid } = await user.fetchProfile()
+    const nonce = await user.fetchNonce()
 
     const { response, error } = await registerPublicKeys(
       await user.signRequestBody(
@@ -425,7 +429,7 @@ describe('POST /register', () => {
 
   it('returns 401 if allow public key is invalid', async () => {
     const user = await TestUser.create(...chainIds)
-    const { nonce } = await user.fetchProfile()
+    const nonce = await user.fetchNonce()
 
     const { response, error } = await registerPublicKeys(
       await user.signRequestBody(
@@ -467,7 +471,9 @@ describe('POST /register', () => {
     await user.createTokens({
       chainId: 'neutron-1',
     })
-    const { uuid, nonce } = await user.fetchProfile()
+    const { uuid } = await user.fetchProfile()
+    const nonce = await user.fetchNonce()
+    const phoenixNonce = await user.fetchNonce('phoenix-1')
 
     const { response, error } = await registerPublicKeys(
       await user.signRequestBody(
@@ -492,6 +498,6 @@ describe('POST /register', () => {
       )
     )
     expect(response.status).toBe(401)
-    expect(error).toBe(`Unauthorized: Invalid nonce, expected: ${nonce}.`)
+    expect(error).toBe(`Unauthorized: Invalid nonce. Expected: ${phoenixNonce}`)
   })
 })

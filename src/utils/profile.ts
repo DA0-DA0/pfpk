@@ -15,7 +15,6 @@ export const getFetchedProfileJsonForProfile = async (
 ): Promise<FetchedProfile> => {
   const fetchedProfile: FetchedProfile = {
     uuid: profileRow.uuid,
-    nonce: profileRow.nonce,
     name: profileRow.name?.trim() || null,
     nft: null,
     chains: {},

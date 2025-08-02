@@ -2,6 +2,7 @@ import { INITIAL_NONCE } from './auth'
 import { KnownError } from './error'
 import { PublicKeyBase, makePublicKey } from '../publicKeys'
 import {
+  DbRowNonce,
   DbRowProfile,
   DbRowProfilePublicKey,
   DbRowProfilePublicKeyChainPreference,
@@ -84,16 +85,41 @@ export const getProfileFromAddressHex = async (
     .first<DbRowProfile & { publicKeyId: number }>()
 
 /**
- * Get the nonce for a given public key. If no profile exists for the public
- * key, return the default nonce.
+ * Get the nonce for a given public key. If no nonce exists for the public key,
+ * return the default nonce.
  */
 export const getNonce = async (
   env: Env,
-  publicKeyHex: string
+  { type, hex }: PublicKeyJson
 ): Promise<number> => {
-  const profile = await getProfileFromPublicKeyHex(env, publicKeyHex)
-  return profile?.nonce || INITIAL_NONCE
+  const row = await env.DB.prepare(
+    `
+    SELECT nonce
+    FROM nonces
+    WHERE publicKeyType = ?1 AND publicKeyHex = ?2
+    `
+  )
+    .bind(type, hex)
+    .first<Pick<DbRowNonce, 'nonce'>>()
+
+  return row?.nonce ?? INITIAL_NONCE
 }
+
+/**
+ * Increment the nonce for a given public key.
+ */
+export const incrementNonce = (env: Env, { type, hex }: PublicKeyJson) =>
+  env.DB.prepare(
+    `
+    INSERT INTO nonces (publicKeyType, publicKeyHex, nonce)
+    VALUES (?1, ?2, ?3)
+    ON CONFLICT(publicKeyType, publicKeyHex) DO UPDATE SET
+      nonce = nonce + 1,
+      updatedAt = CURRENT_TIMESTAMP
+    `
+  )
+    .bind(type, hex, INITIAL_NONCE + 1)
+    .run()
 
 /**
  * Get top 5 profiles by name prefix (case insensitive) and each profiles'
@@ -276,7 +302,6 @@ export const saveProfile = async (
   let profilePublicKeyId = existingProfile?.profilePublicKeyId
 
   const fieldsToUpdate: [string, string | number | undefined | null][] = [
-    ['nonce', profileUpdate.nonce] as [string, number],
     ['name', profileUpdate.name] as [string, string | null | undefined],
     ['nftChainId', profileUpdate.nft?.chainId] as [
       string,
@@ -319,17 +344,19 @@ export const saveProfile = async (
       )
     }
 
+    const columns = ['uuid', ...fieldsToUpdate.map(([key]) => key)]
+    const values = [
+      crypto.randomUUID(),
+      ...fieldsToUpdate.map(([, value]) => value ?? null),
+    ]
     updatedProfileRow = await env.DB.prepare(
       `
-      INSERT INTO profiles (uuid, ${fieldsToUpdate.map(([key]) => key).join(', ')})
-      VALUES (?1, ${fieldsToUpdate.map((_, index) => `?${index + 2}`).join(', ')})
+      INSERT INTO profiles (${columns.join(', ')})
+      VALUES (${values.map((_, index) => `?${index + 1}`).join(', ')})
       RETURNING *
       `
     )
-      .bind(
-        crypto.randomUUID(),
-        ...fieldsToUpdate.map(([, value]) => value ?? null)
-      )
+      .bind(...values)
       .first<DbRowProfile>()
     if (!updatedProfileRow) {
       throw new KnownError(500, 'Failed to save profile.')

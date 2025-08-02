@@ -3,7 +3,6 @@ import { RequestHandler } from 'itty-router'
 
 import { DbRowProfile, FetchProfileResponse } from '../types'
 import {
-  INITIAL_NONCE,
   KnownError,
   getFetchedProfileJsonForProfile,
   getProfileFromAddressHex,
@@ -66,7 +65,6 @@ export const fetchProfile: RequestHandler = async (
     // Default to the empty profile.
     return {
       uuid: '',
-      nonce: INITIAL_NONCE,
       name: null,
       nft: null,
       chains: {},

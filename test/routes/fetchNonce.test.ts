@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import { fetchNonce } from './routes'
+import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
 import { INITIAL_NONCE } from '../../src/utils/auth'
 import { TestUser } from '../TestUser'
 
 describe('GET /nonce/:publicKey', () => {
   it('returns 200 for valid public key', async () => {
     const user = await TestUser.create('neutron-1')
-    const { response, body } = await fetchNonce(user.getPublicKey('neutron-1'))
+    const { response, body } = await fetchNonce(
+      CosmosSecp256k1PublicKey.type,
+      user.getPublicKey('neutron-1')
+    )
 
     expect(response.status).toBe(200)
     expect(body.nonce).toBe(INITIAL_NONCE)

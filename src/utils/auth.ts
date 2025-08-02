@@ -2,9 +2,11 @@ import { makeSignDoc, serializeSignDoc } from '@cosmjs/amino'
 import { RequestHandler } from 'itty-router'
 
 import {
+  getNonce,
   getProfileFromPublicKeyHex,
   getProfileFromUuid,
   getTokenForProfile,
+  incrementNonce,
   saveProfile,
 } from './db'
 import { KnownError } from './error'
@@ -13,6 +15,7 @@ import { objectMatchesStructure } from './objectMatchesStructure'
 import { makePublicKeyFromJson } from '../publicKeys'
 import {
   AuthorizedRequest,
+  DbRowProfile,
   JwtTokenRequirements,
   PublicKey,
   RequestBody,
@@ -146,11 +149,6 @@ export const makeJwtAuthMiddleware =
  * Notes:
  * - Creates a new profile for the public key if one does not exist.
  * - Increments nonce to prevent replay attacks.
- * - Decrements nonce for profile stored in the request object so that the
- *   handlers have access to the nonce when the request was initiated. This is
- *   important when route handlers validate nested auth data inside the request
- *   body, like `registerPublicKeys`. The profile nonce should be the same
- *   regardless of JWT or signature auth.
  *
  * @param request - The request to authenticate.
  */
@@ -165,76 +163,43 @@ export const signatureAuthMiddleware: RequestHandler<
   }
   const body = request.validatedBody
 
-  // Verify body and add generated public key to request.
-  request.publicKey = await verifyRequestBodyAndGetPublicKey(body)
+  if (!body.data.auth) {
+    throw new KnownError(401, 'Unauthorized', 'Invalid auth data.')
+  }
+
+  // Verify request body, increment nonce, and add public key to request.
+  request.publicKey = await verifyRequestAndIncrementNonce(env, body)
 
   // Retrieve or create profile for public key.
-  let existingProfile
+  let profile: (DbRowProfile & { profilePublicKeyId?: number }) | null = null
   try {
-    existingProfile = await getProfileFromPublicKeyHex(
-      env,
-      request.publicKey.hex
-    )
+    profile = await getProfileFromPublicKeyHex(env, request.publicKey.hex)
   } catch (err) {
     console.error('Profile retrieval', err)
     throw new KnownError(500, 'Failed to retrieve existing profile', err)
   }
 
-  // If no profile found, create a new one.
-  if (!existingProfile) {
-    // Ensure nonce is the initial nonce since this is the first time the user
-    // is authenticating. If it's not, they may think they're using an account
-    // that already exists.
-    if (body.data.auth?.nonce !== INITIAL_NONCE) {
-      throw new KnownError(401, `Invalid nonce. Expected: ${INITIAL_NONCE}`)
-    }
-
-    const { profilePublicKeyId, ...profile } = await saveProfile(
+  // If no profile found, create a new one with the public key and a chain
+  // preference for the chain used to sign.
+  if (!profile) {
+    profile = await saveProfile(
       env,
-      {
-        // Increment nonce to prevent replay attacks.
-        nonce: INITIAL_NONCE + 1,
-      },
+      {},
       {
         publicKey: request.publicKey,
-        // Create chain preference with the current chain used to sign.
         chainIds: [body.data.auth.chainId],
       }
     )
-    request.profile = profile
-    request.profilePublicKeyRowId = profilePublicKeyId
-  }
-  // If profile found, validate nonce and save.
-  else {
-    // Validate nonce to prevent replay attacks.
-    if (body.data.auth?.nonce !== existingProfile.nonce) {
-      throw new KnownError(
-        401,
-        `Invalid nonce. Expected: ${existingProfile.nonce}`
-      )
-    }
-
-    const { profilePublicKeyId, ...profile } = await saveProfile(
-      env,
-      {
-        // Increment nonce to prevent replay attacks.
-        nonce: existingProfile.nonce + 1,
-      },
-      {
-        publicKey: request.publicKey,
-      }
-    )
-    request.profile = profile
-    request.profilePublicKeyRowId = profilePublicKeyId
   }
 
-  // Ensure profile public key exists. This should never happen.
-  if (!request.profilePublicKeyRowId) {
+  // Ensure profile public key exists. This should never happen as it's either
+  // created or already exists.
+  if (!profile.profilePublicKeyId) {
     throw new KnownError(500, 'Failed to retrieve profile public key from DB.')
   }
 
-  // Decrement nonce since the request handler increments it.
-  request.profile.nonce--
+  request.profile = profile
+  request.profilePublicKeyRowId = profile.profilePublicKeyId
 }
 
 /**
@@ -272,7 +237,8 @@ export const makeJwtOrSignatureAuthMiddleware = (
  * Perform verification on a parsed request body. Throws error on failure.
  * Returns public key on success.
  */
-export const verifyRequestBodyAndGetPublicKey = async (
+export const verifyRequestAndIncrementNonce = async (
+  env: Env,
   body: RequestBody
 ): Promise<PublicKey> => {
   if (
@@ -315,6 +281,9 @@ export const verifyRequestBodyAndGetPublicKey = async (
   if (!(await verifySignature(publicKey, body))) {
     throw new KnownError(401, 'Unauthorized', 'Invalid signature.')
   }
+
+  // Validate and increment nonce to prevent replay attacks.
+  await validateAndIncrementNonce(env, publicKey, body.data.auth.nonce)
 
   return publicKey
 }
@@ -372,4 +341,24 @@ export const verifySignature = async (
     console.error('Signature verification', err)
     return false
   }
+}
+
+/**
+ * Validate the nonce for a given public key and increment it to prevent replay
+ * attacks.
+ */
+export const validateAndIncrementNonce = async (
+  env: Env,
+  publicKey: PublicKey,
+  checkNonce: number
+) => {
+  const expectedNonce = await getNonce(env, publicKey)
+  if (checkNonce !== expectedNonce) {
+    throw new KnownError(
+      401,
+      'Unauthorized',
+      `Invalid nonce. Expected: ${expectedNonce}`
+    )
+  }
+  await incrementNonce(env, publicKey)
 }

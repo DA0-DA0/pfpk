@@ -212,7 +212,10 @@ export class TestUser {
       response,
       body: { nonce },
       error,
-    } = await fetchNonce(this.getPublicKey(chainId))
+    } = await fetchNonce(
+      CosmosSecp256k1PublicKey.type,
+      this.getPublicKey(chainId)
+    )
     if (response.status !== 200) {
       throw new Error(`Failed to fetch nonce: ${response.status} ${error}`)
     }
@@ -307,7 +310,7 @@ export class TestUser {
 
     const publicKeys: RegisterPublicKeysRequest['publicKeys'] =
       await Promise.all(
-        chainIds.map((registeringChainId) =>
+        chainIds.map(async (registeringChainId) =>
           this.signRequestBody(
             {
               allow: profile.uuid
@@ -322,7 +325,7 @@ export class TestUser {
             },
             {
               chainId: registeringChainId,
-              nonce: profile.nonce,
+              nonce: await this.fetchNonce(registeringChainId),
             }
           )
         )

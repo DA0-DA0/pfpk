@@ -3,7 +3,7 @@ import { RequestHandler } from 'itty-router'
 import { PublicKeyBase, makePublicKey } from '../publicKeys'
 import { AuthorizedRequest, RegisterPublicKeysRequest } from '../types'
 import { KnownError, addProfilePublicKey, getProfilePublicKeys } from '../utils'
-import { verifyRequestBodyAndGetPublicKey } from '../utils/auth'
+import { verifyRequestAndIncrementNonce } from '../utils/auth'
 
 export const registerPublicKeys: RequestHandler<
   AuthorizedRequest<RegisterPublicKeysRequest>
@@ -22,27 +22,12 @@ export const registerPublicKeys: RequestHandler<
   // Only validate public keys that do not already exist in the profile.
   const toValidate = toRegister.filter(
     (newKey) =>
-      !profilePublicKeys.some(
-        ({ publicKey }) =>
-          newKey.data.auth &&
-          PublicKeyBase.equal(publicKey, newKey.data.auth.publicKey)
+      !profilePublicKeys.some(({ publicKey }) =>
+        PublicKeyBase.equal(publicKey, newKey.data.auth.publicKey)
       )
   )
 
-  try {
-    await Promise.all(
-      toValidate.map((key) => verifyRequestBodyAndGetPublicKey(key))
-    )
-  } catch (err) {
-    if (err instanceof KnownError) {
-      throw err
-    }
-
-    throw new KnownError(500, 'Failed to validate public keys', err)
-  }
-
-  // Validate that all public keys being registered allow this profile to
-  // register them.
+  // Ensure all public keys being registered allow this profile to do so.
   if (
     !toValidate.every((newKey) =>
       'uuid' in newKey.data.allow
@@ -61,13 +46,17 @@ export const registerPublicKeys: RequestHandler<
     )
   }
 
-  // Validate all nonces match the profile to prevent replay attacks.
-  if (toValidate.some((newKey) => newKey.data.auth.nonce !== profile.nonce)) {
-    throw new KnownError(
-      401,
-      'Unauthorized',
-      `Invalid nonce, expected: ${profile.nonce}.`
+  // Verify all signatures and increment nonce to prevent replay attacks.
+  try {
+    await Promise.all(
+      toValidate.map((key) => verifyRequestAndIncrementNonce(env, key))
     )
+  } catch (err) {
+    if (err instanceof KnownError) {
+      throw err
+    }
+
+    throw new KnownError(500, 'Failed to verify public key signatures', err)
   }
 
   // Combine chain ID lists for same public keys

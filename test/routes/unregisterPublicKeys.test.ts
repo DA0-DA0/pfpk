@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 
 import { fetchProfileViaPublicKey, unregisterPublicKeys } from './routes'
 import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
-import { INITIAL_NONCE } from '../../src/utils'
 import { TestUser } from '../TestUser'
 
 // neutron-1 and cosmoshub-4 have the same coin type and public key, phoenix-1
@@ -36,7 +35,6 @@ describe('POST /unregister', () => {
       (await fetchProfileViaPublicKey(user.getPublicKey('phoenix-1'))).body
     ).toEqual({
       uuid,
-      nonce: INITIAL_NONCE + 2,
       name: null,
       nft: null,
       chains: {
@@ -55,7 +53,6 @@ describe('POST /unregister', () => {
       (await fetchProfileViaPublicKey(user.getPublicKey('neutron-1'))).body
     ).toEqual({
       uuid: '',
-      nonce: INITIAL_NONCE,
       name: null,
       nft: null,
       chains: {},
@@ -64,7 +61,6 @@ describe('POST /unregister', () => {
       (await fetchProfileViaPublicKey(user.getPublicKey('cosmoshub-4'))).body
     ).toEqual({
       uuid: '',
-      nonce: INITIAL_NONCE,
       name: null,
       nft: null,
       chains: {},
@@ -99,7 +95,6 @@ describe('POST /unregister', () => {
       (await fetchProfileViaPublicKey(user.getPublicKey('phoenix-1'))).body
     ).toEqual({
       uuid,
-      nonce: INITIAL_NONCE + 1,
       name: null,
       nft: null,
       chains: {
@@ -118,7 +113,6 @@ describe('POST /unregister', () => {
       (await fetchProfileViaPublicKey(user.getPublicKey('neutron-1'))).body
     ).toEqual({
       uuid: '',
-      nonce: INITIAL_NONCE,
       name: null,
       nft: null,
       chains: {},
@@ -127,7 +121,6 @@ describe('POST /unregister', () => {
       (await fetchProfileViaPublicKey(user.getPublicKey('cosmoshub-4'))).body
     ).toEqual({
       uuid: '',
-      nonce: INITIAL_NONCE,
       name: null,
       nft: null,
       chains: {},
@@ -194,7 +187,6 @@ describe('POST /unregister', () => {
         (await fetchProfileViaPublicKey(user.getPublicKey(chainId))).body
       ).toEqual({
         uuid: '',
-        nonce: INITIAL_NONCE,
         name: null,
         nft: null,
         chains: {},

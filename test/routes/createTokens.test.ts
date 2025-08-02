@@ -424,7 +424,9 @@ describe('POST /tokens', () => {
     // should fail with invalid nonce
     const { response: invalidResponse, error } = await createTokens(authBody)
     expect(invalidResponse.status).toBe(401)
-    expect(error).toBe(`Invalid nonce. Expected: ${INITIAL_NONCE + 1}`)
+    expect(error).toBe(
+      `Unauthorized: Invalid nonce. Expected: ${INITIAL_NONCE + 1}`
+    )
 
     // successfully authenticate with new nonce
     const { response: successResponse } = await createTokens(
@@ -443,6 +445,8 @@ describe('POST /tokens', () => {
       await user.signRequestBody({}, { nonce: INITIAL_NONCE + 1 })
     )
     expect(response.status).toBe(401)
-    expect(error).toBe(`Invalid nonce. Expected: ${INITIAL_NONCE}`)
+    expect(error).toBe(
+      `Unauthorized: Invalid nonce. Expected: ${INITIAL_NONCE}`
+    )
   })
 })

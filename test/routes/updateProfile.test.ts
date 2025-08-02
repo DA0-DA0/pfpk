@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { updateProfile } from './routes'
 import * as chains from '../../src/chains'
 import { CosmosSecp256k1PublicKey } from '../../src/publicKeys/CosmosSecp256k1PublicKey'
-import { INITIAL_NONCE, NotOwnerError } from '../../src/utils'
+import { NotOwnerError } from '../../src/utils'
 import { TestUser } from '../TestUser'
 
 const mockGetOwnedNftImageUrl = vi.fn()
@@ -25,7 +25,6 @@ describe('POST /me', () => {
     const initialProfile = await user.fetchProfile()
     expect(initialProfile).toEqual({
       uuid: '',
-      nonce: INITIAL_NONCE,
       name: null,
       nft: null,
       chains: {},
@@ -45,7 +44,6 @@ describe('POST /me', () => {
     expect(profile.uuid.length).toBeGreaterThan(0)
     expect(profile).toEqual({
       uuid: expect.any(String),
-      nonce: initialProfile.nonce + 1,
       name: 'test',
       nft: null,
       chains: {
@@ -67,7 +65,6 @@ describe('POST /me', () => {
     const initialProfile = await user.fetchProfile()
     expect(initialProfile).toEqual({
       uuid: expect.any(String),
-      nonce: INITIAL_NONCE + 1,
       name: null,
       nft: null,
       chains: {
@@ -98,7 +95,6 @@ describe('POST /me', () => {
     expect(profile.uuid.length).toBeGreaterThan(0)
     expect(profile).toEqual({
       uuid: expect.any(String),
-      nonce: initialProfile.nonce,
       name: 'test',
       nft: null,
       chains: {

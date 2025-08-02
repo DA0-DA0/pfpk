@@ -5,10 +5,6 @@ import { IRequestStrict } from 'itty-router'
  */
 export type ProfileUpdate = Partial<{
   /**
-   * Next profile nonce.
-   */
-  nonce: number
-  /**
    * Profile name.
    */
   name: string | null
@@ -26,10 +22,6 @@ export type FetchedProfile = {
    * Unique ID. If no profile set, this will be empty.
    */
   uuid: string
-  /**
-   * Next profile nonce.
-   */
-  nonce: number
   /**
    * Profile name.
    */
@@ -325,7 +317,6 @@ export type AuthorizedRequest<
 export type DbRowProfile = {
   id: number
   uuid: string
-  nonce: number
   name: string | null
   nftChainId: string | null
   nftCollectionAddress: string | null
@@ -354,6 +345,9 @@ export type DbRowProfilePublicKeyChainPreference = {
   chainId: string
 }
 
+/**
+ * Profile token database row.
+ */
 export type DbRowProfileToken = {
   id: number
   profileId: number
@@ -369,6 +363,21 @@ export type DbRowProfileToken = {
   createdAt: number
 }
 
+/**
+ * Nonce database row.
+ */
+export type DbRowNonce = {
+  id: number
+  publicKeyType: string
+  publicKeyHex: string
+  nonce: number
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * JWT payload.
+ */
 export type JwtPayload = {
   sub: string
   aud?: string[]
