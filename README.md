@@ -307,6 +307,7 @@ persistent data storage and other usecases.
     }
   }
   createdAt: number
+  updatedAt: number
 }
 ```
 

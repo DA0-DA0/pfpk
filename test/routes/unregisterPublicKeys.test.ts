@@ -47,6 +47,7 @@ describe('POST /unregister', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     // neutron-1 and cosmoshub-4 should be an empty profile.
@@ -58,6 +59,7 @@ describe('POST /unregister', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
     expect(
       (await fetchProfileViaPublicKey(user.getPublicKey('cosmoshub-4'))).body
@@ -67,6 +69,7 @@ describe('POST /unregister', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
   })
 
@@ -110,6 +113,7 @@ describe('POST /unregister', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     // neutron-1 and cosmoshub-4 should be an empty profile.
@@ -121,6 +125,7 @@ describe('POST /unregister', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
     expect(
       (await fetchProfileViaPublicKey(user.getPublicKey('cosmoshub-4'))).body
@@ -130,6 +135,7 @@ describe('POST /unregister', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
   })
 
@@ -197,6 +203,7 @@ describe('POST /unregister', () => {
         nft: null,
         chains: {},
         createdAt: -1,
+        updatedAt: -1,
       })
     }
   })

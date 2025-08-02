@@ -27,6 +27,7 @@ describe('GET /me', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     // not admin token should work too

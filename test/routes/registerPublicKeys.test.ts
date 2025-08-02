@@ -254,6 +254,7 @@ describe('POST /register', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     // Profile DB should have one profile.

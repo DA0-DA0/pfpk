@@ -29,6 +29,7 @@ describe('POST /me', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
 
     const { response } = await updateProfile(
@@ -57,6 +58,7 @@ describe('POST /me', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
   })
 
@@ -79,6 +81,7 @@ describe('POST /me', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     const { response } = await updateProfile(
@@ -110,6 +113,7 @@ describe('POST /me', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
   })
 

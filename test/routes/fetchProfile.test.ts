@@ -49,6 +49,7 @@ describe('GET /:publicKey', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
   })
 
@@ -94,6 +95,7 @@ describe('GET /:publicKey', () => {
           ])
         ),
         createdAt: expect.any(Number),
+        updatedAt: expect.any(Number),
       })
     }
   })
@@ -130,6 +132,7 @@ describe('GET /:publicKey', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
@@ -182,6 +185,7 @@ describe('GET /:publicKey', () => {
           ])
       ),
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
   })
 })
@@ -200,6 +204,7 @@ describe('GET /address/:bech32Address', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
   })
 
@@ -245,6 +250,7 @@ describe('GET /address/:bech32Address', () => {
           ])
         ),
         createdAt: expect.any(Number),
+        updatedAt: expect.any(Number),
       })
     }
   })
@@ -281,6 +287,7 @@ describe('GET /address/:bech32Address', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
@@ -312,6 +319,7 @@ describe('GET /hex/:addressHex', () => {
       nft: null,
       chains: {},
       createdAt: -1,
+      updatedAt: -1,
     })
   })
 
@@ -357,6 +365,7 @@ describe('GET /hex/:addressHex', () => {
           ])
         ),
         createdAt: expect.any(Number),
+        updatedAt: expect.any(Number),
       })
     }
   })
@@ -393,6 +402,7 @@ describe('GET /hex/:addressHex', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
@@ -444,6 +454,7 @@ describe('GET /uuid/:uuid', () => {
         ])
       ),
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
   })
 
@@ -477,6 +488,7 @@ describe('GET /uuid/:uuid', () => {
         },
       },
       createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     })
 
     mockGetOwnedNftImageUrl.mockRejectedValueOnce(new NotOwnerError())
