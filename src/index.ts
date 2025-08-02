@@ -1,4 +1,4 @@
-import { Router, cors, json, text } from 'itty-router'
+import { Router, cors, json } from 'itty-router'
 
 import { createTokens } from './routes/createTokens'
 import { fetchAuthenticated } from './routes/fetchAuthenticated'
@@ -103,7 +103,7 @@ router
 router.get('/:publicKey', fetchProfile)
 
 // 404
-router.all('*', () => text('Not found', { status: 404 }))
+router.all('*', () => json({ error: 'Not found' }, { status: 404 }))
 
 export default {
   async fetch(

@@ -13,7 +13,9 @@ describe('integration', () => {
     const response = await fetch('/')
 
     expect(response.status).toBe(404)
-    expect(await response.text()).toBe('Not found')
+    expect(await response.json()).toEqual({
+      error: 'Not found',
+    })
   })
 
   describe('CORS support', () => {
