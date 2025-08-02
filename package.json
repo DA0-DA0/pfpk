@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "test": "vitest --passWithNoTests",
+    "test": "vitest --run",
+    "coverage": "npm run test -- --coverage",
     "build": "tsc",
     "dev": "wrangler dev --port 58229",
     "deploy": "wrangler deploy --minify",
