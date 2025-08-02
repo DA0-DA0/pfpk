@@ -1,6 +1,6 @@
 import { beforeAll, vi } from 'vitest'
 
-import { resetTestDb } from './utils'
+import { resetTestDb } from './db'
 
 // Suppress console.error output.
 vi.spyOn(console, 'error').mockImplementation(() => {})
